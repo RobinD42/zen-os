@@ -974,12 +974,14 @@ function M.installReaderReturnPatch()
             })
         end
         if self.is_showing and M.isChapterFile(file)
-                and return_to_chapter_list_on_exit_enabled()
                 and not self._zen_rakuyomi_return_pending then
             local orig_callback = self.on_return_callback
             self._zen_rakuyomi_return_pending = true
             self.on_return_callback = function(...)
                 self._zen_rakuyomi_return_pending = nil
+                if not return_to_chapter_list_on_exit_enabled() then
+                    return M.openLibraryView({ hideTopClose = true, forceLibraryView = true })
+                end
                 if rawget(_G, "__ZEN_UI_RAKUYOMI_CHAPTER_LIST_RESTORED") then
                     _G.__ZEN_UI_RAKUYOMI_CHAPTER_LIST_RESTORED = nil
                     return

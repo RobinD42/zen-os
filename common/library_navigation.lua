@@ -86,7 +86,6 @@ function M.returnToRakuyomiReader(plugin)
     if not ok or type(MangaReader) ~= "table"
             or MangaReader.is_showing ~= true
             or not MangaReader.chapter
-            or MangaReader.chapter._zen_rakuyomi_source_tab ~= "manga"
             or type(MangaReader.onReturn) ~= "function" then
         return false
     end

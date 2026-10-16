@@ -190,6 +190,24 @@ describe("TouchMenu panel gestures", function()
         assert.are.equal(1, pan_registration_count(existing_menu))
     end)
 
+    it("skips separate tap flashes on panel tabs", function()
+        existing_menu.item_table = {}
+        existing_menu.tab_item_table = {
+            { id = "app_launcher", panel = true },
+            { id = "quicksettings", panel = true },
+            { id = "settings" },
+        }
+        existing_menu.bar.icon_widgets = {
+            { allow_flash = true }, { allow_flash = true }, { allow_flash = true },
+        }
+
+        existing_menu:updateItems()
+
+        assert.is_false(existing_menu.bar.icon_widgets[1].allow_flash)
+        assert.is_false(existing_menu.bar.icon_widgets[2].allow_flash)
+        assert.is_true(existing_menu.bar.icon_widgets[3].allow_flash)
+    end)
+
     it("routes the sole pan registration to sliders and preserves stock fallback", function()
         local slider_pans = 0
         local menu = new_menu()
@@ -286,12 +304,16 @@ describe("TouchMenu panel gestures", function()
         UIManager.setDirty = function(_self, _owner, callback) refresh = callback end
 
         for _i, case in ipairs({
-            { true, "#204080", true, "full", true },
-            { true, "#204080", false, "partial", true },
+            { true, "#204080", true, "full", false },
+            { true, "#204080", false, "ui", false },
             { true, "#204080", false, "ui", false, true },
             { true, "#204080", false, "partial", true, true, true },
             { true, "#204080", true, "full", false, true },
             { true, "#204080", true, "full", true, true, true },
+            { true, "#204080", false, "ui", false, false, false, true },
+            { true, "#204080", false, "partial", true, false, true, true },
+            { true, "#204080", true, "full", false, false, false, true },
+            { true, "#204080", true, "full", true, false, true, true },
             { true, "#000000", true, "flashui", false },
             { true, "#000000", false, "ui", false },
             { false, "#204080", true, "flashui", false },
@@ -299,6 +321,7 @@ describe("TouchMenu panel gestures", function()
         }) do
             screen.isColorScreen = function() return case[1] end
             Device.isKindle = function() return case[6] == true end
+            Device.isKobo = function() return case[8] == true end
             screen.night_mode = case[7] == true
             config.accent_color, menu.is_fresh = case[2], case[3]
             menu:updateItems()
@@ -308,6 +331,41 @@ describe("TouchMenu panel gestures", function()
             assert.are.equal(region, refreshed)
             assert.are.equal(case[5], dither)
             assert.is_false(menu.is_fresh)
+        end
+
+        screen.night_mode = false
+        local launcher = { id = "app_launcher", panel = {} }
+        local controls = { id = "quicksettings", panel = {} }
+        for _i, case in ipairs({
+            { true, "#204080", "partial", true },
+            { true, "#000000", "ui", false },
+            { false, "#204080", "ui", false },
+        }) do
+            screen.isColorScreen = function() return case[1] end
+            config.accent_color = case[2]
+            for _j, height in ipairs({ 300, 600, 700 }) do
+                menu.item_table = launcher
+                menu.item_group.getSize = function() return { h = 600 } end
+                menu:updateItems()
+                local mode, refreshed, dither = refresh()
+                assert.are.equal(case[3], mode)
+                assert.are.equal(region, refreshed)
+                assert.are.equal(case[4], dither)
+
+                menu:updateItems()
+                assert.are.equal("ui", refresh())
+
+                menu.item_table = controls
+                menu.item_group.getSize = function() return { h = height } end
+                menu:updateItems()
+                mode, refreshed, dither = refresh()
+                assert.are.equal(case[3], mode)
+                assert.are.equal(region, refreshed)
+                assert.are.equal(case[4], dither)
+
+                menu:updateItems()
+                assert.are.equal("ui", refresh())
+            end
         end
     end)
 end)

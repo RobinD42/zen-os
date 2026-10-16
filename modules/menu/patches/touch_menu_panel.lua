@@ -152,6 +152,11 @@ function M.install(plugin)
     function TouchMenu:updateItems(target_page, target_item_id)
         -- FileManager may create its TouchMenu before Zen UI patches the class.
         ensure_panel_gestures(self)
+        -- The selected tab border provides feedback without an extra refresh.
+        for i, tab in ipairs(self.tab_item_table or {}) do
+            local button = self.bar.icon_widgets[i]
+            if tab.panel and button then button.allow_flash = false end
+        end
         if not self.item_table or not self.item_table.panel then
             local cancelPanelRefresh = get_shared("cancelPanelRefresh")
             if type(cancelPanelRefresh) == "function" then
@@ -161,6 +166,7 @@ function M.install(plugin)
             return orig_updateItems(self, target_page, target_item_id)
         end
 
+        local previous_tab = self._zen_panel_refs and self._zen_panel_refs.tab_id
         if not self._zen_panel_refs then
             self._zen_panel_locked = true
             UIManager:scheduleIn(0.35, function()
@@ -182,6 +188,7 @@ function M.install(plugin)
         table.insert(self.item_group, panel)
 
         local refs = self._zen_panel_refs
+        if refs then refs.tab_id = self.item_table.id end
         if refs and type(refs.layout_rows) == "table" then
             for _i, row in ipairs(refs.layout_rows) do
                 if type(row) == "table" and #row > 0 then
@@ -229,11 +236,11 @@ function M.install(plugin)
         local keep_bg = old_dimen and self.dimen.h >= old_dimen.h
         local colored = Accent.isEnabled(active_plugin and active_plugin.config)
         local is_fresh = self.is_fresh -- Background hatching may clear this in onShow.
+        local tab_changed = not is_fresh and previous_tab ~= self.item_table.id
         UIManager:setDirty((self.is_fresh or keep_bg) and self.show_parent or "all", function()
             local refresh_dimen = old_dimen and old_dimen:combine(self.dimen) or self.dimen
-            -- Match Colorsoft's first frame to non-flashing accent feedback.
-            local color_refresh = colored
-                and not (Device.isKindle and Device:isKindle() and not Screen.night_mode)
+            -- Clear old tab glyphs beneath colored fills when switching tabs.
+            local color_refresh = colored and (Screen.night_mode == true or tab_changed)
             local refresh_type = color_refresh and "partial" or "ui"
             if self.is_fresh or (colored and is_fresh) then
                 refresh_type = colored and getFullRefreshMode() or "flashui"

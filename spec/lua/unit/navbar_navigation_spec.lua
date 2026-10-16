@@ -29,6 +29,7 @@ describe("file browser navbar navigation", function()
     local original_color_text_widget
     local original_feedback
     local original_rakuyomi
+    local original_manga_reader
 
     local function class(methods)
         methods = methods or {}
@@ -60,6 +61,7 @@ describe("file browser navbar navigation", function()
 
     before_each(function()
         original_rakuyomi = rawget(_G, "__ZEN_UI_RAKUYOMI")
+        original_manga_reader = package.loaded.MangaReader
         original_feedback = package.loaded["common/ui/button_feedback"]
         ZenSpec.replace("common/ui/button_feedback", {
             flashButton = function() error("navbar buttons must not flash") end,
@@ -352,6 +354,7 @@ describe("file browser navbar navigation", function()
 
     after_each(function()
         _G.__ZEN_UI_RAKUYOMI = original_rakuyomi
+        package.loaded.MangaReader = original_manga_reader
         for _i, name in ipairs({
             "__ZEN_UI_PLUGIN", "__ZEN_UI_NAVBAR_OPEN_DEFAULT_TAB", "__ZEN_UI_NAVBAR_OPEN_TAB",
             "__ZEN_UI_NAVBAR_OPEN_FOLDER", "__ZEN_UI_NAVBAR_OPEN_TAG",
@@ -584,6 +587,25 @@ describe("file browser navbar navigation", function()
             assert.is_nil(_G.__ZEN_UI_LIBRARY_STATE)
             if not restore then assert.equals("home", calls[#calls]) end
         end
+    end)
+
+    it("defers Rakuyomi Home to the pending reader return callback", function()
+        local opened_library = 0
+        ZenSpec.replace("MangaReader", { _zen_rakuyomi_return_pending = true })
+        _G.__ZEN_UI_RAKUYOMI = {
+            openLibraryView = function() opened_library = opened_library + 1; return true end,
+        }
+        _G.__ZEN_UI_PLUGIN.config.rakuyomi = {
+            open_on_manga_exit = true, return_to_chapter_list_on_exit = false,
+        }
+        _G.__ZEN_UI_LIBRARY_STATE = { tab = "manga", force_restore = true }
+        local fm = make_instance()
+        FileManager._test_next_instance = fm
+
+        FileManager.showFiles(FileManager, "/library", "/library/chapter.cbz")
+
+        assert.equals(0, opened_library)
+        assert.is_nil(fm.invisible)
     end)
 
     it("keeps the Rakuyomi library and chapter-list return options when reopening is enabled", function()

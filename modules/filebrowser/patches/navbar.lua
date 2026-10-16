@@ -3900,6 +3900,8 @@ local function apply_navbar()
                 state.rakuyomi_return_file = nil
             end
             if state.tab == "manga" and not return_enabled then
+                local MangaReader = package.loaded.MangaReader
+                if MangaReader and MangaReader._zen_rakuyomi_return_pending then return end
                 local opened_library = type(Rakuyomi.openLibraryView) == "function"
                     and Rakuyomi.openLibraryView({ hideTopClose = true })
                 logger.dbg(

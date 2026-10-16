@@ -14,6 +14,9 @@ describe("Rakuyomi reader return", function()
         "ui/uimanager",
         "common/zen_logger",
         "common/library_navigation",
+        "common/paths",
+        "common/utils",
+        "ui/event",
         "gettext",
     }
 
@@ -21,12 +24,18 @@ describe("Rakuyomi reader return", function()
         local opened_chapters, opened_library, opened_zen = 0, 0, 0
         local MangaReader = {
             is_showing = true,
-            on_return_callback = function() opened_library = opened_library + 1 end,
+            on_return_callback = function() opened_chapters = opened_chapters + 1 end,
             onReturn = function(self) self.on_return_callback() end,
             clean = function(self) self.cleaned = true end,
         }
         ZenSpec.replace("MangaReader", MangaReader)
-        ZenSpec.replace("apps/filemanager/filemanager", {})
+        ZenSpec.replace("apps/filemanager/filemanager", { instance = { rakuyomi = {
+            openLibraryView = function(_self, options)
+                assert.is_true(options.hideTopClose)
+                assert.is_true(options.forceLibraryView)
+                opened_library = opened_library + 1
+            end,
+        } } })
         ZenSpec.replace("apps/reader/readerui", {
             instance = { document = { file = "/library/chapter.cbz" } },
             showReader = function() end,
@@ -34,7 +43,10 @@ describe("Rakuyomi reader return", function()
         })
         ZenSpec.replace("ui/geometry", {})
         ZenSpec.replace("device", { screen = {} })
-        ZenSpec.replace("ui/uimanager", {})
+        ZenSpec.replace("ui/uimanager", {
+            _window_stack = {},
+            nextTick = function(_self, callback) callback() end,
+        })
         ZenSpec.replace("common/zen_logger", {
             new = function() return { warn = function() end } end,
         })
@@ -103,12 +115,35 @@ describe("Rakuyomi reader return", function()
         assert.are.equal(0, opened_library)
     end)
 
-    it("keeps Rakuyomi's library return when disabled", function()
+    it("opens Rakuyomi Home instead of the native chapter list when chapter-list return is disabled", function()
         local MangaReader, results = apply_patch(false, true)
         MangaReader:onReturn()
         local opened_chapters, opened_library = results()
         assert.are.equal(0, opened_chapters)
         assert.are.equal(1, opened_library)
+    end)
+
+    it("honors both Rakuyomi return options from the top-right Home button after a Home resume", function()
+        for _i, chapter_list in ipairs({ true, false }) do
+            local MangaReader, results = apply_patch(chapter_list, true)
+            MangaReader.chapter = { _zen_rakuyomi_source_tab = "home" }
+            local reader = require("apps/reader/readerui").instance
+            reader.handleEvent = function() end
+            reader.onClose = function() error("Home must return through Rakuyomi") end
+            ZenSpec.replace("common/paths", { isInHomeDir = function() return false end })
+            ZenSpec.replace("common/utils", { closeWidgetsAbove = function() end })
+            ZenSpec.replace("ui/event", { new = function(_self, name) return { name = name } end })
+            require("ui/uimanager").scheduleIn = function(_self, _delay, callback) callback() end
+            ZenSpec.unload("common/library_navigation")
+            local menu_closed = false
+
+            require("common/library_navigation").openDefault(reader, _G.__ZEN_UI_PLUGIN, function()
+                menu_closed = true
+            end)
+
+            assert.is_true(menu_closed)
+            assert.are.same(chapter_list and { 1, 0, 0 } or { 0, 1, 0 }, { results() })
+        end
     end)
 
     it("uses Zen's exit navigation by default and when reopening Rakuyomi is disabled", function()
