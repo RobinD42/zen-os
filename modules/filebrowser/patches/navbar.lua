@@ -68,7 +68,7 @@ local function apply_navbar()
 
     local function rakuyomi_return_to_chapter_list_on_exit_enabled()
         local rakuyomi = zen_plugin.config and zen_plugin.config.rakuyomi
-        if type(rakuyomi) ~= "table" then return true end
+        if type(rakuyomi) ~= "table" or rakuyomi.open_on_manga_exit ~= true then return false end
         if rakuyomi.return_to_chapter_list_on_exit ~= nil then
             return rakuyomi.return_to_chapter_list_on_exit ~= false
         end
@@ -3679,6 +3679,11 @@ local function apply_navbar()
         local keep_book_location_requested = rawget(_G, "__ZEN_UI_KEEP_BOOK_LOCATION") == true
         local restore_enabled = is_restore_enabled()
         local state_before_show = rawget(_G, "__ZEN_UI_LIBRARY_STATE")
+        local open_rakuyomi_on_exit = (zen_plugin.config.rakuyomi or {}).open_on_manga_exit == true
+        if state_before_show and state_before_show.tab == "manga" and not open_rakuyomi_on_exit then
+            _G.__ZEN_UI_LIBRARY_STATE = nil
+            state_before_show = nil
+        end
         local force_source_restore = state_before_show and state_before_show.force_restore == true
         local hide_rakuyomi_filemanager = force_source_restore
             and state_before_show.tab == "manga"

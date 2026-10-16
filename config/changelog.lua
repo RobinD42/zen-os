@@ -416,5 +416,8 @@ return {
         "Scale opening banner and badge font",
         "Bug fixes"
     },
+    ["4.3.0"] = {
+        "",
+    },
 
 }

@@ -84,6 +84,11 @@ local function close_top_chapter_listing()
     end
 end
 
+local function open_on_manga_exit_enabled()
+    local config = get_zen_config()
+    return config and config.rakuyomi and config.rakuyomi.open_on_manga_exit == true
+end
+
 local function return_to_chapter_list_on_exit_enabled()
     local config = get_zen_config()
     local rakuyomi = config and config.rakuyomi
@@ -917,16 +922,19 @@ function M.installShowReaderCapture()
     function ReaderUI:showReader(file, ...)
         if type(file) == "string" then
             local is_chapter = M.isChapterFile(file) == true
+            local open_on_exit = open_on_manga_exit_enabled()
             local return_to_chapter_list = return_to_chapter_list_on_exit_enabled()
             if is_chapter then
                 local MangaReader = package.loaded["MangaReader"]
                 local chapter = MangaReader and MangaReader.is_showing and MangaReader.chapter
                 local source_tab = chapter and chapter._zen_rakuyomi_source_tab
-                if source_tab then _G.__ZEN_UI_LIBRARY_SOURCE_TAB = source_tab end
-                _G.__ZEN_UI_FORCE_SOURCE_TAB_RESTORE = source_tab == "manga" or nil
-                _G.__ZEN_UI_RAKUYOMI_RETURN_FILE = source_tab == "manga"
+                if source_tab and (source_tab ~= "manga" or open_on_exit) then
+                    _G.__ZEN_UI_LIBRARY_SOURCE_TAB = source_tab
+                end
+                _G.__ZEN_UI_FORCE_SOURCE_TAB_RESTORE = source_tab == "manga" and open_on_exit or nil
+                _G.__ZEN_UI_RAKUYOMI_RETURN_FILE = source_tab == "manga" and open_on_exit
                     and return_to_chapter_list and file or nil
-                if not return_to_chapter_list then
+                if not open_on_exit or not return_to_chapter_list then
                     close_top_chapter_listing()
                 end
             end
@@ -958,6 +966,13 @@ function M.installReaderReturnPatch()
         local ReaderUI = require("apps/reader/readerui")
         local reader = ReaderUI.instance
         local file = reader and reader.document and reader.document.file
+        if self.is_showing and M.isChapterFile(file) and not open_on_manga_exit_enabled() then
+            local Navigation = require("common/library_navigation")
+            return Navigation.showFromReader(reader, zen_plugin, {
+                force_default = not Navigation.restoreEnabled(zen_plugin),
+                after_close = function() self:clean() end,
+            })
+        end
         if self.is_showing and M.isChapterFile(file)
                 and return_to_chapter_list_on_exit_enabled()
                 and not self._zen_rakuyomi_return_pending then

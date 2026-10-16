@@ -141,7 +141,22 @@ function M.build(ctx)
                     end,
                 },
                 {
+                    text = _("Open Rakuyomi on manga exit"),
+                    checked_func = function()
+                        return config.rakuyomi.open_on_manga_exit == true
+                    end,
+                    callback = function(touchmenu_instance)
+                        config.rakuyomi.open_on_manga_exit =
+                            config.rakuyomi.open_on_manga_exit ~= true
+                        plugin:saveConfig()
+                        if touchmenu_instance then touchmenu_instance:updateItems() end
+                    end,
+                },
+                {
                     text = _("Return to chapter list on exit"),
+                    enabled_func = function()
+                        return config.rakuyomi.open_on_manga_exit == true
+                    end,
                     checked_func = function()
                         return config.rakuyomi.return_to_chapter_list_on_exit ~= false
                     end,

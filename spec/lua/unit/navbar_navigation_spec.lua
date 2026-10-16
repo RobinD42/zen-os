@@ -365,6 +365,7 @@ describe("file browser navbar navigation", function()
             "__ZEN_UI_KEEP_BOOK_LOCATION",
             "__ZEN_UI_HIDDEN_HOME_BOOTSTRAP", "__ZEN_UI_DEFER_FILEMANAGER_LISTING",
             "__ZEN_UI_ARCHIVE_LISTING_DIRTY",
+            "__ZEN_UI_RAKUYOMI_CHAPTER_LIST_RESTORED",
         }) do
             _G[name] = nil
         end
@@ -535,6 +536,7 @@ describe("file browser navbar navigation", function()
     end)
 
     it("skips chapter-list restoration during a RAM chapter handoff", function()
+        _G.__ZEN_UI_PLUGIN.config.rakuyomi = { open_on_manga_exit = true }
         local restored = 0
         _G.__ZEN_UI_RAKUYOMI = {
             _chapter_handoff_pending = true,
@@ -554,6 +556,63 @@ describe("file browser navbar navigation", function()
         assert.same({ "base:/library:nil" }, calls)
         assert.is_nil(fm.invisible)
         assert.equals(state, _G.__ZEN_UI_LIBRARY_STATE)
+    end)
+
+    it("follows Zen's exit setting when reopening Rakuyomi is disabled during reading", function()
+        local opened_library, opened_chapters = 0, 0
+        _G.__ZEN_UI_RAKUYOMI = {
+            openLibraryView = function() opened_library = opened_library + 1; return true end,
+            openChapterListingFromFile = function() opened_chapters = opened_chapters + 1; return true end,
+        }
+        _G.__ZEN_UI_PLUGIN.config.rakuyomi = {
+            open_on_manga_exit = false, return_to_chapter_list_on_exit = true,
+        }
+        for _i, restore in ipairs({ false, true }) do
+            _G.__ZEN_UI_PLUGIN.config.features.restore_library_view = restore
+            _G.__ZEN_UI_FORCE_DEFAULT_LIBRARY_TAB = not restore or nil
+            _G.__ZEN_UI_LIBRARY_STATE = {
+                tab = "manga", force_restore = true, rakuyomi_return_file = "/library/chapter.cbz",
+            }
+            local fm = make_instance()
+            FileManager._test_next_instance = fm
+            calls = {}
+
+            FileManager.showFiles(FileManager, "/library", "/library/chapter.cbz")
+
+            assert.equals(0, opened_chapters)
+            assert.equals(0, opened_library)
+            assert.is_nil(_G.__ZEN_UI_LIBRARY_STATE)
+            if not restore then assert.equals("home", calls[#calls]) end
+        end
+    end)
+
+    it("keeps the Rakuyomi library and chapter-list return options when reopening is enabled", function()
+        local opened_library, opened_chapters = 0, 0
+        UIManager._dirty = {}
+        _G.__ZEN_UI_RAKUYOMI = {
+            openLibraryView = function() opened_library = opened_library + 1; return true end,
+            openChapterListingFromFile = function(file)
+                assert.equals("/library/chapter.cbz", file)
+                opened_chapters = opened_chapters + 1
+                return true
+            end,
+        }
+        for _i, chapter_list in ipairs({ false, true }) do
+            _G.__ZEN_UI_PLUGIN.config.rakuyomi = {
+                open_on_manga_exit = true, return_to_chapter_list_on_exit = chapter_list,
+            }
+            _G.__ZEN_UI_LIBRARY_STATE = {
+                tab = "manga", force_restore = true, rakuyomi_return_file = "/library/chapter.cbz",
+            }
+            local fm = make_instance()
+            FileManager._test_next_instance = fm
+
+            FileManager.showFiles(FileManager, "/library", "/library/chapter.cbz")
+
+            assert.equals(1, opened_library)
+            assert.equals(chapter_list and 1 or 0, opened_chapters)
+            assert.is_nil(fm.invisible)
+        end
     end)
 
     it("lets a forced default Home override saved Series state", function()

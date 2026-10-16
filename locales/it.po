@@ -4153,6 +4153,12 @@ msgid "Open Rakuyomi"
 msgstr "Apri Rakuyomi"
 
 #. Type: setting
+#. Context: Settings label in the Extras and integration settings.
+#: extras_settings.lua:144
+msgid "Open Rakuyomi on manga exit"
+msgstr "Apri Rakuyomi all'uscita dal manga"
+
+#. Type: setting
 #. Context: Nome di un’impostazione nelle impostazioni della barra di navigazione.
 #: navbar_settings.lua:1263
 msgid "Open RSS Reader"

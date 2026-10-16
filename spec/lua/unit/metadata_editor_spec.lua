@@ -890,6 +890,24 @@ describe("metadata editor Hardcover controller", function()
         assert.are.equal("Open settings", shown_widgets[#shown_widgets].ok_text)
     end)
 
+    it("reports a failed worker as a network error instead of no matches", function()
+        ZenSpec.replace("ui/trapper", {
+            wrap = function(_self, callback) callback() end,
+            isWrapped = function() return false end,
+            dismissableRunInSubprocess = function() return true end,
+        })
+
+        for _i, auto_match in ipairs({ false, true }) do
+            _G.__ZEN_UI_PLUGIN.config.metadata.hardcover_auto_match = auto_match
+            shown.on_hardcover(shown.metadata, {})
+
+            assert.is_nil(picker)
+            assert.are.equal("Could not reach a metadata provider.",
+                shown_widgets[#shown_widgets].text)
+            assert.is_true(shown_widgets[#shown_widgets - 1].closed)
+        end
+    end)
+
     it("renders edition choices directly in manual results", function()
         search_result = {{
             id = 1,

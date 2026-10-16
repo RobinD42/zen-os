@@ -135,6 +135,13 @@ local AUTO_DISABLE = {
         folder_key = "neo_quicksetting",
         expected_folder_key = "neo_quicksetting",
     },
+    {
+        sentinel = "ui/menu_shell",
+        label = "Modern Menu",
+        fallback_key = "modern_menu",
+        folder_key = "modern_menu",
+        expected_folder_key = "modern_menu",
+    },
 }
 
 local AUTO_DISABLE_PATCHES = {

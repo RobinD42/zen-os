@@ -61,6 +61,7 @@ local defaults = {
     },
     rakuyomi = {
         exclude_from_home = false,
+        open_on_manga_exit = false,
         return_to_chapter_list_on_exit = false,
     },
     kindle = {

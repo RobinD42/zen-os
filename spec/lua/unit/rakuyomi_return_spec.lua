@@ -13,15 +13,17 @@ describe("Rakuyomi reader return", function()
         "device",
         "ui/uimanager",
         "common/zen_logger",
+        "common/library_navigation",
         "gettext",
     }
 
-    local function apply_patch(return_enabled)
-        local opened_chapters, opened_library = 0, 0
+    local function apply_patch(return_enabled, open_enabled)
+        local opened_chapters, opened_library, opened_zen = 0, 0, 0
         local MangaReader = {
             is_showing = true,
             on_return_callback = function() opened_library = opened_library + 1 end,
             onReturn = function(self) self.on_return_callback() end,
+            clean = function(self) self.cleaned = true end,
         }
         ZenSpec.replace("MangaReader", MangaReader)
         ZenSpec.replace("apps/filemanager/filemanager", {})
@@ -38,8 +40,25 @@ describe("Rakuyomi reader return", function()
         })
         ZenSpec.replace("gettext", function(text) return text end)
         _G.__ZEN_UI_PLUGIN = {
-            config = { rakuyomi = { return_to_chapter_list_on_exit = return_enabled } },
+            config = {
+                features = { restore_library_view = return_enabled },
+                rakuyomi = {
+                    return_to_chapter_list_on_exit = return_enabled,
+                    open_on_manga_exit = open_enabled,
+                },
+            },
         }
+        ZenSpec.replace("common/library_navigation", {
+            restoreEnabled = function(plugin) return plugin.config.features.restore_library_view end,
+            showFromReader = function(reader, plugin, opts)
+                assert.are.equal(require("apps/reader/readerui").instance, reader)
+                assert.are.equal(_G.__ZEN_UI_PLUGIN, plugin)
+                assert.are.equal(not plugin.config.features.restore_library_view, opts.force_default)
+                opened_zen = opened_zen + 1
+                opts.after_close()
+                return true
+            end,
+        })
         ZenSpec.unload("modules/filebrowser/patches/rakuyomi")
         require("modules/filebrowser/patches/rakuyomi").apply()
         local Rakuyomi = _G.__ZEN_UI_RAKUYOMI
@@ -50,7 +69,7 @@ describe("Rakuyomi reader return", function()
             assert.is_true(hide_top_close)
             return true
         end
-        return MangaReader, function() return opened_chapters, opened_library end
+        return MangaReader, function() return opened_chapters, opened_library, opened_zen end
     end
 
     before_each(function()
@@ -77,7 +96,7 @@ describe("Rakuyomi reader return", function()
     end)
 
     it("returns directly to the chapter list when enabled", function()
-        local MangaReader, results = apply_patch(true)
+        local MangaReader, results = apply_patch(true, true)
         MangaReader:onReturn()
         local opened_chapters, opened_library = results()
         assert.are.equal(1, opened_chapters)
@@ -85,15 +104,31 @@ describe("Rakuyomi reader return", function()
     end)
 
     it("keeps Rakuyomi's library return when disabled", function()
-        local MangaReader, results = apply_patch(false)
+        local MangaReader, results = apply_patch(false, true)
         MangaReader:onReturn()
         local opened_chapters, opened_library = results()
         assert.are.equal(0, opened_chapters)
         assert.are.equal(1, opened_library)
     end)
 
+    it("uses Zen's exit navigation by default and when reopening Rakuyomi is disabled", function()
+        for _i, return_enabled in ipairs({ true, false }) do
+            local MangaReader, results = apply_patch(return_enabled, false)
+            MangaReader:onReturn()
+            assert.are.same({ 0, 0, 1 }, { results() })
+            assert.is_true(MangaReader.cleaned)
+            _G.__ZEN_UI_RAKUYOMI = nil
+
+            MangaReader, results = apply_patch(return_enabled)
+            MangaReader:onReturn()
+            assert.are.same({ 0, 0, 1 }, { results() })
+            assert.is_true(MangaReader.cleaned)
+            _G.__ZEN_UI_RAKUYOMI = nil
+        end
+    end)
+
     it("does not reopen the chapter list after the file manager restored it", function()
-        local MangaReader, results = apply_patch(true)
+        local MangaReader, results = apply_patch(true, true)
         _G.__ZEN_UI_RAKUYOMI_CHAPTER_LIST_RESTORED = true
         MangaReader:onReturn()
         local opened_chapters, opened_library = results()
@@ -102,7 +137,7 @@ describe("Rakuyomi reader return", function()
     end)
 
     it("captures the actual opening source instead of forcing every chapter back to Rakuyomi", function()
-        local MangaReader = apply_patch(true)
+        local MangaReader = apply_patch(true, true)
         local ReaderUI = require("apps/reader/readerui")
         MangaReader.chapter = { _zen_rakuyomi_source_tab = "manga" }
         ReaderUI:showReader("/library/chapter.cbz")
@@ -123,5 +158,23 @@ describe("Rakuyomi reader return", function()
         assert.equals("history", _G.__ZEN_UI_LIBRARY_SOURCE_TAB)
         assert.is_nil(_G.__ZEN_UI_FORCE_SOURCE_TAB_RESTORE)
         assert.is_nil(_G.__ZEN_UI_RAKUYOMI_RETURN_FILE)
+    end)
+
+    it("does not force Rakuyomi restoration and closes the chapter list when reopening is disabled", function()
+        local MangaReader = apply_patch(true, false)
+        local closed
+        local UIManager = require("ui/uimanager")
+        local listing = { name = "chapter_listing" }
+        UIManager._window_stack = { { widget = listing } }
+        UIManager.close = function(_self, widget) closed = widget end
+        MangaReader.chapter = { _zen_rakuyomi_source_tab = "manga" }
+        _G.__ZEN_UI_LIBRARY_SOURCE_TAB = "authors"
+
+        require("apps/reader/readerui"):showReader("/library/chapter.cbz")
+
+        assert.equals("authors", _G.__ZEN_UI_LIBRARY_SOURCE_TAB)
+        assert.is_nil(_G.__ZEN_UI_FORCE_SOURCE_TAB_RESTORE)
+        assert.is_nil(_G.__ZEN_UI_RAKUYOMI_RETURN_FILE)
+        assert.are.equal(listing, closed)
     end)
 end)

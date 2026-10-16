@@ -79,7 +79,9 @@ function M.openDefault(ui, plugin, close_menu)
     end)
 end
 
-function M.returnToRakuyomiReader()
+function M.returnToRakuyomiReader(plugin)
+    local rakuyomi = plugin and plugin.config and plugin.config.rakuyomi
+    if not rakuyomi or rakuyomi.open_on_manga_exit ~= true then return false end
     local ok, MangaReader = pcall(require, "MangaReader")
     if not ok or type(MangaReader) ~= "table"
             or MangaReader.is_showing ~= true
@@ -109,7 +111,7 @@ function M.showFromReader(ui, plugin, opts)
 
     closeConfigMenuForTransition(ui)
     closeReaderOverlays(ui)
-    if not opts.after_close and M.returnToRakuyomiReader() then
+    if not opts.after_close and M.returnToRakuyomiReader(plugin) then
         return true
     end
 

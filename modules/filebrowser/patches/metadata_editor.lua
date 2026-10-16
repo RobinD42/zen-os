@@ -225,7 +225,7 @@ local function apply_metadata_editor()
             end
             if result == nil then
                 close_notice()
-                show_metadata_error(err)
+                show_metadata_error(err or { kind = "network" })
                 return
             end
             logger.dbg("Metadata task complete:", text)
@@ -784,6 +784,7 @@ local function apply_metadata_editor()
                         close_notice()
                         return
                     end
+                    if result == nil and err == nil then err = { kind = "network" } end
 
                     local works = cover_only and result or nil
                     local work = not cover_only and type(result) == "table"

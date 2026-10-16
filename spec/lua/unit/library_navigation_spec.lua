@@ -445,7 +445,7 @@ describe("library navigation", function()
         Navigation.showFromReader(ui, {
             config = {
                 features = { restore_library_view = true },
-                rakuyomi = { return_to_chapter_list_on_exit = true },
+                rakuyomi = { open_on_manga_exit = true, return_to_chapter_list_on_exit = true },
             },
         })
 
@@ -465,12 +465,38 @@ describe("library navigation", function()
 
         Navigation.openDefault(ui, { config = {
             features = { restore_library_view = false },
-            rakuyomi = { return_to_chapter_list_on_exit = false },
+            rakuyomi = { open_on_manga_exit = true, return_to_chapter_list_on_exit = false },
         } }, function() end)
 
         assert.equals(1, returns)
         assert.is_nil(ui.closed)
         assert.is_nil(_G.__ZEN_UI_FORCE_DEFAULT_LIBRARY_TAB)
+    end)
+
+    it("uses Zen's exit setting for Rakuyomi manga by default and when reopening is disabled", function()
+        ZenSpec.replace("MangaReader", {
+            is_showing = true,
+            chapter = { _zen_rakuyomi_source_tab = "manga" },
+            onReturn = function() error("Reopening Rakuyomi is disabled") end,
+        })
+        for _i, rakuyomi in ipairs({ {}, { open_on_manga_exit = false } }) do
+            for _j, restore in ipairs({ true, false }) do
+                local ui = reader("/library/chapter.cbz")
+                local state = { tab = "home", page = 2 }
+                _G.__ZEN_UI_LIBRARY_STATE = state
+                _G.__ZEN_UI_FORCE_DEFAULT_LIBRARY_TAB = nil
+
+                Navigation.openDefault(ui, { config = {
+                    features = { restore_library_view = restore },
+                    rakuyomi = rakuyomi,
+                } }, function() end)
+
+                assert.is_true(ui.closed)
+                assert.equals("/library/chapter.cbz", ui.shown)
+                assert.equals(state, _G.__ZEN_UI_LIBRARY_STATE)
+                assert.equals(not restore or nil, _G.__ZEN_UI_FORCE_DEFAULT_LIBRARY_TAB)
+            end
+        end
     end)
 
     it("restores Home for a Home manga open when library restore is enabled", function()
