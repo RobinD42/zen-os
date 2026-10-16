@@ -417,7 +417,7 @@ return {
         "Bug fixes"
     },
     ["4.3.0"] = {
-        "",
+        "Better Rakuyomi settings (Extras > Rakuyomi)",
     },
 
 }
