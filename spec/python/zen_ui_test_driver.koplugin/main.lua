@@ -2417,6 +2417,10 @@ function Driver:handleCommand(command)
         return state and { ok = true, page_browser = state }
             or { ok = false, error = "page browser unavailable" }
     end
+    if kind == "annotation_viewer_action" then
+        local ok, err = require("reader_tools").annotation_viewer_action(params)
+        return { ok = ok == true, error = err }
+    end
     if kind == "page_browser_key" and type(params.key) == "string" then
         local handled, err = require("reader_tools").page_browser_key(params.key)
         return { ok = handled == true, handled = handled == true, error = err }

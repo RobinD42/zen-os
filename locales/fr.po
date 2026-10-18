@@ -7360,3 +7360,113 @@ msgstr "Menu de lecture de KOReader"
 #: buttons.lua:7 model.lua:338
 msgid "Contrast"
 msgstr "Contraste"
+
+
+msgid "Add note"
+msgstr "Ajouter une note"
+
+msgid "All books"
+msgstr "Tous les livres"
+
+msgid "All words"
+msgstr "Tous les mots"
+
+msgid "Annotation viewer"
+msgstr "Visionneuse d’annotations"
+
+msgid "Any word"
+msgstr "N’importe quel mot"
+
+msgid "Auto"
+msgstr "Automatique"
+
+msgid "Book note"
+msgstr "Note du livre"
+
+msgid "Case sensitive"
+msgstr "Respecter la casse"
+
+msgid "Chapters"
+msgstr "Chapitres"
+
+msgid "Clear filters"
+msgstr "Effacer les filtres"
+
+msgid "Could not save book note."
+msgstr "Impossible d’enregistrer la note du livre."
+
+msgid "Delete this annotation?"
+msgstr "Supprimer cette annotation ?"
+
+msgid "Edit note"
+msgstr "Modifier la note"
+
+msgid "Exclude"
+msgstr "Exclure"
+
+msgid "Go to"
+msgstr "Aller à"
+
+msgid "Hide"
+msgstr "Masquer"
+
+msgid "Highlighted text"
+msgstr "Texte surligné"
+
+msgid "Include"
+msgstr "Inclure"
+
+msgid "Loading…"
+msgstr "Chargement…"
+
+msgid "Long"
+msgstr "Long"
+
+msgid "Note text"
+msgstr "Texte de la note"
+
+msgid "Phrase"
+msgstr "Expression"
+
+msgid "Preview length"
+msgstr "Longueur de l’aperçu"
+
+msgid "Reverse order"
+msgstr "Ordre inverse"
+
+msgid "Search annotations"
+msgstr "Rechercher dans les annotations"
+
+msgid "Short"
+msgstr "Court"
+
+msgid "Show"
+msgstr "Afficher"
+
+msgid "Standard"
+msgstr "Standard"
+
+msgid "Style"
+msgstr "Style"
+
+msgid "Text"
+msgstr "Texte"
+
+msgid "Text size"
+msgstr "Taille du texte"
+
+msgid "This annotation is no longer available."
+msgstr "Cette annotation n’est plus disponible."
+
+msgid "This book"
+msgstr "Ce livre"
+
+msgid "This book is no longer available."
+msgstr "Ce livre n’est plus disponible."
+
+msgid "New note"
+msgstr "Nouvelle note"
+
+#. Month name, day, year.
+msgid "%1 %2 %3"
+msgstr "%2 %1 %3"

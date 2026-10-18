@@ -1,0 +1,300 @@
+import os
+import tempfile
+from pathlib import Path
+
+import pytest
+from PIL import Image
+
+from test_emulator_reader_tools import _wait_command, _write_reader_epub
+from zen_driver import ZenDriver, launch, stop, wait_for_socket
+
+
+pytestmark = pytest.mark.skipif(
+    os.environ.get("ZEN_UI_RUN_EMULATOR") != "1", reason="requires the KOReader emulator",
+)
+
+
+def _action(driver: ZenDriver, action: str, **params: object) -> dict[str, object]:
+    result = driver.command("annotation_viewer_action", action=action, **params)
+    assert result["ok"], result
+    return result
+
+
+def _state(driver: ZenDriver) -> dict[str, object]:
+    return driver.command("page_browser_state")["page_browser"]
+
+
+def _menu(driver: ZenDriver) -> None:
+    assert driver.command("activate_reader_control", name="page_browser_more")["activated"]
+
+
+def _filters(driver: ZenDriver) -> None:
+    _menu(driver)
+    _action(driver, "button", text="Filter")
+
+
+@pytest.mark.parametrize("document_type", ["epub", "pdf"])
+def test_page_browser_tab_order(document_type: str) -> None:
+    runtime = Path(os.environ["KOREADER_DIR"])
+    with tempfile.TemporaryDirectory(prefix="zen-browser-tabs-") as temporary:
+        root = Path(temporary)
+        home, library = root / "home", root / "library"
+        home.mkdir()
+        library.mkdir()
+        book = library / ("tabs." + document_type)
+        if document_type == "pdf":
+            from test_emulator_reader_controls import _write_pdf
+            _write_pdf(book)
+        else:
+            _write_reader_epub(book)
+        socket = root / "driver.sock"
+        process = launch(runtime, home, socket, library)
+        try:
+            wait_for_socket(socket)
+            driver = ZenDriver(socket)
+            assert driver.open_book(book)["ok"]
+            assert driver.command("open_settings_page")["ok"]
+            for label in ("Reader", "Page Browser", "Tabs"):
+                assert driver.command("settings_page_select", label=label)["ok"]
+            arrange = driver.command("arrange_page_state")["arrange"]
+            controls = "Contrast" if document_type == "pdf" else "Font"
+            assert arrange["labels"] == ["Page browser", controls, "Bookmarks", "Highlights", "Annotations", "Table of contents"]
+            assert driver.command("arrange_page_select", index=3, toggle=True)["ok"]
+            assert driver.command("arrange_page_drag", **{"from": 5, "to": 1})["ok"]
+            assert driver.command("arrange_page_state")["arrange"]["labels"][0] == "Annotations"
+            assert driver.command("arrange_page_select", index=2, toggle=True)["ok"]
+            assert driver.command("close_arrange_page")["ok"]
+            assert driver.command("activate_reader_control", name="page_browser")["activated"]
+            state = _state(driver)
+            assert state["top_is_browser"]
+            assert state["active_tab"] == "annotations"
+            control_icon = "appbar.contrast.svg" if document_type == "pdf" else "appbar.textsize.svg"
+            assert state["header_icons"] == ["quick_search.svg", "book_open.svg", control_icon,
+                                              "bookmark.svg", "toc.svg", "more_vertical.svg", "close_light.svg"]
+            assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
+            assert _state(driver)["active_tab"] == "aa"
+            assert driver.command("page_browser_key", key="Back")["handled"]
+            assert driver.command("activate_reader_control", name="page_browser")["activated"]
+            assert _state(driver)["active_tab"] == "annotations"
+            stop(process)
+            process = launch(runtime, home, socket, library, initialize_settings=False)
+            wait_for_socket(socket)
+            driver = ZenDriver(socket)
+            _wait_command(driver, "open_book", lambda result: result.get("ok"), path=str(book))
+            assert driver.command("activate_reader_control", name="page_browser")["activated"]
+            assert _state(driver)["header_icons"] == state["header_icons"]
+            assert _state(driver)["active_tab"] == "annotations"
+        finally:
+            stop(process)
+
+
+@pytest.mark.parametrize("document_type", ["epub", "pdf"])
+def test_annotations_and_floating_book_note(document_type: str) -> None:
+    runtime = Path(os.environ["KOREADER_DIR"])
+    frames = Path(__file__).resolve().parents[2] / ".artifacts" / "annotations"
+    frames.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="zen-annotations-") as temporary:
+        root = Path(temporary)
+        home, library = root / "home", root / "library"
+        home.mkdir()
+        library.mkdir()
+        first, second = library / ("first." + document_type), library / ("second." + document_type)
+        if document_type == "pdf":
+            from test_emulator_reader_controls import _write_pdf
+            _write_pdf(first)
+            _write_pdf(second)
+        else:
+            _write_reader_epub(first)
+            _write_reader_epub(second)
+        socket = root / "driver.sock"
+        process = launch(runtime, home, socket, library, zen_config_source=(
+            'return {annotation_viewer={tabs={bookmarks=true,highlights=true,annotations=true},details={date=true}}}'
+        ))
+        try:
+            wait_for_socket(socket)
+            driver = ZenDriver(socket)
+            _wait_command(driver, "open_book", lambda result: result.get("ok"), path=str(second))
+            _action(driver, "seed")
+            _action(driver, "open", file=str(first))
+            _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("file") == str(first))
+            _action(driver, "seed")
+            assert driver.command("activate_reader_control", name="page_browser")["activated"]
+            _action(driver, "tab", tab="bookmarks")
+            state = _state(driver)
+            assert len(state["annotation_items"]) == 1
+            if document_type == "epub":
+                assert state["annotation_subtitle"] == "Reader Tools Fixture"
+            else:
+                assert "first" in state["annotation_subtitle"].lower()
+            assert state["annotation_subtitle_size"] == 20
+            assert state["annotation_subtitle_black"]
+            metadata = state["annotation_rows"][0][0]
+            assert metadata == {"text": "October 18 2026 · Page 1", "size": 18, "black": True}
+            assert state["annotation_rows"][0][1]["text"] == "in First"
+            _action(driver, "details")
+            state = _state(driver)
+            assert "Page 1" in state["annotation_text"]
+            assert "\nOctober 18 2026 · Page 1\n" in state["annotation_text"]
+            assert state["annotation_buttons"] == [["Go to"], ["Add note"], ["Delete"]]
+            driver.screenshot(frames / "bookmark-details.png")
+            _action(driver, "close_details")
+            _action(driver, "tab", tab="highlights")
+            state = _state(driver)
+            assert len(state["annotation_items"]) == 2
+            assert state["annotation_subtitle_size"] == 20
+            assert state["annotation_subtitle_black"]
+            assert state["annotation_subtitle"] != "This book"
+            assert state["annotation_rows"][0][0] == {
+                "text": "October 18 2026 · First · Page 1", "size": 18, "black": True,
+            }
+            frame = frames / "annotation-borders.png"
+            driver.screenshot(frame)
+            with Image.open(frame).convert("RGB") as image:
+                first_row, second_row = state["annotation_row_bounds"]
+                x = int(first_row["x"] + first_row["w"] / 2)
+                top = image.getpixel((x, int(first_row["y"])))
+                assert top == image.getpixel((x, int(first_row["y"] + first_row["h"] - 1)))
+                assert top != (255, 255, 255)
+                assert image.getpixel((x, int(second_row["y"]))) == (255, 255, 255)
+            assert state["header_icons"][0] == "quick_search.svg"
+            assert state["content_zen_scroll_bar"]
+            assert driver.command("page_browser_key", key="Down")["handled"]
+            assert _state(driver)["focused"].startswith("content:")
+            assert driver.command("page_browser_key", key="Return")["handled"]
+            assert "October 18 2026" in _state(driver)["annotation_text"]
+            assert "2026-10-18 12:01:00" not in _state(driver)["annotation_text"]
+            assert _state(driver)["annotation_buttons"] == [["Go to"], ["Edit note"], ["Edit"], ["Delete"]]
+            _action(driver, "button", text="Edit")
+            assert [row["text"] for row in _state(driver)["annotation_dialog"]["rows"]] == ["Color", "Style"]
+            driver.screenshot(frames / "highlight-edit-menu.png")
+            _action(driver, "button", text="Color")
+            _action(driver, "button", text="Blue")
+            assert _state(driver)["annotation_items"][0]["color"] == "blue"
+            _action(driver, "details")
+            _action(driver, "button", text="Edit")
+            _action(driver, "button", text="Style")
+            _action(driver, "button", text="Underline")
+            assert _state(driver)["annotation_items"][0]["style"] == "underscore"
+            driver.screenshot(frames / "highlights.png")
+
+            _menu(driver)
+            rows = _state(driver)["more_menu"]["rows"]
+            assert [row["text"] for row in rows] == ["New note", "Filter", "Sort", "Settings"]
+            assert [Path(row["icon"]).name for row in rows] == ["plus.svg", "filter.svg", "sort.svg", "quicksettings.svg"]
+            driver.screenshot(frames / "annotation-menu.png")
+            _action(driver, "button", text="Sort")
+            state = _state(driver)
+            assert state["annotation_dialog"]["anchor"] == state["more_bounds"]
+            _action(driver, "button", text="Date")
+            _menu(driver)
+            _action(driver, "button", text="Sort")
+            _action(driver, "button", text="Reverse order")
+            assert _state(driver)["annotation_items"][0]["text"] == "A second passage"
+            _menu(driver)
+            _action(driver, "button", text="Sort")
+            _action(driver, "button", text="Position")
+            _menu(driver)
+            _action(driver, "button", text="New note")
+            floating = "A floating thought\n\nPensées about the whole book. 中文"
+            _action(driver, "input", text=floating)
+            state = _state(driver)
+            editor = state["note_editor"]
+            bounds = editor["bounds"]
+            assert abs(bounds["x"] * 2 + bounds["w"] - state["screen_width"]) <= 2
+            assert abs(bounds["y"] * 2 + bounds["h"] - editor["available_height"]) <= 2
+            assert bounds["y"] >= 20
+            assert editor["available_height"] - bounds["y"] - bounds["h"] >= 20
+            assert not editor["scroll_buttons"] and not editor["nav_bar"]
+            assert editor["buttons"] == [["Cancel", "Save"]]
+            driver.screenshot(frames / "book-note-editor.png")
+            _action(driver, "button", text="Save")
+            note_file = first.with_suffix(".sdr") / "zen-note.txt"
+            assert note_file.read_text() == floating
+            _action(driver, "tab", tab="annotations")
+            assert len(_state(driver)["annotation_items"]) == 4
+            _action(driver, "search")
+            _action(driver, "input", text="floating")
+            _action(driver, "button", text="Search")
+            assert [row["kind"] for row in _state(driver)["annotation_items"]] == ["note"]
+            _action(driver, "details")
+            assert not driver.command("annotation_viewer_action", action="button", text="Go to")["ok"]
+            _action(driver, "button", text="Close")
+            _action(driver, "tab", tab="highlights")
+            assert _state(driver)["content_items"] == 0
+            _action(driver, "tab", tab="annotations")
+            assert _state(driver)["content_items"] == 1
+            _menu(driver)
+            _action(driver, "button", text="New note")
+            _action(driver, "input", text="discarded edit\n" * 200)
+            assert _state(driver)["note_editor"]["bounds"] == bounds
+            _action(driver, "button", text="Cancel")
+            assert note_file.read_text() == floating
+            _filters(driver)
+            state = _state(driver)
+            modal = state["annotation_dialog"]
+            assert modal["anchor"] == state["more_bounds"]
+            assert modal["bounds"]["y"] < state["screen_height"] / 4
+            assert [row["text"] for row in modal["rows"]] == ["This book", "Books", "Chapters", "Tags", "Color", "Style", "Text", "Clear filters"]
+            driver.screenshot(frames / "annotation-filter.png")
+            _action(driver, "button", text="Clear filters")
+            _filters(driver)
+            _action(driver, "button", text="Text")
+            _action(driver, "button", text="Highlighted text · Include")
+            _action(driver, "input", text="quiet missing")
+            _action(driver, "button", text="All words")
+            _action(driver, "button", text="Apply")
+            assert _state(driver)["content_items"] == 1
+            _filters(driver)
+            _action(driver, "button", text="Clear filters")
+            _filters(driver)
+            _action(driver, "button", text="This book")
+            state = _wait_command(driver, "page_browser_state", lambda result:
+                                  not result["page_browser"].get("annotation_loading"))["page_browser"]
+            assert state["annotation_scope"] == "all"
+            assert len(state["annotation_items"]) == 7
+            driver.screenshot(frames / "all-annotations.png")
+            _filters(driver)
+            _action(driver, "button", text="Color")
+            _action(driver, "button", text="Exclude")
+            _action(driver, "button", text="Red")
+            _action(driver, "button", text="Done")
+            state = _state(driver)
+            assert len(state["annotation_items"]) == 5
+            assert all(row["color"] != "red" for row in state["annotation_items"])
+
+            index = next(index for index, row in enumerate(state["annotation_items"], 1)
+                         if Path(row["file"]).resolve() == second.resolve() and row["kind"] == "highlight")
+            _action(driver, "details", index=index)
+            _action(driver, "button", text="Edit note")
+            _wait_command(driver, "reader_state", lambda result: Path(result["reader"]["file"]).resolve() == second.resolve())
+            _action(driver, "input", text="Edited using the native book editor")
+            _action(driver, "button", text="Save")
+            assert driver.command("activate_reader_control", name="page_browser")["activated"]
+            _action(driver, "tab", tab="highlights")
+            state = _state(driver)
+            assert state["annotation_scope"] == "current"
+            assert len(state["annotation_items"]) == 2
+            assert any(row["note"] == "Edited using the native book editor" for row in state["annotation_items"])
+            assert note_file.read_text() == floating
+            _action(driver, "tab", tab="annotations")
+            _filters(driver)
+            _action(driver, "button", text="This book")
+            state = _wait_command(driver, "page_browser_state", lambda result:
+                                  not result["page_browser"].get("annotation_loading"))["page_browser"]
+            index = next(index for index, row in enumerate(state["annotation_items"], 1) if row["kind"] == "note")
+            _action(driver, "details", index=index)
+            _action(driver, "button", text="Delete")
+            assert driver.command("native_settings_confirm")["ok"]
+            assert not note_file.exists()
+            assert _state(driver)["content_items"] == 6
+            assert driver.command("set_language", language="es")["ok"]
+            _action(driver, "tab", tab="bookmarks")
+            state = _state(driver)
+            assert any("Página 1" in block["text"] for row in state["annotation_rows"] for block in row)
+            index = next(index for index, row in enumerate(state["annotation_items"], 1)
+                         if Path(row["file"]).resolve() == second.resolve())
+            _action(driver, "details", index=index)
+            assert "Página 1" in _state(driver)["annotation_text"]
+            _action(driver, "close_details")
+        finally:
+            stop(process)

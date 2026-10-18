@@ -90,7 +90,7 @@ describe("reader themes settings", function()
         local labels = {}
         for _i, item in ipairs(items) do labels[#labels + 1] = item.text end
         assert.are.same({ "Reader controls", "Appearance", "Highlight / Lookup", "Bottom swipe gesture",
-            "Page Browser", "Restore library location on exit", "End of book" }, labels)
+            "Page Browser", "Annotation viewer", "Restore library location on exit", "End of book" }, labels)
         labels = {}
         for _i, item in ipairs(items[2].sub_item_table) do labels[#labels + 1] = item.text end
         assert.are.same({ "Top status bar", "Bottom status bar", "Align status bars with book margins",
@@ -573,6 +573,23 @@ describe("reader themes settings", function()
         config.features.status_bar = false
         assert.is_false(status.enabled_func())
         assert.are.same({ show_status_bar = true, toc_font_size = 20, bookmarks_font_size = 22 }, config.page_browser)
+    end)
+
+    it("places the shared tab arrange list in Page Browser settings", function()
+        local received
+        ZenSpec.replace("modules/reader/page_browser_tabs", { show = function(config, plugin, ui)
+            received = { config, plugin, ui }
+        end })
+        local config, plugin = { features = {} }, {}
+        local ui = { paging = {} }
+        ZenSpec.replace("apps/reader/readerui", { instance = ui })
+        local items = ReaderSettings.build{ config = config, plugin = plugin, save_and_apply = function() end }
+        local tabs = find_item(items, "Page Browser").sub_item_table[2]
+        assert.are.equal("Tabs", tabs.text)
+        assert.is_true(tabs._zen_settings_submenu)
+        tabs.callback()
+        assert.same({ config, plugin, ui }, received)
+        assert.is_nil(find_item(find_item(items, "Annotation viewer").sub_item_table, "Tabs"))
     end)
 
     it("creates a custom theme without using a built-in theme as its base", function()

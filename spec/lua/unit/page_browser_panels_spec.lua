@@ -1,10 +1,11 @@
 describe("embedded page-browser lists", function()
     local Panels, saved_modules, saved_settings, saved_plugin
-    local font_scopes, updates, closes, held_index, browser, focus_rebuilds
+    local font_scopes, updates, closes, browser, focus_rebuilds
     local module_names = {
         "ui/widget/menu", "ui/widget/titlebar", "device", "common/reader_font",
         "modules/filebrowser/patches/library_font", "common/ui/zen_title_style",
         "modules/reader/zen_toc_widget", "modules/reader/page_browser_panels", "gettext",
+        "modules/reader/annotation_viewer",
     }
 
     before_each(function()
@@ -13,7 +14,7 @@ describe("embedded page-browser lists", function()
         saved_settings, saved_plugin = G_reader_settings, rawget(_G, "__ZEN_UI_PLUGIN")
         _G.G_reader_settings = ZenSpec.memorySettings()
         _G.__ZEN_UI_PLUGIN = { config = { page_browser = { toc_font_size = 22, bookmarks_font_size = 24 } } }
-        font_scopes, updates, closes, held_index, focus_rebuilds = 0, 0, 0, nil, 0
+        font_scopes, updates, closes, focus_rebuilds = 0, 0, 0, 0
         ZenSpec.replace("gettext", function(text) return text end)
         ZenSpec.replace("device", { screen = { scaleBySize = function(_self, value) return value end } })
         ZenSpec.replace("common/reader_font", { getInfo = function() return { size = 18 } end })
@@ -59,7 +60,6 @@ describe("embedded page-browser lists", function()
                     getBookmarkItemText = function(_self, item) return "• " .. item.text_orig end,
                     getBookmarkPageNumber = function(_self, item) return item.page == "xp1" and 5 or 9 end,
                     getBookmarkPageString = function(_self, page) return page == "xp1" and "v" or "ix" end,
-                    showBookmarkDetails = function(_self, index) held_index = index end,
                 },
             },
         }
@@ -100,46 +100,23 @@ describe("embedded page-browser lists", function()
         assert.are.same({ { "first row" } }, menu.layout)
     end)
 
-    it("keeps bookmarks' exact locations and details without changing annotations", function()
-        local selected_page, selected_item
-        local menu = Panels.build(browser, "bookmarks", 600, 700, function(page, item)
-            selected_page, selected_item = page, item
-        end)
-        assert.are.equal("Bookmarks", menu.custom_title_bar.title)
-        assert.are.equal(24, menu.items_font_size)
-        assert.are.equal("• First marker", menu.item_table[1].text)
-        assert.are.equal("v", menu.item_table[1].mandatory)
-        assert.is_true(menu.item_table[1].bold)
-        assert.are.equal(1, menu.item_table.current)
-        assert.are.equal("First marker", browser.ui.annotation.annotations[1].text)
-        assert.is_nil(browser.ui.annotation.annotations[1]._zen_bookmark)
-        menu:onMenuSelect(menu.item_table[1])
-        assert.are.equal(5, selected_page)
-        assert.are.equal("xp1", selected_item.page)
-        assert.are.equal("marker1", selected_item.pos0)
-        assert.is_true(selected_item._zen_bookmark)
-        assert.is_true(menu:onMenuHold(menu.item_table[2]))
-        assert.are.equal(2, held_index)
-        assert.are.equal(1, closes)
+    it("delegates all annotation kinds to the shared viewer", function()
+        ZenSpec.replace("modules/reader/annotation_viewer", {
+            build = function(parent, kind, width, height)
+                return { parent = parent, kind = kind, width = width, height = height }
+            end,
+        })
+        for _i, kind in ipairs({ "bookmarks", "highlights", "annotations" }) do
+            local panel = Panels.build(browser, kind, 600, 700, function() end)
+            assert.are.equal(browser, panel.parent)
+            assert.are.equal(kind, panel.kind)
+            assert.are.equal(600, panel.width)
+            assert.are.equal(700, panel.height)
+        end
     end)
 
-    it("honors bookmark date order and keeps details tied to the annotation after sorting", function()
-        G_reader_settings:saveSetting("bookmarks_items_sorting", "date")
-        local menu = Panels.build(browser, "bookmarks", 600, 700, function() end)
-        assert.are.equal("xp2", menu.item_table[1].page)
-        menu:onMenuHold(menu.item_table[1])
-        assert.are.equal(2, held_index)
-        G_reader_settings:saveSetting("bookmarks_items_reverse_sorting", true)
-        menu = Panels.build(browser, "bookmarks", 600, 700, function() end)
-        assert.are.equal("xp1", menu.item_table[1].page)
-        assert.are.equal("xp2", menu.item_table[2].page)
-    end)
-
-    it("routes Back to the browser and keeps empty lists valid", function()
-        browser.ui.annotation.annotations = {}
-        local menu = Panels.build(browser, "bookmarks", 600, 120, function() error("empty list navigated") end)
-        assert.are.same({}, menu.item_table)
-        assert.are.equal(1, menu.items_per_page)
+    it("routes Back to the browser", function()
+        local menu = Panels.build(browser, "toc", 600, 700, function() end)
         assert.is_true(menu:onClose())
         assert.is_true(menu:onCloseAllMenus())
         assert.are.equal(2, closes)
@@ -151,8 +128,5 @@ describe("embedded page-browser lists", function()
         local menu = Panels.build(browser, "toc", 600, 700, function() end)
         assert.are.equal(2, menu.item_table.current)
         assert.are.equal(22, menu.items_font_size)
-        menu = Panels.build(browser, "bookmarks", 600, 700, function() end)
-        assert.is_true(menu.item_table[1].bold)
-        assert.are.equal(24, menu.items_font_size)
     end)
 end)

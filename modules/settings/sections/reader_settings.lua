@@ -1367,8 +1367,17 @@ function M.build(ctx)
                 config.page_browser.show_status_bar = config.page_browser.show_status_bar == false
                 plugin:saveConfig()
             end,
+        }, {
+            text = _("Tabs"),
+            _zen_settings_submenu = true,
+            callback = function()
+                require("modules/reader/page_browser_tabs").show(config, plugin,
+                    require("apps/reader/readerui").instance)
+            end,
         }},
     }, icons.page_browser))
+
+    table.insert(items, require("modules/settings/sections/annotation_settings").build(ctx))
 
     table.insert(items, IconItem.decorate({
         text = _("Restore library location on exit"),

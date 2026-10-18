@@ -7360,3 +7360,113 @@ msgstr "Meniul de lectură KOReader"
 #: buttons.lua:7 model.lua:338
 msgid "Contrast"
 msgstr "Contrast"
+
+
+msgid "Add note"
+msgstr "Adaugă notă"
+
+msgid "All books"
+msgstr "Toate cărțile"
+
+msgid "All words"
+msgstr "Toate cuvintele"
+
+msgid "Annotation viewer"
+msgstr "Vizualizator de adnotări"
+
+msgid "Any word"
+msgstr "Oricare cuvânt"
+
+msgid "Auto"
+msgstr "Automat"
+
+msgid "Book note"
+msgstr "Nota cărții"
+
+msgid "Case sensitive"
+msgstr "Sensibil la majuscule"
+
+msgid "Chapters"
+msgstr "Capitole"
+
+msgid "Clear filters"
+msgstr "Șterge filtrele"
+
+msgid "Could not save book note."
+msgstr "Nota cărții nu a putut fi salvată."
+
+msgid "Delete this annotation?"
+msgstr "Ștergi această adnotare?"
+
+msgid "Edit note"
+msgstr "Editează nota"
+
+msgid "Exclude"
+msgstr "Exclude"
+
+msgid "Go to"
+msgstr "Mergi la"
+
+msgid "Hide"
+msgstr "Ascunde"
+
+msgid "Highlighted text"
+msgstr "Text evidențiat"
+
+msgid "Include"
+msgstr "Include"
+
+msgid "Loading…"
+msgstr "Se încarcă…"
+
+msgid "Long"
+msgstr "Lungă"
+
+msgid "Note text"
+msgstr "Textul notei"
+
+msgid "Phrase"
+msgstr "Expresie"
+
+msgid "Preview length"
+msgstr "Lungimea previzualizării"
+
+msgid "Reverse order"
+msgstr "Ordine inversă"
+
+msgid "Search annotations"
+msgstr "Caută în adnotări"
+
+msgid "Short"
+msgstr "Scurtă"
+
+msgid "Show"
+msgstr "Afișează"
+
+msgid "Standard"
+msgstr "Standard"
+
+msgid "Style"
+msgstr "Stil"
+
+msgid "Text"
+msgstr "Text"
+
+msgid "Text size"
+msgstr "Dimensiunea textului"
+
+msgid "This annotation is no longer available."
+msgstr "Această adnotare nu mai este disponibilă."
+
+msgid "This book"
+msgstr "Această carte"
+
+msgid "This book is no longer available."
+msgstr "Această carte nu mai este disponibilă."
+
+msgid "New note"
+msgstr "Notă nouă"
+
+#. Month name, day, year.
+msgid "%1 %2 %3"
+msgstr "%2 %1 %3"

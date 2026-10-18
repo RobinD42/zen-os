@@ -1,0 +1,242 @@
+local DocSettings = require("docsettings")
+local BookNote = require("modules/reader/book_note")
+local lfs = require("libs/libkoreader-lfs")
+local util = require("util")
+
+local M = {}
+M.kinds = { bookmarks = true, highlights = true, annotations = true }
+
+local function values(value)
+    if type(value) == "table" then return value end
+    local result = {}
+    for entry in tostring(value or ""):gmatch("[^,;\n|\t]+") do
+        entry = util.trim(entry)
+        if entry ~= "" then result[#result + 1] = entry end
+    end
+    return result
+end
+
+local function equal(a, b)
+    if type(a) ~= "table" or type(b) ~= "table" then return a == b end
+    for key, value in pairs(a) do if not equal(value, b[key]) then return false end end
+    for key in pairs(b) do if a[key] == nil then return false end end
+    return true
+end
+
+function M.resolve(ui, record)
+    for index, annotation in ipairs(ui.annotation.annotations) do
+        local source = record.annotation
+        if annotation == source or (annotation.datetime == source.datetime
+                and equal(annotation.page, source.page) and equal(annotation.pos0, source.pos0)
+                and equal(annotation.pos1, source.pos1)) then
+            return index, annotation
+        end
+    end
+end
+
+function M.normalize(file, annotations, props)
+    props = props or {}
+    local records = {}
+    for index, annotation in ipairs(annotations or {}) do
+        records[#records + 1] = {
+            file = file, annotation = annotation, order = index,
+            kind = annotation.drawer and "highlight" or "bookmark",
+            text = annotation.text or "", note = annotation.note or "",
+            datetime = annotation.datetime or "", chapter = annotation.chapter or "",
+            color = annotation.color or "gray", style = annotation.drawer or "",
+            page_label = tostring(annotation.pageref or annotation.pageno
+                or (type(annotation.page) == "number" and annotation.page) or ""),
+            title = props.display_title or props.title or file:match("([^/]+)$"),
+            author = type(props.authors) == "table" and table.concat(props.authors, ", ") or props.authors or "",
+            tags = values(annotation.tags or annotation.keywords or props.keywords),
+        }
+    end
+    local text, note_error, note_path, modified = BookNote.read(file)
+    if text and text ~= "" and note_path and not note_error then
+        records[#records + 1] = {
+            file = file, kind = "note", order = 0, text = "", note = text,
+            datetime = os.date("%Y-%m-%d %H:%M:%S", modified), chapter = "", page_label = "",
+            color = "", style = "", tags = values(props.keywords),
+            title = props.display_title or props.title or file:match("([^/]+)$"),
+            author = type(props.authors) == "table" and table.concat(props.authors, ", ") or props.authors or "",
+        }
+    end
+    return records
+end
+
+function M.textMatches(text, rule)
+    if not rule or not rule.text or rule.text == "" then return true end
+    text = tostring(text or "")
+    local function contains(needle)
+        return util.stringSearch(text, needle, rule.case_sensitive == true) > 0
+    end
+    if rule.mode == "phrase" then return contains(rule.text) end
+    local any = rule.mode == "any"
+    for word in rule.text:gmatch("%S+") do
+        local found = contains(word)
+        if any and found then return true end
+        if not any and not found then return false end
+    end
+    return not any
+end
+
+function M.matches(record, state, kind)
+    if kind == "bookmarks" and record.kind ~= "bookmark" then return false end
+    if kind == "highlights" and record.kind ~= "highlight" then return false end
+    if state.query ~= "" and not M.textMatches(record.text .. "\n" .. record.note,
+            { text = state.query, mode = "all" }) then return false end
+    for facet, filter in pairs(state.filters) do
+        local value = record[facet]
+        local candidates = type(value) == "table" and value or { value }
+        local included = next(filter.include) == nil
+        for _i, candidate in ipairs(candidates) do
+            if filter.exclude[candidate] then return false end
+            if filter.include[candidate] then included = true end
+        end
+        if not included then return false end
+    end
+    for field, rules in pairs(state.text_filters) do
+        if not M.textMatches(record[field], rules.include) then return false end
+        if rules.exclude and rules.exclude.text ~= ""
+                and not rules.exclude.text:match("^%s*$")
+                and M.textMatches(record[field], rules.exclude) then return false end
+    end
+    return true
+end
+
+local Session = {}
+Session.__index = Session
+
+function M.new(ui)
+    return setmetatable({ ui = ui, scope = "current", query = "", filters = {}, text_filters = {},
+        books = {}, pages = {}, sort = "page", reverse = false }, Session)
+end
+
+function Session:refreshCurrent()
+    local ui = self.ui
+    local records = M.normalize(ui.document.file, ui.annotation and ui.annotation.annotations, ui.doc_props)
+    for _i, record in ipairs(records) do
+        if record.annotation and ui.bookmark then
+            record.page_label = ui.bookmark:getBookmarkPageString(record.annotation.page)
+        end
+    end
+    self.books[ui.document.file] = records
+end
+
+local function load_book(file)
+    local sidecar = DocSettings:findSidecarFile(file)
+    local settings = sidecar and DocSettings.openSettingsFile(sidecar)
+    local data = settings and settings.data or {}
+    local props = {}
+    for key, value in pairs(data.doc_props or {}) do props[key] = value end
+    local custom_file = DocSettings:findCustomMetadataFile(file)
+    if custom_file then
+        local custom = DocSettings.openSettingsFile(custom_file).data
+        for key, value in pairs(custom.custom_props or custom.doc_props or {}) do props[key] = value end
+    end
+    props.display_title = props.title
+    local annotations = data.annotations
+    if not annotations then
+        annotations = {}
+        local highlights = data.highlight or {}
+        for index = #(data.bookmarks or {}), 1, -1 do
+            local bookmark = data.bookmarks[index]
+            local item = { page = bookmark.page, pos0 = bookmark.pos0, pos1 = bookmark.pos1,
+                datetime = bookmark.datetime, chapter = bookmark.chapter,
+                text = bookmark.notes, note = bookmark.text }
+            if bookmark.highlighted then
+                for _page, page_highlights in pairs(highlights) do
+                    for _i, highlight in ipairs(page_highlights) do
+                        if equal(highlight.pos0, bookmark.pos0) and equal(highlight.pos1, bookmark.pos1) then
+                            item.drawer, item.color = highlight.drawer, highlight.color
+                            item.text = item.text or highlight.text
+                            break
+                        end
+                    end
+                    if item.drawer then break end
+                end
+                item.drawer = item.drawer or "lighten"
+            end
+            annotations[#annotations + 1] = item
+        end
+    end
+    return M.normalize(file, annotations, props)
+end
+
+function Session:refreshBook(file)
+    local ok, records = pcall(load_book, file)
+    if ok then self.books[file] = records end
+end
+
+function Session:loadAll(on_update)
+    if self.loaded or self.loading then return end
+    local history = require("readhistory")
+    history:reload(false)
+    local realpath = require("ffi/util").realpath
+    local current_file = self.ui.document.file
+    local paths, seen = {}, { [current_file] = true, [realpath(current_file) or current_file] = true }
+    for _i, entry in ipairs(history.hist or {}) do
+        local path = entry.file and (realpath(entry.file) or entry.file)
+        if path and not seen[path] and lfs.attributes(path, "mode") == "file" then
+            seen[path] = true
+            paths[#paths + 1] = path
+        end
+    end
+    self.loading = true
+    local offset = 1
+    local UIManager = require("ui/uimanager")
+    self.worker = function()
+        if self.closed then return end
+        for _i = 1, 10 do
+            local file = paths[offset]
+            if not file then break end
+            local ok, records = pcall(load_book, file)
+            if ok then self.books[file] = records end
+            offset = offset + 1
+        end
+        self.loading = offset <= #paths
+        self.loaded = not self.loading
+        on_update()
+        if self.loading and not self.closed then UIManager:scheduleIn(0.01, self.worker) end
+    end
+    UIManager:nextTick(self.worker)
+end
+
+function Session:allRecords()
+    local records = {}
+    for file, book in pairs(self.books) do
+        if self.scope == "all" or file == self.ui.document.file then
+            for _i, record in ipairs(book) do records[#records + 1] = record end
+        end
+    end
+    return records
+end
+
+function Session:items(kind)
+    local items = {}
+    for _i, record in ipairs(self:allRecords()) do
+        if M.matches(record, self, kind) then items[#items + 1] = record end
+    end
+    table.sort(items, function(a, b)
+        local before
+        if self.sort == "date" and a.datetime ~= b.datetime then
+            before = a.datetime < b.datetime
+        elseif a.file ~= b.file then
+            before = a.title == b.title and a.file < b.file or a.title ~= b.title and a.title < b.title
+        else
+            before = a.order < b.order
+        end
+        if self.reverse then return not before and a ~= b end
+        return before
+    end)
+    return items
+end
+
+function Session:close()
+    self.closed = true
+    if self.worker then require("ui/uimanager"):unschedule(self.worker) end
+    self.books = {}
+    self.row_heights = nil
+end
+
+return M

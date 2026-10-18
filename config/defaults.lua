@@ -383,10 +383,16 @@ local defaults = {
         hide_in_cbz = true,
     },
     page_browser = {
+        tab_order = { "browser", "aa", "bookmarks", "highlights", "annotations", "toc" },
+        tabs = { browser = true, aa = true, bookmarks = false, highlights = false, annotations = true, toc = true },
         show_status_bar = true,
         toc_font_size = 18,
         bookmarks_font_size = 18,
         font_full_page = false,
+    },
+    annotation_viewer = {
+        preview_length = "standard",
+        details = { book = "auto", author = "auto", chapter = true, page = true, date = false, tags = false },
     },
     highlight_lookup = {
         allow_unknown_items = false,

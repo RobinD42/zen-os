@@ -253,6 +253,11 @@ modules/reader/lookup_plugin_items.lua|unit
 modules/reader/reader.lua|integration
 modules/reader/zen_toc_widget.lua|integration
 modules/reader/page_browser_panels.lua|unit
+modules/reader/page_browser_tabs.lua|unit
+modules/reader/book_note.lua|unit
+modules/reader/annotations.lua|unit
+modules/reader/annotation_viewer.lua|integration
+modules/settings/sections/annotation_settings.lua|unit
 modules/reader/page_browser_preview.lua|unit
 modules/registry.lua|integration
 modules/settings/battery_stats_menu.lua|unit

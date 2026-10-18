@@ -1244,7 +1244,7 @@ describe("page browser entry", function()
         expect(not dirty)
     end)
 
-    it("keeps tabs open and resumes page-browser navigation for six seconds", function()
+    it("opens the first enabled tab and retains recent controls settings", function()
         local close_button_taps, closes, layouts = 0, 0, 0
         local now = 1000
         local time_stub = stub(os, "time", function() return now end)
@@ -1312,7 +1312,7 @@ describe("page browser entry", function()
         expect(details == browser.ui and closes == 0)
         browser._zen_post_scrub = true
         browser._zen_placeholders_painted = true
-        for _i, tab in ipairs({ { 2, "aa", "carousel" }, { 3, "bookmarks", "carousel" },
+        for _i, tab in ipairs({ { 2, "aa", "carousel" }, { 3, "annotations", "carousel" },
                 { 4, "toc", "carousel" }, { 1, "browser", "carousel" } }) do
             browser._zen_tab_bar.cells[tab[1]].callback()
             expect(browser._zen_active_tab == tab[2] and browser._zen_layout_mode == tab[3])
@@ -1342,19 +1342,19 @@ describe("page browser entry", function()
         now = now + 6
         local reopened = shell(browser.ui)
         PageBrowserWidget.init(reopened)
-        expect(reopened._zen_active_tab == "aa" and reopened._zen_layout_mode == "single")
+        expect(reopened._zen_active_tab == "browser" and reopened._zen_layout_mode == "grid")
         expect(reopened._zen_controls_state.section == "page" and reopened._zen_controls_state.page == 2)
         expect(reopened._zen_controls_state.advanced.page and reopened._zen_controls_state.section_pages.font == 3)
         expect(reopened._zen_controls_state.themes_move == nil)
         expect(reopened.ui._zen_page_browser_resume == nil)
 
-        for _i, tab in ipairs({ "bookmarks", "toc", "browser" }) do
+        for _i, tab in ipairs({ "annotations", "toc", "browser" }) do
             reopened:_zenSelectTab(tab)
             reopened:onClose()
             now = now + 1
             reopened = shell(browser.ui)
             PageBrowserWidget.init(reopened)
-            expect(reopened._zen_active_tab == tab)
+            expect(reopened._zen_active_tab == "browser")
         end
         reopened:_zenSelectTab("aa")
         reopened:onClose()
@@ -1369,6 +1369,19 @@ describe("page browser entry", function()
         local expired = shell(browser.ui)
         PageBrowserWidget.init(expired)
         expect(expired._zen_active_tab == "browser" and expired._zen_controls_state == nil)
+
+        local cfg = _G.__ZEN_UI_PLUGIN.config.page_browser
+        cfg.tab_order = { "highlights", "annotations", "aa", "browser", "toc", "bookmarks" }
+        cfg.tabs.highlights = false
+        local ordered = shell(browser.ui)
+        PageBrowserWidget.init(ordered)
+        expect(ordered._zen_active_tab == "annotations")
+        expect(ordered._zen_tab_bar.cells[1].file == "/custom-icons/book_open.svg")
+        cfg.tabs.annotations = false
+        ordered = shell(browser.ui)
+        PageBrowserWidget.init(ordered)
+        expect(ordered._zen_active_tab == "aa")
+        expect(#ordered._zen_tab_bar.cells == 3)
     end)
 
     it("renders Android PDF Aa thumbnails with reading settings and leaves the live reader intact", function()

@@ -7361,3 +7361,161 @@ msgstr "Меню чтения KOReader"
 #: buttons.lua:7 model.lua:338
 msgid "Contrast"
 msgstr "Контраст"
+
+
+msgid "Add note"
+msgstr "Добавить заметку"
+
+msgid "All books"
+msgstr "Все книги"
+
+msgid "All words"
+msgstr "Все слова"
+
+msgid "Annotation viewer"
+msgstr "Просмотр аннотаций"
+
+msgid "Any word"
+msgstr "Любое слово"
+
+msgid "Auto"
+msgstr "Автоматически"
+
+msgid "Book note"
+msgstr "Заметка к книге"
+
+msgid "Case sensitive"
+msgstr "Учитывать регистр"
+
+msgid "Chapters"
+msgstr "Главы"
+
+msgid "Clear filters"
+msgstr "Сбросить фильтры"
+
+msgid "Could not save book note."
+msgstr "Не удалось сохранить заметку к книге."
+
+msgid "Delete this annotation?"
+msgstr "Удалить эту аннотацию?"
+
+msgid "Edit note"
+msgstr "Изменить заметку"
+
+msgid "Exclude"
+msgstr "Исключить"
+
+msgid "Go to"
+msgstr "Перейти"
+
+msgid "Hide"
+msgstr "Скрыть"
+
+msgid "Highlighted text"
+msgstr "Выделенный текст"
+
+msgid "Include"
+msgstr "Включить"
+
+msgid "Loading…"
+msgstr "Загрузка…"
+
+msgid "Long"
+msgstr "Длинный"
+
+msgid "Note text"
+msgstr "Текст заметки"
+
+msgid "Phrase"
+msgstr "Фраза"
+
+msgid "Preview length"
+msgstr "Длина предпросмотра"
+
+msgid "Reverse order"
+msgstr "Обратный порядок"
+
+msgid "Search annotations"
+msgstr "Поиск в аннотациях"
+
+msgid "Short"
+msgstr "Короткий"
+
+msgid "Show"
+msgstr "Показать"
+
+msgid "Standard"
+msgstr "Стандартный"
+
+msgid "Style"
+msgstr "Стиль"
+
+msgid "Text"
+msgstr "Текст"
+
+msgid "Text size"
+msgstr "Размер текста"
+
+msgid "This annotation is no longer available."
+msgstr "Эта аннотация больше недоступна."
+
+msgid "This book"
+msgstr "Эта книга"
+
+msgid "This book is no longer available."
+msgstr "Эта книга больше недоступна."
+
+msgid "New note"
+msgstr "Новая заметка"
+
+#. Month name, day, year.
+msgid "%1 %2 %3"
+msgstr "%2 %1 %3"
+
+msgctxt "Date month"
+msgid "January"
+msgstr "января"
+
+msgctxt "Date month"
+msgid "February"
+msgstr "февраля"
+
+msgctxt "Date month"
+msgid "March"
+msgstr "марта"
+
+msgctxt "Date month"
+msgid "April"
+msgstr "апреля"
+
+msgctxt "Date month"
+msgid "May"
+msgstr "мая"
+
+msgctxt "Date month"
+msgid "June"
+msgstr "июня"
+
+msgctxt "Date month"
+msgid "July"
+msgstr "июля"
+
+msgctxt "Date month"
+msgid "August"
+msgstr "августа"
+
+msgctxt "Date month"
+msgid "September"
+msgstr "сентября"
+
+msgctxt "Date month"
+msgid "October"
+msgstr "октября"
+
+msgctxt "Date month"
+msgid "November"
+msgstr "ноября"
+
+msgctxt "Date month"
+msgid "December"
+msgstr "декабря"

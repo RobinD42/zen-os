@@ -766,4 +766,15 @@ describe("config manager folder-path migration", function()
 
         assert.are.equal("carousel", stores.reader.settings.page_browser_layout)
     end)
+
+    it("moves annotation tab preferences to Page Browser settings", function()
+        settings_file.data = { annotation_viewer = { tabs = {
+            bookmarks = true, highlights = true, annotations = false,
+        } } }
+        local config = Manager.load()
+        assert.is_nil(config.annotation_viewer.tabs)
+        assert.is_true(config.page_browser.tabs.bookmarks)
+        assert.is_true(config.page_browser.tabs.highlights)
+        assert.is_false(config.page_browser.tabs.annotations)
+    end)
 end)

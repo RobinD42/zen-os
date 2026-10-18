@@ -7366,3 +7366,113 @@ msgstr "KOReader reader menu"
 #: buttons.lua:7 model.lua:338
 msgid "Contrast"
 msgstr "Contrast"
+
+
+msgid "Add note"
+msgstr "Add note"
+
+msgid "All books"
+msgstr "All books"
+
+msgid "All words"
+msgstr "All words"
+
+msgid "Annotation viewer"
+msgstr "Annotation viewer"
+
+msgid "Any word"
+msgstr "Any word"
+
+msgid "Auto"
+msgstr "Auto"
+
+msgid "Book note"
+msgstr "Book note"
+
+msgid "Case sensitive"
+msgstr "Case sensitive"
+
+msgid "Chapters"
+msgstr "Chapters"
+
+msgid "Clear filters"
+msgstr "Clear filters"
+
+msgid "Could not save book note."
+msgstr "Could not save book note."
+
+msgid "Delete this annotation?"
+msgstr "Delete this annotation?"
+
+msgid "Edit note"
+msgstr "Edit note"
+
+msgid "Exclude"
+msgstr "Exclude"
+
+msgid "Go to"
+msgstr "Go to"
+
+msgid "Hide"
+msgstr "Hide"
+
+msgid "Highlighted text"
+msgstr "Highlighted text"
+
+msgid "Include"
+msgstr "Include"
+
+msgid "Loading…"
+msgstr "Loading…"
+
+msgid "Long"
+msgstr "Long"
+
+msgid "Note text"
+msgstr "Note text"
+
+msgid "Phrase"
+msgstr "Phrase"
+
+msgid "Preview length"
+msgstr "Preview length"
+
+msgid "Reverse order"
+msgstr "Reverse order"
+
+msgid "Search annotations"
+msgstr "Search annotations"
+
+msgid "Short"
+msgstr "Short"
+
+msgid "Show"
+msgstr "Show"
+
+msgid "Standard"
+msgstr "Standard"
+
+msgid "Style"
+msgstr "Style"
+
+msgid "Text"
+msgstr "Text"
+
+msgid "Text size"
+msgstr "Text size"
+
+msgid "This annotation is no longer available."
+msgstr "This annotation is no longer available."
+
+msgid "This book"
+msgstr "This book"
+
+msgid "This book is no longer available."
+msgstr "This book is no longer available."
+
+msgid "New note"
+msgstr "New note"
+
+#. Month name, day, year.
+msgid "%1 %2 %3"
+msgstr "%1 %2 %3"

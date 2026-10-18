@@ -1237,6 +1237,7 @@ function M.load()
     local migrated_group, migrated_owned
     stored, migrated_group = migrate_legacy_group_view_keys(stored)
     stored, migrated_owned = migrate_legacy_owned_keys(stored)
+    local migrated_page_browser_tabs = require("modules/reader/page_browser_tabs").migrate(stored)
     local cfg = merged_with_defaults(stored)
     local installed_plugins = PluginScan.installed()
     local installed_plugins_changed = installed_plugins ~= nil
@@ -1244,6 +1245,7 @@ function M.load()
     if installed_plugins then cfg._meta.installed_plugins = installed_plugins end
     local migrated_renamed
     cfg, migrated_renamed = normalize_renamed_keys(cfg)
+    migrated_renamed = migrated_renamed or migrated_page_browser_tabs
     local migrated_substring, migrated_updater, migrated_folder_paths, migrated_fbc, migrated_bim
     cfg, migrated_substring = migrate_legacy_substring_search(cfg)
     cfg, migrated_updater = migrate_legacy_updater_keys(cfg)

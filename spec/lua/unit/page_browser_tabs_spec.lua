@@ -1,0 +1,64 @@
+describe("page browser tabs", function()
+    local Tabs
+    before_each(function()
+        ZenSpec.replace("gettext", function(text) return text end)
+        ZenSpec.unload("modules/reader/page_browser_tabs")
+        Tabs = require("modules/reader/page_browser_tabs")
+    end)
+
+    local function ids(entries)
+        local result = {}
+        for _i, entry in ipairs(entries) do result[#result + 1] = entry.id end
+        return result
+    end
+
+    it("defaults to combined annotations and adapts the controls tab to the book", function()
+        assert.same({ "browser", "aa", "annotations", "toc" }, ids(Tabs.list({})))
+        local entries = Tabs.list({}, { paging = {} }, true)
+        assert.are.equal(6, #entries)
+        assert.are.equal("Contrast", entries[2].text)
+        assert.are.equal("appbar.contrast", entries[2].icon)
+        assert.are.equal("Font", Tabs.list({}, { rolling = {} })[2].text)
+    end)
+
+    it("keeps saved order, skips disabled tabs, and repairs unknown or empty orders", function()
+        local config = { page_browser = { tab_order = { "highlights", "unknown", "aa", "aa", "annotations" },
+            tabs = { highlights = false, aa = false } } }
+        assert.same({ "annotations", "browser", "toc" }, ids(Tabs.list(config)))
+        assert.same({ "highlights", "aa", "annotations", "browser", "bookmarks", "toc" },
+            config.page_browser.tab_order)
+        for id in pairs(config.page_browser.tabs) do config.page_browser.tabs[id] = false end
+        assert.same({ "browser" }, ids(Tabs.list(config)))
+    end)
+
+    it("migrates old annotation choices without replacing newer page-browser choices", function()
+        local config = { annotation_viewer = { tabs = { bookmarks = true, highlights = true, annotations = false } },
+            page_browser = { tabs = { bookmarks = false } } }
+        assert.is_true(Tabs.migrate(config))
+        assert.is_nil(config.annotation_viewer.tabs)
+        assert.same({ "browser", "aa", "highlights", "toc" }, ids(Tabs.list(config)))
+        assert.is_false(Tabs.migrate(config))
+    end)
+
+    it("uses the Zen arrange list to save ordering and visibility and retain one enabled tab", function()
+        local arrange, saves = nil, 0
+        ZenSpec.replace("common/ui/zen_arrange_list", { show = function(options) arrange = options end })
+        local config = {}
+        Tabs.show(config, { saveConfig = function() saves = saves + 1 end }, {})
+        assert.are.equal("Tabs", arrange.title)
+        local rows = arrange.item_table
+        assert.are.equal(6, #rows)
+        assert.is_false(rows[3].checked_func())
+        rows[3].callback()
+        assert.is_true(rows[3].checked_func())
+        local annotations = table.remove(rows, 5)
+        table.insert(rows, 1, annotations)
+        arrange.callback()
+        assert.are.equal("annotations", Tabs.list(config)[1].id)
+        for _i = 2, #rows do if rows[_i].checked_func() then rows[_i].callback() end end
+        assert.same({ "annotations" }, ids(Tabs.list(config)))
+        annotations.callback()
+        assert.is_true(annotations.checked_func())
+        assert.are.equal(6, saves)
+    end)
+end)

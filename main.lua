@@ -240,6 +240,7 @@ function ZenUI:init()
     end
     i18n.refresh()
     self.config = ConfigManager.load()
+    require("modules/reader/book_note").install()
     BatteryStats.start()
     if _plugin_root then
         require("common/utils").copyDefaultCustomTabIcon(

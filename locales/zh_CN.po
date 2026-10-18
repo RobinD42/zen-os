@@ -7360,3 +7360,113 @@ msgstr "KOReader 阅读菜单"
 #: buttons.lua:7 model.lua:338
 msgid "Contrast"
 msgstr "对比度"
+
+
+msgid "Add note"
+msgstr "添加笔记"
+
+msgid "All books"
+msgstr "所有书籍"
+
+msgid "All words"
+msgstr "所有词语"
+
+msgid "Annotation viewer"
+msgstr "批注查看器"
+
+msgid "Any word"
+msgstr "任意词语"
+
+msgid "Auto"
+msgstr "自动"
+
+msgid "Book note"
+msgstr "书籍笔记"
+
+msgid "Case sensitive"
+msgstr "区分大小写"
+
+msgid "Chapters"
+msgstr "章节"
+
+msgid "Clear filters"
+msgstr "清除筛选"
+
+msgid "Could not save book note."
+msgstr "无法保存书籍笔记。"
+
+msgid "Delete this annotation?"
+msgstr "删除此批注？"
+
+msgid "Edit note"
+msgstr "编辑笔记"
+
+msgid "Exclude"
+msgstr "排除"
+
+msgid "Go to"
+msgstr "跳转到"
+
+msgid "Hide"
+msgstr "隐藏"
+
+msgid "Highlighted text"
+msgstr "高亮文本"
+
+msgid "Include"
+msgstr "包含"
+
+msgid "Loading…"
+msgstr "加载中…"
+
+msgid "Long"
+msgstr "长"
+
+msgid "Note text"
+msgstr "笔记文本"
+
+msgid "Phrase"
+msgstr "短语"
+
+msgid "Preview length"
+msgstr "预览长度"
+
+msgid "Reverse order"
+msgstr "反向排序"
+
+msgid "Search annotations"
+msgstr "搜索批注"
+
+msgid "Short"
+msgstr "短"
+
+msgid "Show"
+msgstr "显示"
+
+msgid "Standard"
+msgstr "标准"
+
+msgid "Style"
+msgstr "样式"
+
+msgid "Text"
+msgstr "文本"
+
+msgid "Text size"
+msgstr "文字大小"
+
+msgid "This annotation is no longer available."
+msgstr "此批注已不可用。"
+
+msgid "This book"
+msgstr "本书"
+
+msgid "This book is no longer available."
+msgstr "此书已不可用。"
+
+msgid "New note"
+msgstr "新建笔记"
+
+#. Month name, day, year.
+msgid "%1 %2 %3"
+msgstr "%3年%1%2日"

@@ -7360,3 +7360,113 @@ msgstr "KOReader-leesmenu"
 #: buttons.lua:7 model.lua:338
 msgid "Contrast"
 msgstr "Contrast"
+
+
+msgid "Add note"
+msgstr "Notitie toevoegen"
+
+msgid "All books"
+msgstr "Alle boeken"
+
+msgid "All words"
+msgstr "Alle woorden"
+
+msgid "Annotation viewer"
+msgstr "Annotatieweergave"
+
+msgid "Any word"
+msgstr "Een van de woorden"
+
+msgid "Auto"
+msgstr "Automatisch"
+
+msgid "Book note"
+msgstr "Boeknotitie"
+
+msgid "Case sensitive"
+msgstr "Hoofdlettergevoelig"
+
+msgid "Chapters"
+msgstr "Hoofdstukken"
+
+msgid "Clear filters"
+msgstr "Filters wissen"
+
+msgid "Could not save book note."
+msgstr "De boeknotitie kon niet worden opgeslagen."
+
+msgid "Delete this annotation?"
+msgstr "Deze annotatie verwijderen?"
+
+msgid "Edit note"
+msgstr "Notitie bewerken"
+
+msgid "Exclude"
+msgstr "Uitsluiten"
+
+msgid "Go to"
+msgstr "Ga naar"
+
+msgid "Hide"
+msgstr "Verbergen"
+
+msgid "Highlighted text"
+msgstr "Gemarkeerde tekst"
+
+msgid "Include"
+msgstr "Opnemen"
+
+msgid "Loading…"
+msgstr "Laden…"
+
+msgid "Long"
+msgstr "Lang"
+
+msgid "Note text"
+msgstr "Notitietekst"
+
+msgid "Phrase"
+msgstr "Woordgroep"
+
+msgid "Preview length"
+msgstr "Voorbeeldlengte"
+
+msgid "Reverse order"
+msgstr "Omgekeerde volgorde"
+
+msgid "Search annotations"
+msgstr "Annotaties doorzoeken"
+
+msgid "Short"
+msgstr "Kort"
+
+msgid "Show"
+msgstr "Tonen"
+
+msgid "Standard"
+msgstr "Standaard"
+
+msgid "Style"
+msgstr "Stijl"
+
+msgid "Text"
+msgstr "Tekst"
+
+msgid "Text size"
+msgstr "Tekstgrootte"
+
+msgid "This annotation is no longer available."
+msgstr "Deze annotatie is niet meer beschikbaar."
+
+msgid "This book"
+msgstr "Dit boek"
+
+msgid "This book is no longer available."
+msgstr "Dit boek is niet meer beschikbaar."
+
+msgid "New note"
+msgstr "Nieuwe notitie"
+
+#. Month name, day, year.
+msgid "%1 %2 %3"
+msgstr "%2 %1 %3"

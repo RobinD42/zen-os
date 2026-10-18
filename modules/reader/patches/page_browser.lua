@@ -13,6 +13,7 @@ local function apply_page_browser()
     local ReaderThumbnail = require("apps/reader/modules/readerthumbnail")
     local PresetStore   = require("config/preset_store")
     local BottomSwipe  = require("common/reader_bottom_swipe")
+    local PageBrowserTabs = require("modules/reader/page_browser_tabs")
     local utils        = require("common/utils")
     local lfs          = require("libs/libkoreader-lfs")
     local _stock_icons_dir = lfs.currentdir() .. "/resources/icons/mdlight/"
@@ -275,7 +276,7 @@ local function apply_page_browser()
             items = {
                 { icon = utils.resolveIcon(_icons_dir, "coverflow") },
                 { icon = utils.resolveIcon(stock_icons_dir, "appbar.textsize") },
-                { icon = utils.resolveIcon(_icons_dir, "bookmark") },
+                { icon = utils.resolveIcon(_icons_dir, "book_open") },
                 { icon = utils.resolveIcon(_icons_dir, "toc") },
             },
             selected = 1, icon_size = Screen:scaleBySize(24),
@@ -468,6 +469,10 @@ local function apply_page_browser()
         local logger          = require("common/zen_logger").new("page_browser")
         local LineWidget      = require("ui/widget/linewidget")
         local _               = require("gettext")
+
+        local function is_annotation_tab(tab)
+            return tab == "bookmarks" or tab == "highlights" or tab == "annotations"
+        end
 
         local function is_full_page(pbw)
             return pbw._zen_active_tab == "aa" and pbw._zen_font_full_page == true
@@ -922,8 +927,6 @@ local function apply_page_browser()
                 local age = os.time() - resume.closed_at
                 if age >= 0 and age <= RESUME_TTL_SECONDS then
                     self._zen_controls_state = resume.controls_state
-                else
-                    resume = nil
                 end
             end
             self._zen_plugin = _plugin_ref
@@ -1056,6 +1059,10 @@ local function apply_page_browser()
             end
 
             local info_button = make_header_btn(utils.resolveIcon(_icons_dir, "info"), 0, function()
+                if is_annotation_tab(self._zen_active_tab) then
+                    require("modules/reader/annotation_viewer").showSearch(self)
+                    return
+                end
                 require("modules/reader/book_details").show(self.ui, {
                     config = _plugin_ref and _plugin_ref.config, plugin = _plugin_ref,
                 })
@@ -1065,6 +1072,10 @@ local function apply_page_browser()
             local more_button
             more_button = make_header_btn(utils.resolveIcon(_icons_dir, "more_vertical"),
                 self.dimen.w - (btn_sz + btn_pad * 2) * 2, function()
+                    if is_annotation_tab(self._zen_active_tab) then
+                        require("modules/reader/annotation_viewer").showMenu(self)
+                        return
+                    end
                     local state = self._zen_row_panel and self._zen_row_panel._reader_controls_state
                     local font_section = self._zen_active_tab == "aa" and state
                         and (state.section == "font" or state.section == "contrast")
@@ -1121,14 +1132,23 @@ local function apply_page_browser()
                     pbw._zen_tab_bar:free()
                 end
                 local items, selected = {}, 1
-                for i, entry in ipairs({
-                    { "browser", "coverflow", _("Page browser") },
-                    { "aa", "appbar.textsize", _("Font") },
-                    { "bookmarks", "bookmark", _("Bookmarks") },
-                    { "toc", "toc", _("Table of contents") },
-                }) do
-                    local tab = entry[1]
-                    items[i] = { icon = utils.resolveIcon(_icons_dir, entry[2]) or resolve_stock_icon(entry[2]), text = entry[3],
+                local entries = PageBrowserTabs.list(pbw._zen_plugin.config, pbw.ui)
+                local leading_name = is_annotation_tab(pbw._zen_active_tab) and "quick_search" or "info"
+                local leading_icon = utils.resolveIcon(_icons_dir, leading_name)
+                    or utils.resolveLocalIcon(_icons_dir, leading_name)
+                if leading_icon ~= info_button.file then
+                    local old = info_button
+                    for i = #pbw.title_bar, 1, -1 do
+                        if pbw.title_bar[i] == old then table.remove(pbw.title_bar, i); break end
+                    end
+                    info_button = make_header_btn(leading_icon, 0, old.callback)
+                    pbw._zen_info_button = info_button
+                    table.insert(pbw.title_bar, info_button)
+                    if old.free then old:free() end
+                end
+                for i, entry in ipairs(entries) do
+                    local tab = entry.id
+                    items[i] = { icon = utils.resolveIcon(_icons_dir, entry.icon) or resolve_stock_icon(entry.icon), text = entry.text,
                         callback = function() pbw:_zenSelectTab(tab) end }
                     if pbw._zen_active_tab == tab then selected = i end
                 end
@@ -1162,8 +1182,9 @@ local function apply_page_browser()
 
             -- Rebuild only the panel: the initial layout already used the
             -- selected fixed grid dimensions.
-            if resume and resume.tab ~= "browser" then
-                self:_zenSelectTab(resume.tab)
+            local first_tab = PageBrowserTabs.list(self._zen_plugin.config, self.ui)[1].id
+            if first_tab ~= "browser" then
+                self:_zenSelectTab(first_tab)
             else
                 self._zen_panel_only_rebuild = not self._zen_focus_enabled or stock_focus_layout
                 self:updateLayout()
@@ -1235,7 +1256,7 @@ local function apply_page_browser()
                 self._zen_content_panel:free()
                 self._zen_content_panel = nil
             end
-            if self._zen_active_tab == "toc" or self._zen_active_tab == "bookmarks" then
+            if self._zen_active_tab == "toc" or is_annotation_tab(self._zen_active_tab) then
                 if self._zen_row_panel then self._zen_row_panel:free(); self._zen_row_panel = nil end
                 if self.requests_batch_id then self.ui.thumbnail:cancelPageThumbnailRequests(self.requests_batch_id) end
                 self._zen_slider = nil
@@ -2091,7 +2112,7 @@ local function apply_page_browser()
             -- viewfinder border and row-lines intentionally omitted
 
             if is_full_page(self) then return end
-            if self._zen_active_tab == "toc" or self._zen_active_tab == "bookmarks" then return end
+            if self._zen_active_tab == "toc" or is_annotation_tab(self._zen_active_tab) then return end
             if not (self.grid and self.focus_page) then return end
 
             local fp    = self.focus_page
@@ -2250,7 +2271,7 @@ local function apply_page_browser()
             for _i, cell in ipairs(self._zen_tab_bar and self._zen_tab_bar.cells or {}) do
                 if cell.dimen and cell.dimen:contains(ges.pos) then cell.callback(); return true end
             end
-            if self._zen_active_tab == "toc" or self._zen_active_tab == "bookmarks" then return true end
+            if self._zen_active_tab == "toc" or is_annotation_tab(self._zen_active_tab) then return true end
             if self._zen_active_tab == "aa" and outside_preview(self, ges) then return true end
             if is_full_page(self) then self:_zenOpenFocusedPage(); return true end
             -- 1. Slider tap → navigate to that page.
@@ -2569,10 +2590,11 @@ local function apply_page_browser()
                     if type(value) ~= "function" then state[key] = value end
                 end
                 self.ui._zen_page_browser_resume = {
-                    closed_at = os.time(), tab = self._zen_active_tab, controls_state = state,
+                    closed_at = os.time(), controls_state = state,
                 }
             end
             self._zen_closed = true
+            if self._zen_annotations then self._zen_annotations:close(); self._zen_annotations = nil end
             set_settings_preview(self.ui and self.ui.thumbnail, nil)
             if self._zen_status_clock_bound then
                 require("common/clock_timer").unbind(self)

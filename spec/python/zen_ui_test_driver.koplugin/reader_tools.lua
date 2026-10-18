@@ -124,6 +124,30 @@ end
 function M.page_browser_state()
     local browser = page_browser()
     if not browser then return nil end
+    local top = UIManager:getTopmostVisibleWidget()
+    local annotation_dialog = browser._zen_annotations and top.buttons and top.buttontable and top.movable and top
+    local note_editor = browser._zen_annotations and top.allow_newline and top._input_widget and top
+    local panel = browser._zen_content_panel
+    local annotation_title = panel and panel.name == "page_browser_annotations" and panel.title_bar
+    local button_labels = {}
+    for _i, buttons in ipairs(top.buttons_table or note_editor and note_editor.buttons or {}) do
+        local labels = {}
+        for _j, button in ipairs(buttons) do labels[#labels + 1] = button.text end
+        button_labels[#button_labels + 1] = labels
+    end
+    local annotation_rows, annotation_row_bounds = {}, {}
+    for _i, row in ipairs(annotation_title and panel.item_group or {}) do
+        local blocks = {}
+        for _j, frame in ipairs(row[1] and row[1][1] or {}) do
+            local box = frame[1]
+            if box and box.text and box.face then
+                blocks[#blocks + 1] = { text = box.text, size = box.face.orig_size,
+                    black = box.fgcolor == require("ffi/blitbuffer").COLOR_BLACK }
+            end
+        end
+        annotation_rows[#annotation_rows + 1] = blocks
+        annotation_row_bounds[#annotation_row_bounds + 1] = row.dimen
+    end
     local selected = browser.selected
     local row = selected and browser.layout and browser.layout[selected.y]
     local focused = row and row[selected.x]
@@ -150,7 +174,30 @@ function M.page_browser_state()
     local more_menu = find_widget(function(widget)
         return browser._zen_more_button and menu_anchor(widget) == browser._zen_more_button.dimen and widget.buttons
     end)
+    local annotation_items = {}
+    for _i, item in ipairs(browser._zen_content_panel and browser._zen_content_panel.item_table or {}) do
+        item = item.record or item
+        if item.kind then annotation_items[#annotation_items + 1] = {
+            kind = item.kind, file = item.file, text = item.text, note = item.note, color = item.color, style = item.style,
+        } end
+    end
     return {
+        annotation_items = annotation_items,
+        annotation_rows = annotation_rows,
+        annotation_row_bounds = annotation_row_bounds,
+        annotation_buttons = top.buttons_table and button_labels or nil,
+        annotation_scope = browser._zen_annotations and browser._zen_annotations.scope,
+        annotation_loading = browser._zen_annotations and browser._zen_annotations.loading == true,
+        annotation_dialog = annotation_dialog and { bounds = annotation_dialog.movable.dimen,
+            rows = menu_rows(annotation_dialog), anchor = menu_anchor(annotation_dialog) } or nil,
+        annotation_text = browser._zen_annotations and top.text or nil,
+        annotation_subtitle = annotation_title and annotation_title.subtitle,
+        annotation_subtitle_size = annotation_title and annotation_title.subtitle_widget.face.orig_size,
+        annotation_subtitle_black = annotation_title and annotation_title.subtitle_widget.fgcolor
+            == require("ffi/blitbuffer").COLOR_BLACK,
+        note_editor = note_editor and { bounds = note_editor.dialog_frame.dimen,
+            available_height = note_editor[1].dimen.h, buttons = button_labels,
+            scroll_buttons = note_editor.add_scroll_buttons, nav_bar = note_editor.add_nav_bar } or nil,
         layout = browser._zen_layout_mode,
         preview_ready = full_preview and full_preview.bb ~= nil or focused_preview and focused_preview.is_page_thumbnail == true,
         full_page = browser:_zenIsFullPage(),
@@ -207,6 +254,63 @@ function M.page_browser_state()
         layout_menu = layout_menu and { count = #layout_menu.buttons, rows = layout_rows, anchor = menu_anchor(layout_menu),
             bounds = layout_menu.movable.dimen } or nil,
     }
+end
+
+function M.annotation_viewer_action(params)
+    local ui, browser = reader(), page_browser()
+    if params.action == "open" then
+        ui:switchDocument(params.file)
+        return true
+    elseif params.action == "seed" then
+        local page = ui.rolling and ui.document:getXPointer() or ui:getCurrentPage()
+        ui.annotation.annotations = {
+            { page = page, datetime = "2026-10-18 12:00:00", text = "in First", chapter = "First" },
+            { page = page, pos0 = page, pos1 = page, datetime = "2026-10-18 12:01:00",
+                text = "A quiet highlighted thought", note = "Personal note", chapter = "First",
+                drawer = "lighten", color = "yellow" },
+            { page = page, pos0 = page, pos1 = page, datetime = "2026-10-18 12:02:00",
+                text = "A second passage", chapter = "Second", drawer = "underscore", color = "red" },
+        }
+        if ui.paging then
+            for _i, item in ipairs(ui.annotation.annotations) do
+                if item.drawer then
+                    item.pos0, item.pos1 = { page = page, x = 40, y = 40 }, { page = page, x = 120, y = 60 }
+                    item.pboxes = { { x = 40, y = 40, w = 80, h = 20 } }
+                end
+            end
+        end
+        return true
+    elseif params.action == "tab" then
+        browser:_zenSelectTab(params.tab)
+        return true
+    elseif params.action == "search" then
+        require("modules/reader/annotation_viewer").showSearch(browser)
+        return true
+    elseif params.action == "details" then
+        browser._zen_content_panel:onMenuSelect(browser._zen_content_panel.item_table[params.index or 1])
+        return true
+    elseif params.action == "close_details" then
+        local viewer = find_widget(function(widget) return widget.buttons_table and widget.titlebar end)
+        if not viewer then return false, "details unavailable" end
+        viewer.titlebar.right_button.callback()
+        return true
+    elseif params.action == "input" then
+        local input = find_widget(function(widget) return type(widget.setInputText) == "function" end)
+        if not input then return false, "input dialog unavailable" end
+        input:setInputText(params.text)
+        return true
+    elseif params.action == "button" then
+        for index = #UIManager._window_stack, 1, -1 do
+            local widget = UIManager._window_stack[index].widget
+            for _i, row in ipairs(widget.buttons_table or widget.buttons or {}) do
+                for _j, button in ipairs(row) do
+                    if button.text == params.text and button.callback then button.callback(); return true end
+                end
+            end
+        end
+        return false, "button unavailable: " .. tostring(params.text)
+    end
+    return false, "unknown annotation action"
 end
 
 function M.page_browser_key(key)
@@ -891,9 +995,11 @@ function M.activate(name)
         }) == true
     end
     local browser = page_browser()
-    if name == "page_browser_controls" or name == "page_browser_toc" or name == "page_browser_bookmarks" then
+    if name == "page_browser_controls" or name == "page_browser_toc" or name == "page_browser_bookmarks"
+            or name == "page_browser_annotations" then
         if not browser then return false, "page browser unavailable" end
-        local icons = { page_browser_controls = "appbar.textsize", page_browser_toc = "toc", page_browser_bookmarks = "bookmark" }
+        local icons = { page_browser_controls = ui.paging and "appbar.contrast" or "appbar.textsize", page_browser_toc = "toc",
+            page_browser_bookmarks = "bookmark", page_browser_annotations = "book_open" }
         return tap_browser_widget(find_control(browser.title_bar, icons[name], {}, 0))
     elseif name == "page_browser_search" then
         if not browser then return false, "page browser unavailable" end
@@ -901,7 +1007,7 @@ function M.activate(name)
         return tap_browser_widget(browser._zen_search_button)
     elseif name == "page_browser_pages" then
         if not browser then return false, "page browser unavailable" end
-        return tap_browser_widget(browser._zen_tab_bar.cells[1])
+        return tap_browser_widget(find_control(browser.title_bar, "coverflow", {}, 0))
     elseif name == "page_browser_layout_menu" then
         if not browser then return false, "page browser unavailable" end
         return tap_browser_widget(browser._zen_layout_button)

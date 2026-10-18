@@ -266,9 +266,11 @@ def test_reader_page_browser_modes_and_search_render() -> None:
             )["page_browser"]
             assert default_carousel["thumbnail_count"] == 3
             assert default_carousel["controls"] == ["single", "carousel", "grid"]
-            assert default_carousel["header_icons"] == ["info.svg", "coverflow.svg", "appbar.textsize.svg", "bookmark.svg", "toc.svg", "more_vertical.svg", "close_light.svg"]
+            assert default_carousel["header_icons"] == ["info.svg", "coverflow.svg", "appbar.textsize.svg", "book_open.svg", "toc.svg", "more_vertical.svg", "close_light.svg"]
             assert default_carousel["focused"] == "header:1"
-            assert default_carousel["header_height"] > 100
+            assert default_carousel["header_height"] >= (
+                default_carousel["header_tabs"]["y"] + default_carousel["header_tabs"]["h"]
+            )
             assert default_carousel["preview_divider"]["y"] == default_carousel["screen_height"] - default_carousel["panel_height"]
             chapter = default_carousel["chapter_bounds"]
             previous, following = default_carousel["previous_bounds"], default_carousel["next_bounds"]
@@ -293,16 +295,19 @@ def test_reader_page_browser_modes_and_search_render() -> None:
             assert driver.command("page_browser_state")["page_browser"]["top_is_browser"] is True
 
             for control, tab in (("page_browser_controls", "aa"),
-                                 ("page_browser_bookmarks", "bookmarks"),
+                                 ("page_browser_annotations", "annotations"),
                                  ("page_browser_toc", "toc")):
                 assert driver.command("activate_reader_control", name=control)["activated"] is True
                 state = driver.command("page_browser_state")["page_browser"]
                 assert state["active_tab"] == tab
                 assert state["browser_buttons_visible"] is False
-                assert state["header_icons"] == default_carousel["header_icons"]
+                expected_icons = list(default_carousel["header_icons"])
+                if tab == "annotations":
+                    expected_icons[0] = "quick_search.svg"
+                assert state["header_icons"] == expected_icons
                 if tab == "toc":
                     assert state["content_zen_scroll_bar"] is True
-                if tab in ("toc", "bookmarks"):
+                if tab in ("toc", "annotations"):
                     assert state["content_bottom"] == state["screen_height"] - state["edge_padding"]
                 if tab == "aa":
                     assert state["layout"] == "carousel"
@@ -631,7 +636,7 @@ def test_page_browser_status_bar_is_fixed_across_tabs_and_respects_settings(inte
                 assert status["bounds"]["y"] == library_status["custom_y"]
                 assert status["bounds"]["h"] == library_status["custom_height"]
                 assert status["bounds"]["y"] + status["bounds"]["h"] <= original["header_tabs"]["y"]
-            for tab in ("controls", "bookmarks", "toc", "pages"):
+            for tab in ("controls", "annotations", "toc", "pages"):
                 assert driver.command("activate_reader_control", name=f"page_browser_{tab}")["activated"]
                 state = driver.command("page_browser_state")["page_browser"]
                 assert state["header_tabs"] == original["header_tabs"]
@@ -666,7 +671,7 @@ def test_page_browser_status_bar_is_fixed_across_tabs_and_respects_settings(inte
             assert driver.command("activate_reader_control", name="page_browser_reader_settings")["activated"]
             assert driver.command("settings_page_select", label="Page Browser")["ok"]
             settings = driver.command("settings_page_state")["settings"]
-            assert settings["labels"] == ["Top status bar"]
+            assert settings["labels"] == ["Top status bar", "Tabs"]
             assert settings["items"][0]["checked"] is (page_enabled is not False)
             assert settings["items"][0]["enabled"] is interface_enabled
             if interface_enabled:
@@ -758,7 +763,7 @@ def test_page_browser_settings_subsections_and_themes(document_type: str, width:
             with zipfile.ZipFile(book, "w") as archive:
                 archive.writestr("001.png", buffer.getvalue())
         socket_path = root / "driver.sock"
-        window_scale = 2 if sys.platform == "darwin" else 1
+        window_scale = 2 if sys.platform == "darwin" and os.environ.get("SDL_VIDEODRIVER") != "dummy" else 1
         overrides = {"EMULATE_READER_W": str(width // window_scale),
                      "EMULATE_READER_H": str(1024 // window_scale)} if width else None
         controls_disabled = document_type == "epub" and width is None
@@ -780,9 +785,10 @@ def test_page_browser_settings_subsections_and_themes(document_type: str, width:
                 assert _wait_command(driver, "reader_controls", lambda result: result.get("menu_open"))["active_tab"] == "reader_controls"
                 driver.command("reader_controls", action="close")
                 assert driver.command("activate_reader_control", name="page_browser")["activated"]
-            for tab in ("pages", "bookmarks", "toc"):
+            for tab in ("pages", "annotations", "toc"):
                 assert driver.command("activate_reader_control", name=f"page_browser_{tab}")["activated"]
-                assert [row["text"] for row in _page_browser_more_rows(driver)] == ["Reader controls", "Settings"]
+                expected_menu = ["New note", "Filter", "Sort", "Settings"] if tab == "annotations" else ["Reader controls", "Settings"]
+                assert [row["text"] for row in _page_browser_more_rows(driver)] == expected_menu
                 assert driver.command("activate_reader_control", name="page_browser_more")["activated"]
             assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
             _wait_command(driver, "page_browser_state", lambda result: result["page_browser"]["preview_ready"])
@@ -882,13 +888,14 @@ def test_page_browser_settings_subsections_and_themes(document_type: str, width:
                 assert driver.command("reader_controls")["page"] == pages[section]
             assert driver.command("activate_reader_control", name="page_browser_section_page")["activated"]
             remembered_page = driver.command("reader_controls")["page"]
-            for tab in ("pages", "bookmarks", "toc", "controls"):
+            for tab in ("pages", "annotations", "toc", "controls"):
                 assert driver.command("activate_reader_control", name=f"page_browser_{tab}")["activated"]
             restored = driver.command("reader_controls")
             assert restored["section"] == "page" and restored["page"] == remembered_page
             assert driver.command("page_browser_key", key="Back")["handled"]
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
-            assert driver.command("page_browser_state")["page_browser"]["active_tab"] == "aa"
+            assert driver.command("page_browser_state")["page_browser"]["active_tab"] == "browser"
+            assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
             restored = driver.command("reader_controls")
             assert restored["section"] == "page" and restored["page"] == remembered_page
             assert driver.command("activate_reader_control", name="page_browser_section_themes")["activated"]
@@ -983,8 +990,7 @@ def test_page_browser_font_full_page_matches_reader_and_is_remembered(document_t
             assert driver.command("activate_reader_control", name="page_browser_preview_center")["activated"]
             assert driver.command("page_browser_state").get("page_browser") is None
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
-            assert driver.command("page_browser_state")["page_browser"]["active_tab"] == "aa"
-            assert driver.command("page_browser_state")["page_browser"]["full_page"]
+            assert driver.command("page_browser_state")["page_browser"]["active_tab"] == "browser"
             assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
             assert driver.command("page_browser_state")["page_browser"]["full_page"]
             stop(process)
@@ -1022,9 +1028,9 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
         pack = home / "icons" / "zen" / "browser"
         pack.mkdir(parents=True)
         (pack / "pack.json").write_text(json.dumps({"schema_version": 1, "id": "browser", "name": "Browser"}))
-        header_names = ["info", "coverflow", "appbar.textsize", "bookmark", "toc", "more_vertical", "close_light"]
+        header_names = ["info", "coverflow", "appbar.textsize", "book_open", "toc", "more_vertical", "close_light"]
         names = header_names + ["grid", "grid_slide", "chevron.left", "chevron.right", "appbar.search",
-                                "quicksettings", "appbar.settings"]
+                                "quicksettings", "appbar.settings", "plus", "filter", "sort"]
         for name in names:
             (pack / (name + ".svg")).write_text(
                 '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">'
@@ -1062,15 +1068,19 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
                 assert row["align"] == "left" and row["padding_left"] == row["padding_right"] > 0
                 paths.append((name, row["icon"]))
             assert [row["text"].removesuffix(" ✓") for row in menu["rows"]] == ["Single page", "Carousel", "Grid"]
-            for name, path in paths:
-                if custom_icons:
-                    assert Path(path).resolve() == (pack / (name + ".svg")).resolve()
-                else:
-                    assert "/icons/zen/browser/" not in path
             frame_dir = Path(__file__).resolve().parents[2] / ".artifacts" / "page-browser"
             frame_dir.mkdir(parents=True, exist_ok=True)
             driver.screenshot(frame_dir / ("layout-custom.png" if custom_icons else "layout-default.png"))
             assert driver.command("activate_reader_control", name="page_browser_single")["activated"]
             assert driver.command("page_browser_state")["page_browser"]["layout"] == "single"
+            assert driver.command("activate_reader_control", name="page_browser_annotations")["activated"]
+            annotation_rows = _page_browser_more_rows(driver)
+            assert [row["text"] for row in annotation_rows] == ["New note", "Filter", "Sort", "Settings"]
+            paths.extend(zip(["plus", "filter", "sort", "quicksettings"], [row["icon"] for row in annotation_rows]))
+            for name, path in paths:
+                if custom_icons:
+                    assert Path(path).resolve() == (pack / (name + ".svg")).resolve()
+                else:
+                    assert "/icons/zen/browser/" not in path
         finally:
             stop(process)
