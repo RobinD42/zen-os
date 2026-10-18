@@ -10,6 +10,7 @@ describe("library navigation", function()
             "__ZEN_UI_LIBRARY_STATE", "__ZEN_UI_NAVBAR_OPEN_DEFAULT_TAB",
             "__ZEN_UI_NAVBAR_OPEN_FOLDER",
             "__ZEN_UI_NAVBAR_IS_DEFAULT_TAB_ACTIVE", "__ZEN_UI_NAVBAR_DEFAULT_TAB_ICON",
+            "__ZEN_UI_NAVBAR_RESOLVE_DEFAULT_TAB",
         }) do
             _G[name] = nil
         end
@@ -75,6 +76,9 @@ describe("library navigation", function()
         _G.__ZEN_UI_NAVBAR_IS_DEFAULT_TAB_ACTIVE = function() return true end
         Navigation.openDefault(fm, nil, function() order[#order + 1] = "menu" end)
         assert.are.same({ "menu", "overlays", "default", "menu" }, order)
+        _G.__ZEN_UI_NAVBAR_RESOLVE_DEFAULT_TAB = function() return "books" end
+        Navigation.openDefault(fm, nil, function() order[#order + 1] = "menu" end)
+        assert.are.same({ "menu", "overlays", "default", "menu", "menu", "overlays", "default" }, order)
     end)
 
     it("returns Home from the reader safely and preserves restore behavior", function()

@@ -1023,12 +1023,19 @@ local function apply_navbar()
                 fc._zen_lib_mtime_subdirs = subdirs
                 fc._zen_lib_mtime_snapshot_at = now()
             end
+            local flat_config = zen_plugin.config and zen_plugin.config.browser_flat_view
+            local warmed_items, warmed_detail
+            if flat_config and flat_config.enabled and fc._zen_warm_item_table then
+                warmed_items, warmed_detail = fc:_zen_warm_item_table(home_dir)
+                listing_changed = listing_changed
+                    or (warmed_items ~= nil and warmed_detail and warmed_detail.cache == "miss")
+            end
             local refresh_needed = not options.already_refreshed
                 and (sort_changed or tree_changed or listing_changed)
 
             if refresh_needed then
                 refreshLibraryStatusBar(fm)
-                _refresh_library_path(fc, home_dir, listing_changed)
+                _refresh_library_path(fc, home_dir, listing_changed and not warmed_items)
             end
             fc._zen_home_retained_library = nil
 
@@ -1088,7 +1095,7 @@ local function apply_navbar()
                          or require("apps/filemanager/filemanagerutil").getDefaultDir()
         if not (fm and fm.file_chooser) then return false end
         local fc = fm.file_chooser
-        local fm_stack_widget = select(2, retainHomeBelowFileManager(fm))
+        local from_home, fm_stack_widget = retainHomeBelowFileManager(fm)
         -- A reinit under Home replaces FileChooser but preserves FileManager.invisible.
         local reveal_hidden_filemanager = revealFileManager(fm, fc)
         utils.closeWidgetsAbove(fm_stack_widget or fm)
@@ -1147,6 +1154,9 @@ local function apply_navbar()
                 fc.path_items[home_dir] = 1
                 if retained then
                     _refresh_library_path(fc, home_dir)
+                elseif not from_home and not reveal_hidden_filemanager then
+                    fc._zen_needs_cover_refresh = nil
+                    _refresh_library_path(fc, home_dir, true)
                 elseif not refreshSuppressedCoversNow(fm)
                         and type(fc.onGotoPage) == "function" then
                     fc:onGotoPage(1)
@@ -1721,6 +1731,7 @@ local function apply_navbar()
         local source = source_tab_id or (top_widget and top_widget._zen_navbar_tab_id)
         local same_page = source == tab_id
         if tab_id ~= "home" and same_page then
+            if tab_id == "books" then cb() end
             return
         end
         if shouldTrackActiveTab(tab_id) then

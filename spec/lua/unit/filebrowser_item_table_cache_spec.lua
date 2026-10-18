@@ -21,6 +21,7 @@ describe("file browser item-table cache", function()
     local fake_now
     local attributes_calls
     local directory_reads
+    local flat_directories
 
     local module_names = {
         "common/cover_utils",
@@ -61,8 +62,18 @@ describe("file browser item-table cache", function()
                     dim = self.ui and self.ui.selected_files[fullpath],
                 }
             end,
-            genItemTableFromPath = function(_self, path)
+            genItemTableFromPath = function(self, path)
                 generated[path] = (generated[path] or 0) + 1
+                if flat_directories then
+                    self._zen_flat_view_directories = {}
+                    for _i, dir in ipairs(flat_directories) do
+                        self._zen_flat_view_directories[dir] = {
+                            modification = directory_mtimes[dir] or directory_mtime,
+                            change = directory_mtimes[dir] or directory_mtime,
+                            size = 1, ino = 1,
+                        }
+                    end
+                end
                 return source_items[path] or { { path = path } }
             end,
         }
@@ -106,6 +117,7 @@ describe("file browser item-table cache", function()
         fake_now = 0
         attributes_calls = 0
         directory_reads = 0
+        flat_directories = nil
         saved_modules = {}
         for _i, name in ipairs(module_names) do
             saved_modules[name] = package.loaded[name]
@@ -312,6 +324,43 @@ describe("file browser item-table cache", function()
         local materialized = chooser:genItemTableFromPath("/library")
         assert.are.equal(1, #materialized)
         assert.are.equal(1, generated["/library"])
+    end)
+
+    it("refreshes flat listings immediately after nested additions and deletions", function()
+        flat_directories = { "/library", "/library/Author", "/library/Author/Title" }
+        directory_mtimes["/library/Author/Title"] = 1
+        source_items["/library"] = {}
+        local chooser = setmetatable({ name = "filemanager" }, { __index = FileChooser })
+        assert.are.same({}, chooser:genItemTableFromPath("/library"))
+        chooser:genItemTableFromPath("/library")
+        assert.are.equal(1, generated["/library"])
+
+        directory_mtimes["/library/Author/Title"] = 2
+        source_items["/library"] = {
+            { path = "/library/Author/Title/Book.epub", is_file = true },
+        }
+        assert.are.equal(1, #chooser:genItemTableFromPath("/library"))
+        directory_mtimes["/library/Author/Title"] = 3
+        source_items["/library"] = {}
+        assert.are.same({}, chooser:genItemTableFromPath("/library"))
+        assert.are.equal(3, generated["/library"])
+    end)
+
+    it("validates all scanned flat directories after restoring a snapshot", function()
+        flat_directories = { "/library", "/library/Author", "/library/Author/Series/Title" }
+        directory_mtimes["/library/Author/Series/Title"] = 1
+        local chooser = setmetatable({ name = "filemanager" }, { __index = FileChooser })
+        chooser:genItemTableFromPath("/library")
+        run_scheduled()
+
+        chooser = apply_new_filechooser()
+        chooser:genItemTableFromPath("/library")
+        assert.are.equal("disk_hit", chooser._zen_last_item_table_cache_result.cache)
+
+        directory_mtimes["/library/Author/Series/Title"] = 2
+        source_items["/library"] = {}
+        assert.are.same({}, chooser:genItemTableFromPath("/library"))
+        assert.are.equal(2, generated["/library"])
     end)
 
     it("refreshes cached folders when up-folder visibility changes", function()

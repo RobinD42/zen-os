@@ -1335,6 +1335,45 @@ describe("file browser navbar navigation", function()
         assert.are.equal("true", measurement_detail(measurements[2], "refreshed="))
     end)
 
+    it("checks the flat listing cache when revealing a retained Library", function()
+        local fm = make_instance()
+        local fc = fm.file_chooser
+        fc.path = "/library"
+        fc.page = 2
+        fc._zen_lib_mtime_snapshot = { ["/library"] = 10 }
+        fc._zen_lib_mtime_snapshot_at = os.clock()
+        dir_mtimes["/library"] = 10
+        _G.__ZEN_UI_PLUGIN.config.browser_flat_view = { enabled = true }
+        local next_ticks = {}
+        UIManager.nextTick = function(_self, callback)
+            next_ticks[#next_ticks + 1] = callback
+        end
+        assert.is_true(_G.__ZEN_UI_NAVBAR_OPEN_TAB("home"))
+        table.remove(next_ticks, 1)()
+        local cache_state = "memory_hit"
+        fc._zen_warm_item_table = function(_self, path)
+            calls[#calls + 1] = "warm:" .. path
+            return { { path = "/library/Author/Series/Title/New.epub" } }, { cache = cache_state }
+        end
+        calls = {}
+
+        assert.is_true(_G.__ZEN_UI_NAVBAR_OPEN_TAB("books"))
+        assert.are.same({}, calls)
+        table.remove(next_ticks, 1)()
+        assert.are.same({ "warm:/library" }, calls)
+        assert.are.equal("false", measurement_detail(measurements[2], "refreshed="))
+        while #next_ticks > 0 do table.remove(next_ticks, 1)() end
+
+        assert.is_true(_G.__ZEN_UI_NAVBAR_OPEN_TAB("home"))
+        while #next_ticks > 0 do table.remove(next_ticks, 1)() end
+        cache_state = "miss"
+        calls = {}
+        assert.is_true(_G.__ZEN_UI_NAVBAR_OPEN_TAB("books"))
+        while #next_ticks > 0 do table.remove(next_ticks, 1)() end
+        assert.are.same({ "warm:/library", "books:/library" }, calls)
+        assert.are.equal("true", measurement_detail(measurements[#measurements], "refreshed="))
+    end)
+
     it("ignores sidecar directories during recursive Library validation", function()
         local fm = make_instance()
         fm.file_chooser.path = "/library"
@@ -1769,6 +1808,22 @@ describe("file browser navbar navigation", function()
         assert.is_true(_G.__ZEN_UI_NAVBAR_OPEN_TAB("authors"))
         assert.are.same({}, calls)
         assert.are.equal(0, full_repaints)
+    end)
+
+    it("invalidates and refreshes the active Library when its icon is tapped", function()
+        local fm = make_instance()
+        local fc = fm.file_chooser
+        fc.path = "/library"
+        fc._zen_invalidate_item_table_path = function(_self, path)
+            calls[#calls + 1] = "invalidate:" .. path
+        end
+        fc.refreshPath = function() calls[#calls + 1] = "refresh" end
+        UIManager._window_stack = { { widget = fm } }
+
+        assert.is_true(_G.__ZEN_UI_NAVBAR_OPEN_TAB("books"))
+
+        assert.are.same({ "invalidate:/library", "refresh" }, calls)
+        assert.are.equal(1, full_repaints)
     end)
 
     it("fully refreshes every navbar page switch, including Authors to Library and Home", function()
@@ -2676,9 +2731,7 @@ describe("file browser navbar navigation", function()
     it("fully refreshes when revealing the current Library page", function()
         local fm = make_instance()
         fm.file_chooser.path = "/library"
-        fm.file_chooser.onGotoPage = function(_, page)
-            calls[#calls + 1] = "goto:" .. tostring(page)
-        end
+        fm.file_chooser.refreshPath = function() calls[#calls + 1] = "refresh" end
         local next_ticks = {}
         local dirty = {}
         local force_repaints = 0
@@ -2690,7 +2743,7 @@ describe("file browser navbar navigation", function()
         calls = {}
 
         assert.is_true(_G.__ZEN_UI_NAVBAR_OPEN_TAB("books"))
-        assert.are.same({ "goto:1" }, calls)
+        assert.are.same({ "refresh" }, calls)
         assert.are.equal(2, #next_ticks)
         table.remove(next_ticks, 1)()
         table.remove(next_ticks, 1)()

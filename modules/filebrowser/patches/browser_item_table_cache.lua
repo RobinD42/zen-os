@@ -18,7 +18,7 @@ local function apply_browser_item_table_cache()
     local FOLDER_AGGREGATE_CACHE_MAX = 128
     local PERSISTED_CACHE_MAX = 4
     local PERSISTED_ITEM_MAX = 4096
-    local PERSISTED_SCHEMA = 4
+    local PERSISTED_SCHEMA = 5
     local PERSISTED_TREE_DEPTH = 2
     local PERSISTED_TREE_DIR_MAX = 256
     local PERSISTED_TREE_ENTRY_MAX = 4096
@@ -494,6 +494,7 @@ local function apply_browser_item_table_cache()
     end
 
     local function stable_key(self, path)
+        local flat_config = plugin and plugin.config and plugin.config.browser_flat_view
         local show_hidden = self.show_hidden
         if show_hidden == nil then show_hidden = FileChooser.show_hidden end
         local show_flat_view = self.show_flat_view
@@ -509,6 +510,7 @@ local function apply_browser_item_table_cache()
             tostring(automatic_series_enabled()), tostring(hide_grouped_series_enabled()),
             tostring(dim_finished_enabled()),
             up_folder_visibility_key(), tostring(show_flat_view),
+            tostring(flat_config and flat_config.enabled == true),
             tostring(show_unsupported),
             tostring(G_reader_settings:readSetting("show_file_in_bold")),
             tostring(G_reader_settings:readSetting("show_parent_folder")),
@@ -562,6 +564,16 @@ local function apply_browser_item_table_cache()
     -- (history re-order, disk restore) do not scan a second time.
     local CHILD_VALIDATION_TTL_S = 5
     local function validate_children(value)
+        if value.recursive then
+            local signatures = value.child_directory_signatures
+            if type(signatures) ~= "table" or next(signatures) == nil then return false end
+            for path, signature in pairs(signatures) do
+                if type(path) ~= "string" or directory_signature(path) ~= signature then
+                    return false
+                end
+            end
+            return true
+        end
         if value.last_children_check and value.last_children_ok
                 and now() - value.last_children_check < CHILD_VALIDATION_TTL_S then
             return true
@@ -682,7 +694,7 @@ local function apply_browser_item_table_cache()
         if not value then return nil, "disk_miss" end
         if value.key ~= key then return nil, "disk_stale" end
         if not validate_children(value) then return nil, "disk_stale_children" end
-        if not tree_signature_matches(value.tree_signature) then
+        if not value.recursive and not tree_signature_matches(value.tree_signature) then
             return nil, "disk_stale_tree"
         end
         local restored = restore_item_table(value.table)
@@ -692,6 +704,7 @@ local function apply_browser_item_table_cache()
             stable_key = value.stable_key,
             table = restored,
             child_directory_signatures = value.child_directory_signatures,
+            recursive = value.recursive,
             tree_signature_mode = value.tree_signature_mode or "legacy",
         }, "disk_hit"
     end
@@ -707,8 +720,10 @@ local function apply_browser_item_table_cache()
             stable_key = value.stable_key,
             table = snapshot,
             child_directory_signatures = value.child_directory_signatures,
-            needs_tree_signature = true,
-            requires_full_tree = self.show_flat_view == true
+            recursive = value.recursive,
+            tree_signature_mode = value.recursive and "full" or nil,
+            needs_tree_signature = not value.recursive,
+            requires_full_tree = value.recursive or self.show_flat_view == true
                 or (self.show_flat_view == nil and FileChooser.show_flat_view == true),
         }
         while #cache.order > PERSISTED_CACHE_MAX do
@@ -890,11 +905,21 @@ local function apply_browser_item_table_cache()
             return stale.table
         end
 
+        self._zen_flat_view_directories = nil
         local result = original_genItemTableFromPath(self, path)
         if collate_mode == "access" then
             result = apply_history_order(self, result, collate, reverse)
         end
         local value = { key = key, stable_key = stable, table = result }
+        local directories = self._zen_flat_view_directories
+        self._zen_flat_view_directories = nil
+        if directories and directories[path] then
+            value.recursive = true
+            value.child_directory_signatures = {}
+            for dir, attributes in pairs(directories) do
+                value.child_directory_signatures[dir] = attr_signature(attributes)
+            end
+        end
         put_cached(path, value)
         local persisted = put_persisted(self, path, value)
         logger.measure("File list generated", (now() - started_at) * 1000,

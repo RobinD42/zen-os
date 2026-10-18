@@ -81,6 +81,22 @@ def test_flat_view_pulls_books_out_of_subfolders() -> None:
             assert expected in paths
             assert series_dir not in paths
             assert nested_dir not in paths
+
+            assert driver.command("tap_navbar_tab", label="Library", id="books")["ok"] is True
+            received_book = nested / "Received.epub"
+            shutil.copyfile(fixture["epub"], received_book)
+            assert driver.command("tap_navbar_tab", label="Library", id="books")["ok"] is True
+            items = driver.command("file_chooser_items")["file_chooser"]["items"]
+            assert str(received_book.resolve()) in {item["path"] for item in items}
+
+            assert driver.command("tap_navbar_tab", label="Home", id="home")["ok"] is True
+            received_book.unlink()
+            deep_book.unlink()
+            assert driver.command("tap_navbar_tab", label="Library", id="books")["ok"] is True
+            items = driver.command("file_chooser_items")["file_chooser"]["items"]
+            refreshed_paths = {item["path"] for item in items}
+            assert str(received_book.resolve()) not in refreshed_paths
+            assert expected not in refreshed_paths
         finally:
             process.send_signal(signal.SIGTERM)
             try:

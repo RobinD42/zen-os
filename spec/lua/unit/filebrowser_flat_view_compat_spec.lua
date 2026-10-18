@@ -55,6 +55,10 @@ describe("filebrowser flat view compatibility patch", function()
                 walked.include_hidden = options.include_hidden
                 walked.koreader_result = options.on_dir("koreader")
                 walked.books_result = options.on_dir("Books")
+                if options.on_scan_dir then
+                    options.on_scan_dir(path, { mode = "directory", modification = 1 })
+                    options.on_scan_dir("/library/Empty", { mode = "directory", modification = 2 })
+                end
                 options.on_file("Alpha.epub", "/library/Series/Alpha.epub",
                     { mode = "file", size = 10 }, 1, "/library/Series")
                 options.on_file("notes.txt", "/library/Notes/notes.txt",
@@ -142,6 +146,10 @@ describe("filebrowser flat view compatibility patch", function()
             collate = "natural",
         }, files[1])
         assert.are.equal(0, original_calls)
+        assert.are.same({
+            ["/library"] = { mode = "directory", modification = 1 },
+            ["/library/Empty"] = { mode = "directory", modification = 2 },
+        }, chooser._zen_flat_view_directories)
     end)
 
     it("uses boolean placeholders when no collation is requested", function()

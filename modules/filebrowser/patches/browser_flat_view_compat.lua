@@ -43,8 +43,13 @@ local function apply_browser_flat_view_compat()
     end
 
     local function scan_flat(self, path, collate, dirs, files)
+        local directories = {}
+        if collate then self._zen_flat_view_directories = directories end
         BookWalker.walk(path, {
             include_hidden = show_hidden(self),
+            on_scan_dir = collate and function(dir, attributes)
+                directories[dir] = attributes
+            end,
             on_dir = function(name)
                 if name == "koreader" then return false end
                 return self:show_dir(name)
