@@ -1,0 +1,158 @@
+describe("embedded page-browser lists", function()
+    local Panels, saved_modules, saved_settings, saved_plugin
+    local font_scopes, updates, closes, held_index, browser, focus_rebuilds
+    local module_names = {
+        "ui/widget/menu", "ui/widget/titlebar", "device", "common/reader_font",
+        "modules/filebrowser/patches/library_font", "common/ui/zen_title_style",
+        "modules/reader/zen_toc_widget", "modules/reader/page_browser_panels", "gettext",
+    }
+
+    before_each(function()
+        saved_modules = {}
+        for _i, name in ipairs(module_names) do saved_modules[name] = package.loaded[name] or false end
+        saved_settings, saved_plugin = G_reader_settings, rawget(_G, "__ZEN_UI_PLUGIN")
+        _G.G_reader_settings = ZenSpec.memorySettings()
+        _G.__ZEN_UI_PLUGIN = { config = { page_browser = { toc_font_size = 22, bookmarks_font_size = 24 } } }
+        font_scopes, updates, closes, held_index, focus_rebuilds = 0, 0, 0, nil, 0
+        ZenSpec.replace("gettext", function(text) return text end)
+        ZenSpec.replace("device", { screen = { scaleBySize = function(_self, value) return value end } })
+        ZenSpec.replace("common/reader_font", { getInfo = function() return { size = 18 } end })
+        ZenSpec.replace("common/ui/zen_title_style", { getTitleFace = function() return "title face" end })
+        ZenSpec.replace("modules/filebrowser/patches/library_font", {
+            withMenuFaces = function(callback) font_scopes = font_scopes + 1; return callback() end,
+        })
+        ZenSpec.replace("ui/widget/titlebar", {
+            new = function(_self, spec) spec.getHeight = function() return 50 end; return spec end,
+        })
+        ZenSpec.replace("ui/widget/menu", {
+            new = function(_self, spec)
+                spec.layout = { { "first row" } }
+                spec.selected = { x = 1, y = 1 }
+                spec.updateItems = function(_menu, number) updates = updates + number end
+                return spec
+            end,
+        })
+        ZenSpec.replace("modules/reader/zen_toc_widget", {
+            getEntries = function()
+                return {
+                    { title = "First", page = 1, page_label = "i", depth = 1 },
+                    { title = "Nested", page = 5, page_label = "v", depth = 2 },
+                    { title = "Last", page = 10, page_label = "x", depth = 1 },
+                }
+            end,
+        })
+        browser = {
+            focus_page = 5,
+            _zen_plugin = _G.__ZEN_UI_PLUGIN,
+            _zenFocusedDocumentPage = function() return 5 end,
+            _zenRebuildFocusLayout = function() focus_rebuilds = focus_rebuilds + 1 end,
+            onClose = function() closes = closes + 1; return true end,
+            ui = {
+                annotation = {
+                    annotations = {
+                        { page = "xp1", text = "First marker", datetime = "2026-02", pos0 = "marker1" },
+                        { page = "xp2", text = "Second marker", datetime = "2026-01", pos0 = "marker2" },
+                    },
+                },
+                bookmark = {
+                    getBookmarkType = function() return "bookmark" end,
+                    getBookmarkItemText = function(_self, item) return "• " .. item.text_orig end,
+                    getBookmarkPageNumber = function(_self, item) return item.page == "xp1" and 5 or 9 end,
+                    getBookmarkPageString = function(_self, page) return page == "xp1" and "v" or "ix" end,
+                    showBookmarkDetails = function(_self, index) held_index = index end,
+                },
+            },
+        }
+        ZenSpec.unload("modules/reader/page_browser_panels")
+        Panels = require("modules/reader/page_browser_panels")
+    end)
+
+    after_each(function()
+        _G.G_reader_settings, _G.__ZEN_UI_PLUGIN = saved_settings, saved_plugin
+        for _i, name in ipairs(module_names) do package.loaded[name] = saved_modules[name] or nil end
+    end)
+
+    it("keeps TOC navigation and paging inside the page-browser body", function()
+        local selected_page, selected_item
+        local menu = Panels.build(browser, "toc", 600, 700, function(page, item)
+            selected_page, selected_item = page, item
+        end)
+        assert.are.equal("page_browser_toc", menu.name)
+        assert.is_false(menu.is_popout)
+        assert.is_true(menu.is_borderless)
+        assert.are.equal(browser, menu.show_parent)
+        assert.are.equal(700, menu.height)
+        assert.are.equal("Table of contents", menu.custom_title_bar.title)
+        assert.is_nil(menu.custom_title_bar.close_callback)
+        assert.are.equal(22, menu.items_font_size)
+        assert.are.equal(2, menu.item_table.current)
+        assert.is_true(menu.item_table[2].bold)
+        assert.are.equal("  Nested", menu.item_table[2].text)
+        assert.are.equal("v", menu.item_table[2].mandatory)
+        assert.is_true(menu:onMenuSelect(menu.item_table[2]))
+        assert.are.equal(5, selected_page)
+        assert.are.equal(menu.item_table[2], selected_item)
+        assert.are.equal(0, closes)
+        menu:updateItems(2)
+        assert.are.equal(2, updates)
+        assert.are.equal(2, font_scopes)
+        assert.are.equal(1, focus_rebuilds)
+        assert.are.same({ { "first row" } }, menu.layout)
+    end)
+
+    it("keeps bookmarks' exact locations and details without changing annotations", function()
+        local selected_page, selected_item
+        local menu = Panels.build(browser, "bookmarks", 600, 700, function(page, item)
+            selected_page, selected_item = page, item
+        end)
+        assert.are.equal("Bookmarks", menu.custom_title_bar.title)
+        assert.are.equal(24, menu.items_font_size)
+        assert.are.equal("• First marker", menu.item_table[1].text)
+        assert.are.equal("v", menu.item_table[1].mandatory)
+        assert.is_true(menu.item_table[1].bold)
+        assert.are.equal(1, menu.item_table.current)
+        assert.are.equal("First marker", browser.ui.annotation.annotations[1].text)
+        assert.is_nil(browser.ui.annotation.annotations[1]._zen_bookmark)
+        menu:onMenuSelect(menu.item_table[1])
+        assert.are.equal(5, selected_page)
+        assert.are.equal("xp1", selected_item.page)
+        assert.are.equal("marker1", selected_item.pos0)
+        assert.is_true(selected_item._zen_bookmark)
+        assert.is_true(menu:onMenuHold(menu.item_table[2]))
+        assert.are.equal(2, held_index)
+        assert.are.equal(1, closes)
+    end)
+
+    it("honors bookmark date order and keeps details tied to the annotation after sorting", function()
+        G_reader_settings:saveSetting("bookmarks_items_sorting", "date")
+        local menu = Panels.build(browser, "bookmarks", 600, 700, function() end)
+        assert.are.equal("xp2", menu.item_table[1].page)
+        menu:onMenuHold(menu.item_table[1])
+        assert.are.equal(2, held_index)
+        G_reader_settings:saveSetting("bookmarks_items_reverse_sorting", true)
+        menu = Panels.build(browser, "bookmarks", 600, 700, function() end)
+        assert.are.equal("xp1", menu.item_table[1].page)
+        assert.are.equal("xp2", menu.item_table[2].page)
+    end)
+
+    it("routes Back to the browser and keeps empty lists valid", function()
+        browser.ui.annotation.annotations = {}
+        local menu = Panels.build(browser, "bookmarks", 600, 120, function() error("empty list navigated") end)
+        assert.are.same({}, menu.item_table)
+        assert.are.equal(1, menu.items_per_page)
+        assert.is_true(menu:onClose())
+        assert.is_true(menu:onCloseAllMenus())
+        assert.are.equal(2, closes)
+    end)
+
+    it("uses the mapped document page and browser's retained plugin config", function()
+        _G.__ZEN_UI_PLUGIN = nil
+        browser.focus_page = 2
+        local menu = Panels.build(browser, "toc", 600, 700, function() end)
+        assert.are.equal(2, menu.item_table.current)
+        assert.are.equal(22, menu.items_font_size)
+        menu = Panels.build(browser, "bookmarks", 600, 700, function() end)
+        assert.is_true(menu.item_table[1].bold)
+        assert.are.equal(24, menu.items_font_size)
+    end)
+end)

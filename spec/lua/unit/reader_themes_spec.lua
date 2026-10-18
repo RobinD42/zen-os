@@ -138,6 +138,9 @@ describe("reader themes", function()
         assert.are.equal("NotoSerif-Regular.ttf", face)
         assert.is_true(Themes.applyBackground(reader, plugin))
         assert.are.equal(0xaabbcc, background)
+        reader.doc_settings = ZenSpec.memorySettings({ font_face = "Saved book font" })
+        assert.is_true(Themes.applyFont(reader, plugin))
+        assert.are.equal("NotoSerif-Regular.ttf", face)
         assert.is_true(Themes.isValidColor("#123abc"))
         assert.is_true(Themes.isValidColor("#abc"))
         assert.is_false(Themes.isValidColor("#123ab"))
@@ -511,4 +514,62 @@ describe("reader themes", function()
         next_tick_callback()
         assert.are.equal("full", dirty_calls[1][3])
     end)
+    it("captures both configured theme modes even while themes are disabled", function()
+        local plugin = { config = { features = { reader_themes = false }, reader_themes = {
+            light_mode = "light_tan", dark_mode = "dark_graphite", custom = {},
+        } } }
+        local snapshot = Themes.capture(plugin)
+        assert.is_false(snapshot.enabled)
+        assert.are.equal("#e8dcc5", snapshot.light_mode.background)
+        assert.are.equal("#252525", snapshot.dark_mode.background)
+    end)
+
+    it("restores profile theme snapshots globally without book overrides", function()
+        local old_reader = package.loaded["apps/reader/readerui"]
+        local old_store = package.loaded["config/preset_store"]
+        local store, saved = {}, 0
+        ZenSpec.replace("config/preset_store", {
+            loadStore = function() return store end,
+            saveStore = function(_kind, value) store = value end,
+        })
+        local reader = { doc_settings = ZenSpec.memorySettings() }
+        ZenSpec.replace("apps/reader/readerui", { instance = reader })
+        local plugin = { saveConfig = function() saved = saved + 1 end,
+            config = { features = { reader_themes = true }, reader_themes = {
+            light_mode = "custom_1", dark_mode = "default", custom = {
+                custom_1 = { text = "#102030", background = "#eeffdd" },
+            },
+        } } }
+        local snapshot = Themes.capture(plugin)
+        plugin.config.reader_themes.custom.custom_1 = nil
+        Themes.restore(plugin, snapshot)
+        assert.are.equal("custom_1", plugin.config.reader_themes.light_mode)
+        snapshot.light_mode.text = "#ffffff"
+        assert.are.equal("#102030", Themes.getTheme(plugin).text)
+        assert.are.same({}, reader.doc_settings.data)
+        assert.are.equal(plugin.config.reader_themes, store.reader_themes)
+        assert.are.equal(1, saved)
+        Themes.restore(plugin, Themes.capture(plugin))
+        assert.is_nil(plugin.config.reader_themes.custom.custom_2)
+        Themes.restore(plugin, { enabled = true, light_mode = Themes.BUILTIN_THEMES.light_tan })
+        assert.are.equal("light_tan", plugin.config.reader_themes.light_mode)
+        Themes.restore(plugin, { enabled = false })
+        assert.is_false(Themes.isEnabled(plugin))
+        package.loaded["apps/reader/readerui"] = old_reader
+        package.loaded["config/preset_store"] = old_store
+    end)
+
+    it("uses global themes even when a book has an old override", function()
+        local old_reader = package.loaded["apps/reader/readerui"]
+        ZenSpec.replace("apps/reader/readerui", { instance = {
+            doc_settings = ZenSpec.memorySettings({ zen_reader_theme = { enabled = false } }), document = {},
+        } })
+        local plugin = { config = { features = { reader_themes = true },
+            reader_themes = { light_mode = "light_tan" } } }
+        assert.is_true(Themes.isEnabled(plugin))
+        assert.are.equal(Themes.BUILTIN_THEMES.light_tan, Themes.getTheme(plugin))
+        assert.matches("#e8dcc5", Themes.appendCss(plugin, "base"), 1, true)
+        package.loaded["apps/reader/readerui"] = old_reader
+    end)
+
 end)

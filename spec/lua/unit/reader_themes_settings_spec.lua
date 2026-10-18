@@ -5,12 +5,21 @@ describe("reader themes settings", function()
     local reader_store
     local highlight_names_plugin
 
+    local function find_item(items, text)
+        for _i, item in ipairs(items) do
+            if item.text == text then return item end
+            local found = item.sub_item_table and find_item(item.sub_item_table, text)
+            if found then return found end
+        end
+    end
+
     before_each(function()
         shown_dialog = nil
         dialog_input = nil
         reader_store = { settings = { footer = { existing = true } } }
         highlight_names_plugin = nil
         ZenSpec.replace("gettext", function(text) return text end)
+        ZenSpec.replace("device", { isTouchDevice = function() return true end })
         ZenSpec.replace("modules/menu/bluetooth/bluetooth", { isAvailable = function() return false end })
         ZenSpec.replace("ui/uimanager", {
             show = function(_, dialog) shown_dialog = dialog end,
@@ -71,46 +80,90 @@ describe("reader themes settings", function()
         ReaderSettings = require("modules/settings/sections/reader_settings")
     end)
 
-    it("shows reader font choices as radios and preserves their actions", function()
-        local current_font = "Font A"
-        local font_items = {{ text = "Font settings", sub_item_table = {{
-            text = "Preview fonts", checked_func = function() return true end,
-        }} }}
-        for _i, name in ipairs({ "Font A", "Font B" }) do
-            font_items[#font_items + 1] = {
-                text = name,
-                checked_func = function() return current_font == name end,
-                callback = function() current_font = name end,
-            }
-        end
-        local entry = { sub_item_table_func = function() return font_items end }
-        ZenSpec.replace("apps/reader/readerui", { instance = {
-            view = { footer = {} },
-            font = { addToMainMenu = function(_self, menu) menu.change_font = entry end },
-        } })
+    it("groups appearance settings and keeps controls enabled from the reader root", function()
+        local applied
+        local config = { features = { reader_controls = true }, reader_themes = {} }
         local items = ReaderSettings.build({
-            config = { features = {}, reader_themes = {} },
-            plugin = {},
-            save_and_apply = function() end,
+            config = config, plugin = {},
+            save_and_apply = function(feature) applied = feature end,
         })
-        local font
-        for _i, item in ipairs(items) do
-            if item.text == "Font" then font = item end
+        local labels = {}
+        for _i, item in ipairs(items) do labels[#labels + 1] = item.text end
+        assert.are.same({ "Reader controls", "Appearance", "Highlight / Lookup", "Bottom swipe gesture",
+            "Page Browser", "Restore library location on exit", "End of book" }, labels)
+        labels = {}
+        for _i, item in ipairs(items[2].sub_item_table) do labels[#labels + 1] = item.text end
+        assert.are.same({ "Top status bar", "Bottom status bar", "Align status bars with book margins",
+            "Reader themes", "Flash on every CBZ page turn" }, labels)
+        assert.is_nil(find_item(items, "Font"))
+        assert.is_nil(find_item(items[1].sub_item_table, "Enable"))
+        assert.is_true(items[1].checked_func())
+        items[1].checkmark_callback()
+        assert.is_false(config.features.reader_controls)
+        assert.are.equal("reader_controls", applied)
+    end)
+
+    it("selects mutually exclusive bottom swipe actions and reuses the launcher editor", function()
+        local saved, editor_ctx = 0, nil
+        local custom_items = { { text = "Action" } }
+        ZenSpec.replace("modules/settings/sections/app_launcher_settings", {
+            build = function(ctx)
+                editor_ctx = ctx
+                return { sub_item_table = custom_items }
+            end,
+        })
+        local config = { features = { page_browser = true }, reader_themes = {} }
+        local items = ReaderSettings.build({
+            config = config, plugin = { saveConfig = function() saved = saved + 1 end },
+            save_and_apply = function(feature)
+                assert.are.equal("reader_controls", feature)
+                assert.is_true(config.features.reader_controls)
+                saved = saved + 1
+            end,
+        })
+        local choices = find_item(items, "Bottom swipe gesture").sub_item_table
+        assert.is_true(choices[3].checked_func())
+        assert.are.equal(5, #choices)
+        for _i, choice in ipairs(choices) do
+            assert.is_true(choice.radio)
+            if choice.sub_item_table_func then
+                assert.are.equal(custom_items, choice.sub_item_table_func())
+                assert.is_true(choices[4].checked_func())
+                assert.is_false(choice.checked_func())
+            else
+                choice.callback()
+                for _j, other in ipairs(choices) do assert.are.equal(choice == other, other.checked_func()) end
+            end
         end
-        assert.is_true(font.enabled_func())
-        for _i = 1, 2 do
-            local choices = font.sub_item_table_func()
-            assert.are.equal(font_items, choices)
-            assert.is_true(choices[2].radio)
-            assert.is_true(choices[3].radio)
-            assert.is_nil(choices[1].sub_item_table[1].radio)
-            assert.is_true(choices[2].checked_func())
-            choices[3].callback()
-            assert.is_false(choices[2].checked_func())
-            assert.is_true(choices[3].checked_func())
-            choices[2].callback()
-            entry = { sub_item_table = font_items }
-        end
+        assert.are.equal("Bottom swipe gesture", choices[5].sub_title)
+        assert.is_nil(choices[5].checkmark_callback)
+        assert.are.equal(config.reader_bottom_swipe, editor_ctx.button_config)
+        assert.are.equal("reader", editor_ctx.button_scope)
+        assert.is_true(editor_ctx.button_single)
+        assert.is_false(config.features.page_browser)
+        assert.is_false(config.features.reader_bottom_menu)
+        assert.are.equal(4, saved)
+        editor_ctx.save_buttons()
+        assert.are.equal(5, saved)
+        assert.is_true(choices[4].checked_func())
+        config.reader_bottom_swipe.entries = { { type = "action", action = {} } }
+        editor_ctx.save_buttons()
+        assert.is_true(choices[4].checked_func())
+        config.reader_bottom_swipe.entries[1].action.show_menu = true
+        editor_ctx.save_buttons()
+        assert.is_true(choices[5].checked_func())
+        assert.is_true(config.features.reader_bottom_menu)
+        choices[3].callback()
+        choices[5].sub_item_table_func()
+        assert.is_true(choices[3].checked_func())
+        editor_ctx.save_buttons()
+        assert.is_true(choices[5].checked_func())
+        assert.is_false(config.features.page_browser)
+        config.reader_bottom_swipe.entries = {}
+        editor_ctx.save_buttons()
+        assert.is_true(choices[4].checked_func())
+        assert.is_false(config.features.reader_bottom_menu)
+        assert.is_false(config.features.page_browser)
     end)
 
     it("saves the CBZ page-turn flash toggle without requiring an open reader", function()
@@ -121,10 +174,7 @@ describe("reader themes settings", function()
             plugin = { saveConfig = function() saved = saved + 1 end },
             save_and_apply = function() error("no patch reapplication needed") end,
         })
-        local toggle
-        for _i, item in ipairs(items) do
-            if item.text == "Flash on every CBZ page turn" then toggle = item end
-        end
+        local toggle = find_item(items, "Flash on every CBZ page turn")
         assert.is_table(toggle)
         assert.is_false(toggle.checked_func())
         toggle.callback()
@@ -159,7 +209,7 @@ describe("reader themes settings", function()
             save_and_apply = function() end,
         })
         assert.are.equal("End of book", items[#items].text)
-        local toggle = items[#items - 1]
+        local toggle = find_item(items, "Align status bars with book margins")
         assert.are.equal("Align status bars with book margins", toggle.text)
         assert.is_true(toggle.checked_func())
         toggle.callback()
@@ -272,14 +322,11 @@ describe("reader themes settings", function()
         }
         local items = ReaderSettings.build({
             config = config,
-            plugin = { saveConfig = function() saved = saved + 1 end },
+            plugin = { config = config, saveConfig = function() saved = saved + 1 end },
             save_and_apply = function() end,
             apply_feature = function() applied = applied + 1 end,
         })
-        local themes
-        for _i, item in ipairs(items) do
-            if item.text == "Reader themes" then themes = item end
-        end
+        local themes = find_item(items, "Reader themes")
         local custom_items = themes.sub_item_table[3].sub_item_table_func()
         local dark_warm_gray = custom_items[2]
 
@@ -348,7 +395,19 @@ describe("reader themes settings", function()
     end)
 
     it("offers chapter time formats as radio choices", function()
-        local saved = 0
+        local saved, toggled = 0, 0
+        local chapter_item = {
+            text_func = function() return "Time left to finish chapter (TC:)" end,
+            callback = function() toggled = toggled + 1 end,
+        }
+        ZenSpec.replace("apps/reader/readerui", { instance = { view = { footer = {
+            addToMainMenu = function(_self, menu)
+                menu.status_bar = { sub_item_table = {
+                    { text = "Status bar items", sub_item_table = { chapter_item } },
+                } }
+            end,
+            textOptionTitles = function() return "Time left to finish chapter (TC:)" end,
+        } } } })
         local config = {
             features = {
                 reader_themes = false,
@@ -368,10 +427,12 @@ describe("reader themes settings", function()
             save_and_apply = function() end,
         })
 
-        local chapter_time
-        for _i, item in ipairs(items) do
-            if item.text == "Time until chapter end" then chapter_time = item end
-        end
+        local bottom_items = find_item(items, "Bottom status bar").sub_item_table_func()
+        assert.are.equal(chapter_item, find_item(bottom_items, "Status bar items").sub_item_table[1])
+        assert.is_nil(chapter_item.callback)
+        chapter_item.checkmark_callback()
+        assert.are.equal(1, toggled)
+        local chapter_time = find_item(chapter_item.sub_item_table, "Time until chapter end")
         assert.are.equal(4, #chapter_time.sub_item_table)
         assert.are.same({ "5 min left in chapter", "5 min left", "5m", "hh:mm" }, {
             chapter_time.sub_item_table[1].text,
@@ -444,36 +505,31 @@ describe("reader themes settings", function()
         })
         local by_text = {}
         for _i, item in ipairs(items) do by_text[item.text] = item end
+        for _i, item in ipairs(find_item(items, "Appearance").sub_item_table) do by_text[item.text] = item end
 
         local top = by_text["Top status bar"]
         local themes = by_text["Reader themes"]
-        local page_browser = by_text["Zen page browser"]
         local bottom = by_text["Bottom status bar"]
 
         assert.is_false(top.checked_func())
         assert.are.equal("Left items", top.sub_item_table[1].text)
         assert.is_false(themes.checked_func())
         assert.are.equal(3, #themes.sub_item_table)
-        assert.is_false(page_browser.checked_func())
-        assert.are.equal(2, #page_browser.sub_item_table)
-        assert.is_nil(page_browser.enabled_func)
+        assert.is_nil(by_text["Zen page browser"])
         assert.is_true(bottom.checked_func())
         assert.is_true(bottom.enabled_func())
 
         top.checkmark_callback()
         themes.checkmark_callback()
-        page_browser.checkmark_callback()
         bottom.checkmark_callback()
 
         assert.is_true(config.features.reader_top_status_bar)
         assert.is_true(config.features.reader_themes)
-        assert.is_true(config.features.page_browser)
         assert.is_false(bottom.checked_func())
         assert.are.equal(1, bottom_toggles)
         assert.are.same({
             "reader_top_status_bar",
             "reader_themes",
-            "page_browser",
         }, applied)
 
         local bottom_items = bottom.sub_item_table_func()
@@ -489,48 +545,34 @@ describe("reader themes settings", function()
         assert.is_false(bottom.checked_func())
     end)
 
-    it("nests page-browser controls and persists separate overlay font sizes", function()
-        local saved, updates = 0, 0
-        local config = {
-            features = {
-                reader_themes = false,
-                reader_top_status_bar = false,
-                dict_quick_lookup = false,
-                highlight_lookup = false,
-                reader_bottom_menu = true,
-                page_browser = true,
-                restore_library_view = false,
-            },
-            page_browser = { toc_font_size = 20, bookmarks_font_size = 22 },
-            reader_themes = { dark_mode = "dark_warm_gray", light_mode = "default" },
-        }
-        local items = ReaderSettings.build({
-            config = config,
-            plugin = { saveConfig = function() saved = saved + 1 end },
+    it("saves the page-browser status bar preference and respects the interface status bar toggle", function()
+        local saved = 0
+        local config = { features = { status_bar = true },
+            status_bar = { left_order = { "time" } },
+            page_browser = { toc_font_size = 20, bookmarks_font_size = 22 } }
+        local items = ReaderSettings.build{
+            config = config, plugin = { saveConfig = function() saved = saved + 1 end },
             save_and_apply = function() end,
-        })
-
-        local page_browser
-        for _i, item in ipairs(items) do
-            if item.text == "Zen page browser" then page_browser = item end
-        end
-        assert.are.equal(2, #page_browser.sub_item_table)
-        assert.is_true(page_browser.checked_func())
-        assert.are.equal("Table of contents — Font size: 20", page_browser.sub_item_table[1].text_func())
-        assert.are.equal("Bookmarks — Font size: 22", page_browser.sub_item_table[2].text_func())
-
-        local touchmenu = { updateItems = function() updates = updates + 1 end }
-        page_browser.sub_item_table[1].callback(touchmenu)
-        assert.are.equal("Table of contents — Font size", shown_dialog.title_text)
-        shown_dialog.callback({ value = 26 })
-        page_browser.sub_item_table[2].callback(touchmenu)
-        assert.are.equal("Bookmarks — Font size", shown_dialog.title_text)
-        shown_dialog.callback({ value = 24 })
-
-        assert.are.equal(26, config.page_browser.toc_font_size)
-        assert.are.equal(24, config.page_browser.bookmarks_font_size)
+        }
+        local choices = find_item(items, "Bottom swipe gesture").sub_item_table
+        assert.are.equal("Reader controls", choices[2].text)
+        assert.are.equal("Zen page browser", choices[3].text)
+        local status = find_item(items, "Page Browser").sub_item_table[1]
+        assert.are.equal("Top status bar", status.text)
+        assert.is_true(status.checked_func())
+        assert.is_true(status.enabled_func())
+        status.callback()
+        assert.is_false(status.checked_func())
+        status.callback()
+        assert.is_true(status.checked_func())
         assert.are.equal(2, saved)
-        assert.are.equal(2, updates)
+        config.status_bar.left_order = {}
+        assert.is_false(status.enabled_func())
+        config.status_bar.right_order = { "battery" }
+        assert.is_true(status.enabled_func())
+        config.features.status_bar = false
+        assert.is_false(status.enabled_func())
+        assert.are.same({ show_status_bar = true, toc_font_size = 20, bookmarks_font_size = 22 }, config.page_browser)
     end)
 
     it("creates a custom theme without using a built-in theme as its base", function()
@@ -549,14 +591,11 @@ describe("reader themes settings", function()
         }
         local items = ReaderSettings.build({
             config = config,
-            plugin = { saveConfig = function() saved = saved + 1 end },
+            plugin = { config = config, saveConfig = function() saved = saved + 1 end },
             save_and_apply = function() end,
             apply_feature = function() applied = applied + 1 end,
         })
-        local themes
-        for _i, item in ipairs(items) do
-            if item.text == "Reader themes" then themes = item end
-        end
+        local themes = find_item(items, "Reader themes")
         local custom_items = themes.sub_item_table[3].sub_item_table_func()
         local new_theme = custom_items[1]
 
@@ -621,14 +660,11 @@ describe("reader themes settings", function()
         }
         local items = ReaderSettings.build({
             config = config,
-            plugin = { saveConfig = function() saved = saved + 1 end },
+            plugin = { config = config, saveConfig = function() saved = saved + 1 end },
             save_and_apply = function(feature) applied[#applied + 1] = feature end,
             apply_feature = function(feature) applied[#applied + 1] = feature end,
         })
-        local themes
-        for _i, item in ipairs(items) do
-            if item.text == "Reader themes" then themes = item end
-        end
+        local themes = find_item(items, "Reader themes")
 
         assert.is_table(themes)
         themes.checkmark_callback()
@@ -684,10 +720,7 @@ describe("reader themes settings", function()
                 applies = applies + 1
             end,
         })
-        local top
-        for _i, item in ipairs(built) do
-            if item.text == "Top status bar" then top = item end
-        end
+        local top = find_item(built, "Top status bar")
 
         local center_items = top.sub_item_table[2].sub_item_table
         local item_labels = {}

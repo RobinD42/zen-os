@@ -172,7 +172,7 @@ describe("Zen TOC hardware focus", function()
         ZenSpec.unload("common/utils")
     end)
 
-    local function new_widget(on_goto, close_all_callback)
+    local function new_widget(on_goto, close_all_callback, show_back)
         local toc = {}
         for i = 1, 8 do
             toc[i] = { title = "Section " .. i, page = i * 10, depth = 1 }
@@ -184,6 +184,7 @@ describe("Zen TOC hardware focus", function()
                 document = { configurable = { font_size = 21 } },
             },
             focus_page = 1,
+            show_back = show_back,
             on_goto = on_goto,
             close_all_callback = close_all_callback,
         }
@@ -252,6 +253,20 @@ describe("Zen TOC hardware focus", function()
         assert.are.equal(544, close_icon.paint_x)
     end)
 
+    it("hides Back and skips its focus and touch target when opened from Reader controls", function()
+        local widget = new_widget(nil, nil, false)
+        assert.are.equal("close", widget._zen_focus_area)
+        widget:paintTo({ paintRect = function() end }, 0, 0)
+        assert.is_nil(back_icon)
+        assert.is_not_nil(close_icon)
+        widget:_moveFocus(0, 1)
+        assert.are.equal("entry", widget._zen_focus_area)
+        widget:_moveFocus(0, -1)
+        assert.are.equal("close", widget._zen_focus_area)
+        widget:_onTap({ pos = { x = widget._L.back_x + 1, y = widget._L.back_y + 1 } })
+        assert.are.equal(0, close_calls)
+    end)
+
     it("treats a tap on the title text as Back", function()
         local parent_closes = 0
         local widget = new_widget(nil, function() parent_closes = parent_closes + 1 end)
@@ -306,6 +321,21 @@ describe("Zen TOC hardware focus", function()
         assert.are.equal(2, #widget._entries)
         assert.are.equal("Resolved chapter", widget._entries[1].title)
         assert.are.equal("Chapter ten", widget._entries[2].title)
+    end)
+
+    it("shares normalized TOC entries with embedded panels after loading the contents", function()
+        local toc = {
+            fillToc = function(self)
+                self.toc = {
+                    { title = " First \xE2\x80\x8Bchapter ", page = 1, depth = 2 },
+                    { title = "Second title", page = 1, depth = 1 },
+                    { title = "Too deep", page = 2, depth = 4 },
+                }
+            end,
+        }
+        assert.are.same({
+            { title = "First chapter · Second title", page = 1, page_label = "1", depth = 1 },
+        }, ZenTocWidget.getEntries({ toc = toc }))
     end)
 
     it("closes itself and the page browser from the top-right X", function()

@@ -2887,6 +2887,7 @@ describe("file browser navbar navigation", function()
         local Blitbuffer = require("ffi/blitbuffer")
         ZenSpec.replace("ffi/blitbuffer", mock)
         mock.ColorRGB32, mock.new = Blitbuffer.ColorRGB32, Blitbuffer.new
+        mock.COLOR_BLACK = Blitbuffer.COLOR_BLACK
         mock.TYPE_BBRGB32 = Blitbuffer.TYPE_BBRGB32
         local FrameContainer = package.loaded["ui/widget/container/framecontainer"]
         FrameContainer.paintTo = function(frame, bb, x, y)
@@ -3025,6 +3026,7 @@ describe("file browser navbar navigation", function()
         local Blitbuffer = require("ffi/blitbuffer")
         ZenSpec.replace("ffi/blitbuffer", mock)
         mock.ColorRGB32 = Blitbuffer.ColorRGB32
+        mock.COLOR_BLACK = Blitbuffer.COLOR_BLACK
         local screen = package.loaded["device"].screen
         screen_is_color = true
         local navbar = _G.__ZEN_UI_PLUGIN.config.navbar
@@ -3075,6 +3077,65 @@ describe("file browser navbar navigation", function()
         end
         assert.are.same({ 0x33, 0x99, 0xFF }, navbar.active_tab_color)
         assert.is_false(navbar.colored)
+    end)
+
+    it("inverts black active labels and decorations when night mode toggles", function()
+        local mock = package.loaded["ffi/blitbuffer"]
+        ZenSpec.unload("ffi/blitbuffer")
+        local Blitbuffer = require("ffi/blitbuffer")
+        ZenSpec.replace("ffi/blitbuffer", mock)
+        mock.ColorRGB32, mock.isColor8 = Blitbuffer.ColorRGB32, Blitbuffer.isColor8
+        mock.COLOR_BLACK = Blitbuffer.COLOR_BLACK
+        local TextWidget = package.loaded["ui/widget/textwidget"]
+        TextWidget.paintTo = function(widget, bb, x, y)
+            bb:paintRectRGB32(x, y, 1, 1, widget.fgcolor)
+        end
+        local FrameContainer = package.loaded["ui/widget/container/framecontainer"]
+        FrameContainer.paintTo = function() end
+        local screen = package.loaded["device"].screen
+        screen_is_color = true
+        local navbar = _G.__ZEN_UI_PLUGIN.config.navbar
+        navbar.active_tab_color, navbar.outlined_color = { 0, 0, 0 }, { 0, 0, 0 }
+        assert.is_false(navbar.active_tab_use_accent)
+        local fm = make_instance()
+        fm[1] = { fm.file_chooser }
+        for _i, outlined in ipairs({ false, true }) do
+            navbar.active_tab_underline, navbar.active_tab_outlined = not outlined, outlined
+            for _j, show_icons in ipairs({ false, true }) do
+                navbar.show_icons = show_icons
+                built_widgets = {}
+                _G.__ZEN_UI_REINJECT_FM_NAVBAR()
+                local label, decoration
+                for _k, entry in ipairs(built_widgets) do
+                    local widget = entry.widget
+                    if widget.text == "Home" and widget.fgcolor then label = widget end
+                    if widget.paintTo and (outlined and widget.radius and widget.paintTo ~= FrameContainer.paintTo
+                            or not outlined and widget.dimen.h == 2) then
+                        decoration = widget
+                    end
+                end
+                assert.is_not_nil(label)
+                assert.is_not_nil(decoration)
+                label.updateSize = function() end
+                for _k, night_mode in ipairs({ false, true, false }) do
+                    screen.night_mode = night_mode
+                    for _l, inverse in ipairs({ 0, 1 }) do
+                        local bb = Blitbuffer.new(30, 30, Blitbuffer.TYPE_BBRGB32)
+                        bb:setInverse(inverse)
+                        bb:fill(Blitbuffer.COLOR_WHITE)
+                        label:paintTo(bb, 0, 0)
+                        decoration:paintTo(bb, 4, 6)
+                        bb:setInverse(0)
+                        for _m, position in ipairs({ { 0, 0 }, outlined and { 4, 16 } or { 10, 6 } }) do
+                            local pixel = bb:getPixel(position[1], position[2])
+                            if night_mode ~= (inverse == 1) then pixel = pixel:invert() end
+                            assert.are.equal(night_mode and 255 or 0, pixel:getR())
+                        end
+                        bb:free()
+                    end
+                end
+            end
+        end
     end)
 
     it("uses the selected style's color for active labels when icons are hidden", function()
@@ -3138,6 +3199,7 @@ describe("file browser navbar navigation", function()
         local Blitbuffer = require("ffi/blitbuffer")
         ZenSpec.replace("ffi/blitbuffer", mock)
         mock.ColorRGB32 = Blitbuffer.ColorRGB32
+        mock.COLOR_BLACK = Blitbuffer.COLOR_BLACK
         local FrameContainer = package.loaded["ui/widget/container/framecontainer"]
         FrameContainer.paintTo = function() end
         screen_is_color = true

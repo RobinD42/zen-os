@@ -50,8 +50,8 @@ Paths below start at **Zen Settings > Library**.
 | Appearance > Layout > List > Detailed list items | Toggles and arranges Title, Authors, Series, Tags, Filename, Language, File size, Read status, Pages, and File type. Title, Authors, Series, Tags, Read status, and Pages are enabled by default; the other fields are off. |
 | Appearance > Layout > List > Hide list borders | Hides borders in list display modes. |
 | Appearance > Layout > Show item underline | Shows or hides the underline between browser items. |
-| Appearance > Covers > Badges > Badge size | Sets badge size to compact, normal, large, or extra large. |
-| Appearance > Covers > Badges > Badge color | Sets a custom badge color from presets or the color wheel. Custom colors take priority over the Interface accent; Default follows the accent on color screens. |
+| Appearance > Covers > Badges > Badge size | Sets badge size to compact, normal, large, or extra large. The menu shows the selected size. |
+| Appearance > Covers > Badges > Badge color | Opens the color wheel with hex input and opacity. Back returns to Badges without applying edits. Tap Accent color beside Apply to follow the Interface accent and future accent changes; the menu shows Badge color: Accent color. |
 | Appearance > Covers > Badges > Show page count | Shows page count badges on covers. |
 | Appearance > Covers > Badges > Show series number on covers | Shows series position badges on covers. |
 | Appearance > Covers > Badges > Show favorite badge | Shows a favorite badge on favorite books. |

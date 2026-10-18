@@ -469,10 +469,11 @@ local function apply_reader_top_status_bar()
         local natural_w = measureTextsWidth(texts, face, sep)
         for i = 1, #texts do
             if i > 1 and sep ~= "" then
-                local sep_w = TextWidget:new{
+                local sep_w = ColorTextWidget:new{
                     text = sep,
                     face = face,
                     fgcolor = header_text_color(),
+                    invert_night_mode = false,
                     padding = 0,
                 }
                 table.insert(group, sep_w)
@@ -489,20 +490,22 @@ local function apply_reader_top_status_bar()
                 table.insert(group, icon_w)
                 table.insert(widgets, icon_w)
                 if entry.label and entry.label ~= "" then
-                    local label_w = TextWidget:new{
+                    local label_w = ColorTextWidget:new{
                         text = entry.label,
                         face = face,
                         fgcolor = header_text_color(),
+                        invert_night_mode = false,
                         padding = 0,
                     }
                     table.insert(group, label_w)
                     table.insert(widgets, label_w)
                 end
             else
-                local tw = TextWidget:new{
+                local tw = ColorTextWidget:new{
                     text = entry.text,
                     face = face,
                     fgcolor = header_text_color(),
+                    invert_night_mode = false,
                     padding = 0,
                 }
                 table.insert(group, tw)
@@ -514,10 +517,11 @@ local function apply_reader_top_status_bar()
             for _i, w in ipairs(widgets) do if w.free then w:free() end end
             local joined = texts[1] and texts[1].text or ""
             for i = 2, #texts do joined = joined .. sep .. texts[i].text end
-            local tw = TextWidget:new{
+            local tw = ColorTextWidget:new{
                 text      = joined,
                 face      = face,
                 fgcolor   = header_text_color(),
+                invert_night_mode = false,
                 padding   = 0,
                 max_width = max_width,
             }

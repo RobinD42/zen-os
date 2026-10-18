@@ -717,8 +717,8 @@ msgstr "Soubor obrázku na pozadí nebyl nalezen."
 #. Type: setting
 #. Context: Název nastavení v nastavení vzhledu a chování knihovny.
 #: library_settings.lua:289
-msgid "Badge color: "
-msgstr "Barva značky: "
+msgid "Badge color"
+msgstr "Barva značky"
 
 #. Type: setting
 #. Context: Název nastavení v nastavení vzhledu a chování knihovny.
@@ -7073,3 +7073,74 @@ msgstr "ZenPM"
 #: zenpm_installer.lua:381
 msgid "ZenPM has been installed. Restart KOReader to use it."
 msgstr "ZenPM byl nainstalován. Chcete-li jej používat, restartujte KOReader."
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Margins"
+msgstr "Okraje"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Left/Right"
+msgstr "Vlevo/vpravo"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Top/Bottom"
+msgstr "Nahoře/dole"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Top"
+msgstr "Nahoře"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Sync Top/Bottom"
+msgstr "Synchronizovat nahoře/dole"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Weight"
+msgstr "Tloušťka"
+
+#: modules/settings/sections/reader_controls_settings.lua
+msgid "Show page chevrons"
+msgstr "Zobrazit šipky stránek"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Straighten"
+msgstr "Narovnání"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Overlap"
+msgstr "Překrytí"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Horizontal"
+msgstr "Vodorovné"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Vertical"
+msgstr "Svislé"
+
+#. Type: setting
+#. Context: Reader settings for the controls tab.
+#: reader_controls_settings.lua:29
+msgid "Reader controls"
+msgstr "Ovládání čtečky"
+
+#. Type: setting
+#. Context: Action triggered by swiping up from the bottom of the reader.
+#: reader_settings.lua:1344
+msgid "Bottom swipe gesture"
+msgstr "Gesto potažení zdola"
+
+#. Type: setting
+#. Context: Bottom swipe option that opens KOReader’s native reader menu.
+#: reader_settings.lua:1313
+msgid "KOReader reader menu"
+msgstr "Nabídka čtečky KOReader"
+
+#. Type: label
+#. Context: Reader control for contrast in fixed-layout documents (PDF/CBZ).
+#: buttons.lua:7 model.lua:338
+msgid "Contrast"
+msgstr "Kontrast"

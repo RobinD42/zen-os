@@ -50,6 +50,7 @@ describe("app launcher settings", function()
         }
 
         ZenSpec.replace("gettext", function(text) return text end)
+        ZenSpec.replace("device", { isTouchDevice = function() return true end })
         ZenSpec.replace("ffi/util", {
             template = function(text, value)
                 return text:gsub("%%1", tostring(value))
@@ -245,7 +246,7 @@ describe("app launcher settings", function()
         assert.are.equal(3, #switcher.sub_item_table)
         assert.are.equal("Only show while reading", switcher.sub_item_table[1].text)
         assert.are.equal(order_index + 1, open_menu_index)
-        assert.are.equal("sort", order_item.test_icon)
+        assert.are.equal("sort", order_item.icon_glyph)
 
         order_item.callback()
         assert.are.equal("Order", shown_options.title)
@@ -479,4 +480,155 @@ describe("app launcher settings", function()
         assert.is_nil(entry.label)
         assert.are.equal(1, saves)
     end)
+    it("edits reader buttons independently and offers only the four supported entry types", function()
+        local reader_cfg = { entries = { { id = "reader_1", type = "action", label = "Reader action", action = {} } }, next_id = 1 }
+        local reader_saves = 0
+        local section = require("modules/settings/sections/app_launcher_settings").build{
+            config = { features = {} }, button_config = reader_cfg, button_scope = "reader",
+            save_buttons = function() reader_saves = reader_saves + 1 end,
+        }
+        section.callback()
+        local labels = {}
+        for _i, item in ipairs(shown_options.add_item_table) do labels[#labels + 1] = item.text end
+        assert.are.same({ "Action", "Control", "Plugin Menu", "KOReader menu" }, labels)
+        shown_options.item_table[1].callback()
+        assert.is_false(reader_cfg.entries[1].enabled)
+        assert.are.equal(1, reader_saves)
+        assert.are.equal(0, saves)
+        assert.are.equal("Legacy", launcher_cfg.entries[1].label)
+    end)
+
+    it("replaces a custom swipe target through the launcher add picker", function()
+        local cfg = { entries = { entry }, next_id = 0 }
+        local saved, picker
+        ZenSpec.replace("modules/menu/app_launcher/plugin_scan", {
+            scan = function() return { { title = "Plugin", key = "test", method = "open" } } end,
+        })
+        ZenSpec.replace("common/ui/zen_menu_picker", function(options) picker = options end)
+        local section = require("modules/settings/sections/app_launcher_settings").build{
+            config = { features = {} }, button_config = cfg, button_scope = "reader", button_single = true,
+            save_buttons = function() saved = true end,
+        }
+        assert.are.equal("Bottom swipe gesture", section.text)
+        assert.is_nil(section.callback)
+        local touch_menu = {
+            updateItems = function() end,
+            _pending_navigation_title = "Plugin Menu",
+            _openSubmenu = function(_self, item, items)
+                assert.are.equal("Bottom swipe gesture", item.sub_title)
+                shown_options = items
+            end,
+        }
+        section.sub_item_table[3].callback(touch_menu)
+        picker.on_select(picker.items[1])
+        assert.is_true(saved)
+        assert.are.equal(1, #cfg.entries)
+        assert.are.equal("Plugin", cfg.entries[1].label)
+        assert.are.same({ key = "test", method = "open" }, cfg.entries[1].plugin)
+        assert.are.equal(entry, launcher_cfg.entries[1])
+        assert.are.equal(0, saves)
+        assert.are.equal(2, #shown_options)
+        assert.are.equal("Plugin: Plugin", shown_options[1].text_func())
+        assert.are.equal("Delete", shown_options[2].text)
+    end)
+
+    it("edits an existing swipe action without button presentation settings or replacing its actions", function()
+        entry.type = "action"
+        entry.action = { reader_action = true }
+        local cfg = { entries = { entry } }
+        local saved = 0
+        local section = require("modules/settings/sections/app_launcher_settings").build{
+            config = { features = {} }, button_config = cfg, button_single = true,
+            save_buttons = function() saved = saved + 1 end,
+        }
+        section.sub_item_table[1].callback{
+            updateItems = function() end,
+            _pending_navigation_title = "Action",
+            _openSubmenu = function(_self, _item, items) shown_options = items end,
+        }
+        assert.are.equal(2, #shown_options)
+        assert.is_truthy(shown_options[1].text_func():find("Action:", 1, true))
+        assert.are.equal("Delete", shown_options[2].text)
+        dispatcher_update()
+        assert.are.equal(1, saved)
+        assert.are.equal(entry, cfg.entries[1])
+        assert.are.same({ reader_action = true }, entry.action)
+        assert.is_nil(entry._zen_draft_commit)
+    end)
+
+    it("edits all built-in reader buttons through the shared arrange list", function()
+        local config = { features = { reader_controls = true } }
+        local reader_saves = 0
+        local section = require("modules/settings/sections/reader_controls_settings").build{
+            config = config, save_and_apply = function() reader_saves = reader_saves + 1 end,
+        }
+        assert.are.equal("Buttons \u{25B8}", section.sub_item_table[1].text)
+        assert.are.equal(2, #section.sub_item_table)
+        assert.are.equal("Show page chevrons", section.sub_item_table[2].text)
+        assert.is_nil(config.reader_controls.open_first)
+        local chevrons = section.sub_item_table[2].checked_func()
+        section.sub_item_table[2].callback()
+        assert.are.equal(not chevrons, config.reader_controls.show_page_chevrons)
+        section.sub_item_table[1].callback()
+        assert.are.equal("Buttons", shown_options.title)
+        assert.are.equal(13, #shown_options.item_table)
+        assert.are.equal(4, #shown_options.add_item_table)
+        assert.is_false(shown_options.open_add_on_show)
+        local row = shown_options.item_table[1]
+        assert.are.equal("Font", row.text_func())
+        row.callback()
+        assert.is_false(config.reader_controls.entries[1].enabled)
+        local items = row.sub_item_table_func()
+        assert.are.equal("Label: Font", items[1].text_func())
+        assert.is_truthy(items[2].text_func():find("Icon:", 1, true))
+        assert.are.equal("Delete", items[3].text)
+        assert.are.equal(3, #items)
+        local original = shown_options.item_table[1]
+        shown_options.item_table[1] = shown_options.item_table[3]
+        shown_options.item_table[3] = original
+        shown_options.callback()
+        assert.are.equal("page", config.reader_controls.entries[1].control)
+        table.remove(config.reader_controls.entries, 3)
+        section.sub_item_table[1].callback()
+        assert.are.equal(12, #shown_options.item_table)
+        assert.are.equal("Font", shown_options.add_item_table[5].text)
+        shown_options.add_item_table[5].callback()
+        assert.are.equal("font", config.reader_controls.entries[13].control)
+        assert.are.equal(4, reader_saves)
+        assert.are.equal(0, saves)
+    end)
+
+    it("lists menu buttons alongside reader controls instead of in the plus menu", function()
+        local config = { features = {}, reader_controls = { entries = {}, buttons_initialized = true,
+            annotations_merged = true, contrast_split = true } }
+        local section = require("modules/settings/sections/reader_controls_settings").build{
+            config = config, save_and_apply = function() end,
+        }
+        section.sub_item_table[1].callback()
+        assert.are.equal(3, #shown_options.item_table)
+        for i, label in ipairs({ "Vocabulary builder", "Page Browser", "KOReader reader menu" }) do
+            local row = shown_options.item_table[i]
+            assert.are.equal(label, row.text_func())
+            for _j, item in ipairs(shown_options.add_item_table) do assert.are_not.equal(label, item.text) end
+            local checked = row.checked_func()
+            row.callback()
+            assert.are.equal(not checked, row.checked_func())
+        end
+    end)
+
+    it("saves the Reader page chevron toggle", function()
+        local config = { features = { reader_controls = true }, reader_controls = { show_page_chevrons = false } }
+        local saved, refreshed
+        local section = require("modules/settings/sections/reader_controls_settings").build{
+            config = config, save_and_apply = function(key) saved = key end,
+        }
+        local item = section.sub_item_table[2]
+        assert.are.equal("Show page chevrons", item.text)
+        assert.is_false(item.checked_func())
+        item.callback({ updateItems = function() refreshed = true end })
+        assert.is_true(item.checked_func())
+        assert.are.equal("reader_controls", saved)
+        assert.is_true(refreshed)
+    end)
+
 end)

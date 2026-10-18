@@ -144,6 +144,16 @@ describe("Zen scroll bar", function()
         assert.is_table(bluetooth_switcher._zen_page_number_zones)
     end)
 
+    it("uses the embedded TOC's painted footer position for paging", function()
+        local toc = new_menu("page_browser_toc", { dimen = { x = 0, y = 0, w = 600, h = 700 } })
+        assert.are.equal(54, toc.page_info:getSize().h)
+        toc.page_info.paintTo(nil, nil, 0, 746)
+        assert.are.equal(750, painted_y)
+        assert.are.equal(746 / 800, find_zone(toc, "zen_pn_right_tap").screen_zone.ratio_y)
+        assert.is_true(find_zone(toc, "zen_pn_right_tap").handler())
+        assert.are.same({ { "next", 1 } }, page_turns)
+    end)
+
     it("keeps List and Mosaic Authors pagination at the same height", function()
         local list = new_menu("authors", {
             covers_fullscreen = true,

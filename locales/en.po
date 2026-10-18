@@ -408,6 +408,22 @@ msgstr "Add to collection"
 msgid "Add to vocabulary builder"
 msgstr "Add to vocabulary builder"
 
+#: page_browser.lua
+msgid "Carousel"
+msgstr "Carousel"
+
+#: reader_controls.lua menus.lua
+msgid "Font family"
+msgstr "Font family"
+
+#: page_browser.lua
+msgid "Grid"
+msgstr "Grid"
+
+#: page_browser.lua
+msgid "Single page"
+msgstr "Single page"
+
 #. Type: label
 #. Context: Label in the book and folder context menu.
 #: context_menu.lua:556
@@ -723,8 +739,8 @@ msgstr "Background image file not found."
 #. Type: setting
 #. Context: Settings label in the Library appearance and behavior settings.
 #: library_settings.lua:289
-msgid "Badge color: "
-msgstr "Badge color: "
+msgid "Badge color"
+msgstr "Badge color"
 
 #. Type: setting
 #. Context: Settings label in the Library appearance and behavior settings.
@@ -5448,6 +5464,12 @@ msgstr "Show favorite badge"
 msgid "Show folder name"
 msgstr "Show folder name"
 
+#. Type: setting
+#. Context: Toggle in the reader page browser font-tab menu; shows the page at its reading size behind the controls.
+#: page_browser.lua:948
+msgid "Show full page"
+msgstr "Show full page"
+
 #. Type: menu
 #. Context: Menu entry in the reading goal settings and Home widget.
 #: reading_goals.lua:115
@@ -7097,3 +7119,250 @@ msgstr "ZenPM"
 #: zenpm_installer.lua:381
 msgid "ZenPM has been installed. Restart KOReader to use it."
 msgstr "ZenPM has been installed. Restart KOReader to use it."
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Book info"
+msgstr "Book info"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Custom buttons"
+msgstr "Custom buttons"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Defaults"
+msgstr "Defaults"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Document"
+msgstr "Document"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Embedded language tags"
+msgstr "Embedded language tags"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Enable KOReader's Profiles plugin to save reader profiles."
+msgstr "Enable KOReader's Profiles plugin to save reader profiles."
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Enable partial renderings"
+msgstr "Enable partial renderings"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Existing book settings take precedence over these defaults."
+msgstr "Existing book settings take precedence over these defaults."
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Fixed-layout documents"
+msgstr "Fixed-layout documents"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Floating punctuation"
+msgstr "Floating punctuation"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Font-family fonts"
+msgstr "Font-family fonts"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Force algorithmic hyphenation"
+msgstr "Force algorithmic hyphenation"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Hide non-linear fragments"
+msgstr "Hide non-linear fragments"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Highlights"
+msgstr "Highlights"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Hyphenation"
+msgstr "Hyphenation"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Include reader theme"
+msgstr "Include reader theme"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Manage profiles"
+msgstr "Manage profiles"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Page"
+msgstr "Page"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Profiles"
+msgstr "Profiles"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Reader tab"
+msgstr "Reader tab"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Reduction"
+msgstr "Reduction"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Reflowable documents"
+msgstr "Reflowable documents"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Save all"
+msgstr "Save all"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Save current reader settings"
+msgstr "Save current reader settings"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Save defaults"
+msgstr "Save defaults"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Save selected"
+msgstr "Save selected"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Scaling"
+msgstr "Scaling"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Soft hyphens only"
+msgstr "Soft hyphens only"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Style sheet"
+msgstr "Style sheet"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "TOC"
+msgstr "TOC"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Themes"
+msgstr "Themes"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "This action is not available."
+msgstr "This action is not available."
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "This reader profile is not compatible with the current document."
+msgstr "This reader profile is not compatible with the current document."
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Trust soft hyphens"
+msgstr "Trust soft hyphens"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Typography language"
+msgstr "Typography language"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Update"
+msgstr "Update"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Update from current book"
+msgstr "Update from current book"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Update this profile from the current book settings?"
+msgstr "Update this profile from the current book settings?"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Use global theme settings"
+msgstr "Use global theme settings"
+
+#. Context: Reader tab controls.
+msgid "Left/Right Margins"
+msgstr "Left/Right Margins"
+
+#. Context: Reader tab controls.
+msgid "Top/Bottom Margins"
+msgstr "Top/Bottom Margins"
+
+#. Context: Reader tab controls.
+msgid "Sync Top/Bottom Margins"
+msgstr "Sync Top/Bottom Margins"
+
+#. Context: Reader tab controls.
+msgid "Reader theme settings"
+msgstr "Reader theme settings"
+
+#. Context: Reader tab settings.
+msgid "Open menu to Reader"
+msgstr "Open menu to Reader"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Margins"
+msgstr "Margins"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Left/Right"
+msgstr "Left/Right"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Top/Bottom"
+msgstr "Top/Bottom"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Top"
+msgstr "Top"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Sync Top/Bottom"
+msgstr "Sync Top/Bottom"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Weight"
+msgstr "Weight"
+
+#: modules/settings/sections/reader_controls_settings.lua
+msgid "Show page chevrons"
+msgstr "Show page chevrons"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Straighten"
+msgstr "Straighten"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Overlap"
+msgstr "Overlap"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Horizontal"
+msgstr "Horizontal"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Vertical"
+msgstr "Vertical"
+
+#. Type: setting
+#. Context: Reader settings for the controls tab.
+#: reader_controls_settings.lua:29
+msgid "Reader controls"
+msgstr "Reader controls"
+
+#. Type: setting
+#. Context: Action triggered by swiping up from the bottom of the reader.
+#: reader_settings.lua:1344
+msgid "Bottom swipe gesture"
+msgstr "Bottom swipe gesture"
+
+#. Type: setting
+#. Context: Bottom swipe option that opens KOReader’s native reader menu.
+#: reader_settings.lua:1313
+msgid "KOReader reader menu"
+msgstr "KOReader reader menu"
+
+#. Type: label
+#. Context: Reader control for contrast in fixed-layout documents (PDF/CBZ).
+#: buttons.lua:7 model.lua:338
+msgid "Contrast"
+msgstr "Contrast"

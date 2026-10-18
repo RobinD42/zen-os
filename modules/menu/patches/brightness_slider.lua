@@ -2,7 +2,7 @@
 
 local Blitbuffer      = require("ffi/blitbuffer")
 local Accent          = require("common/ui/accent")
-local Button          = require("ui/widget/button")
+local StepButton      = require("common/ui/slider_step_button")
 local CenterContainer = require("ui/widget/container/centercontainer")
 local Device          = require("device")
 local FrameContainer  = require("ui/widget/container/framecontainer")
@@ -17,7 +17,6 @@ local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
 local ZenSlider       = require("common/ui/zen_slider")
-local library_font    = require("modules/filebrowser/patches/library_font")
 local utils           = require("common/utils")
 local WidgetResources = require("common/widget_resources")
 local _               = require("gettext")
@@ -151,16 +150,12 @@ local function build_brightness_slider(touch_menu, opts)
     end
 
     local function adjust_button(text, callback, hold_callback)
-        return Button:new{
+        return StepButton:new{
             text = text,
-            text_font_face = library_font.getFontName(),
             text_font_size = opts.small_btn_size,
-            text_font_bold = false,
             width = opts.small_btn_width,
             height = progress:getSize().h,
-            bordersize = 0,
             show_parent = show_parent,
-            allow_flash = false,
             callback = callback,
             hold_callback = hold_callback,
         }

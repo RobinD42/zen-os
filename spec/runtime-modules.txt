@@ -42,6 +42,7 @@ common/nav_button_model.lua|unit
 common/paths.lua|unit
 common/plugin_root.lua|unit
 common/reading_goals.lua|unit
+common/reader_bottom_swipe.lua|unit
 common/reader_defaults.lua|unit
 common/reader_font.lua|unit
 common/reader_status_bar.lua|unit
@@ -72,10 +73,15 @@ common/ui/folder_cover_picker.lua|unit
 common/ui/hatching.lua|unit
 common/ui/icon_menu_item.lua|unit
 common/ui/markdown_text.lua|unit
+common/ui/pill.lua|unit
 common/ui/refresh.lua|unit
 common/ui/truncated_text_message.lua|unit
 common/ui/zen_arrange_list.lua|unit
 common/ui/zen_button.lua|unit
+common/ui/zen_action_button.lua|unit
+common/ui/zen_tab_bar.lua|unit
+common/ui/zen_anchored_menu.lua|unit
+common/ui/slider_step_button.lua|unit
 common/ui/zen_dialog.lua|unit
 common/ui/zen_icon_button.lua|unit
 common/ui/zen_icon_picker.lua|unit
@@ -188,6 +194,7 @@ modules/global/patches/night_mode_schedule.lua|integration
 modules/global/patches/nonblocking_wifi.lua|unit
 modules/global/patches/opds.lua|integration
 modules/global/patches/responsive_keyboard.lua|unit
+modules/global/patches/rounded_scrollbars.lua|unit
 modules/global/patches/warmth_schedule.lua|integration
 modules/menu/app_launcher/action_filter.lua|integration
 modules/menu/app_launcher/book_details_page.lua|unit
@@ -245,6 +252,8 @@ modules/reader/book_details.lua|unit
 modules/reader/lookup_plugin_items.lua|unit
 modules/reader/reader.lua|integration
 modules/reader/zen_toc_widget.lua|integration
+modules/reader/page_browser_panels.lua|unit
+modules/reader/page_browser_preview.lua|unit
 modules/registry.lua|integration
 modules/settings/battery_stats_menu.lua|unit
 modules/settings/sections/about_settings.lua|integration
@@ -274,3 +283,12 @@ modules/settings/zen_updater.lua|integration
 common/library_list_fields.lua|unit
 common/ui/mosaic_layout_dialog.lua|unit
 modules/settings/sections/interface_settings.lua|unit
+common/ui/launcher_cell.lua|unit
+modules/menu/app_launcher/entry_action.lua|unit
+modules/menu/patches/reader_controls.lua|unit
+modules/menu/reader_controls/menus.lua|unit
+modules/menu/reader_controls/profiles.lua|unit
+modules/menu/reader_controls/settings.lua|unit
+modules/menu/reader_controls/buttons.lua|unit
+modules/menu/reader_controls/details.lua|unit
+modules/settings/sections/reader_controls_settings.lua|unit

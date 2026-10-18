@@ -38,7 +38,6 @@ local DispatcherMenu = require("common/dispatcher_menu")
 local M = {}
 local show_submenu
 local repopulate
-local plus_icon_path
 local cancel_item_drag_hold
 local pending_callback_resume_path
 local DRAG_UNFOCUS_DELAY = 0.1
@@ -58,13 +57,10 @@ local function discard_background_refreshes(count)
 end
 
 local function get_plus_icon_path()
-    if plus_icon_path ~= nil then return plus_icon_path end
-    plus_icon_path = false
     local ok_root, root = pcall(require, "common/plugin_root")
     if ok_root and root then
-        plus_icon_path = utils.resolveLocalIcon(root .. "/icons/", "plus") or false
+        return utils.resolveIcon(root .. "/icons/", "plus")
     end
-    return plus_icon_path or nil
 end
 
 local function suppress_footer_button(button)

@@ -13,11 +13,6 @@ local function valid_dimen(dimen)
         and type(dimen.h) == "number" and dimen.h > 0
 end
 
-local function button_dimen(button)
-    local dimen = button and button.image and button.image.dimen
-    return valid_dimen(dimen) and dimen or nil
-end
-
 local function layout_buttons_dimen(browser)
     local group = browser and browser._zen_btn_group
     if valid_dimen(group and group.dimen) then return group.dimen end
@@ -63,38 +58,7 @@ function M.start(plugin, ui, open_page_browser)
     active = true
 
     local close_page_browser
-    local show_layout_step
-    local function show_browser_steps(browser)
-        wait_until_ready(function()
-            local buttons = browser and browser._zen_reader_tour_targets
-            local targets = {}
-            for i = 1, 3 do
-                targets[i] = button_dimen(buttons and buttons[i])
-                if not targets[i] then return nil end
-            end
-            return targets
-        end, function(targets)
-            UIManager:show(Coachmark:new{
-                steps = {
-                    { text = _("Reader menu"), target = targets[1] },
-                    { text = _("Bookmarks"), target = targets[2] },
-                    { text = _("Table of contents"), target = targets[3] },
-                },
-                on_complete = function()
-                    if type(browser._zen_switch_grid) ~= "function" then
-                        active = false
-                        return
-                    end
-                    browser._zen_switch_grid()
-                    UIManager:forceRePaint()
-                    show_layout_step(browser)
-                end,
-                on_cancel = function() show_browser_steps(browser) end,
-            })
-        end, function() active = false end)
-    end
-
-    show_layout_step = function(browser)
+    local function show_layout_step(browser)
         wait_until_ready(function() return layout_buttons_dimen(browser) end, function(target)
             UIManager:show(Coachmark:new{
                 steps = {{
@@ -126,8 +90,13 @@ function M.start(plugin, ui, open_page_browser)
                 active = false
                 return
             end
+            if type(browser._zen_switch_grid) ~= "function" then
+                active = false
+                return
+            end
+            browser._zen_switch_grid()
             UIManager:forceRePaint()
-            show_browser_steps(browser)
+            show_layout_step(browser)
         end,
         on_cancel = function()
             active = false

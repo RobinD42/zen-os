@@ -32,12 +32,13 @@ end
 function M.build(ctx)
     local config = ctx.config
     local save_and_apply = ctx.save_and_apply
-    local cfg = Model.ensure(config)
+    local cfg = ctx.button_config or Model.ensure(config)
     local build_entry_items
     local show_entries_arrange
     local sync_action_label
 
     local function save_app_launcher()
+        if ctx.save_buttons then return ctx.save_buttons(cfg) end
         Model.save(cfg)
         if ctx.apply_feature then
             ctx.apply_feature("app_launcher")
@@ -119,6 +120,12 @@ function M.build(ctx)
     local function open_entry_settings(touch_menu, entry, parent)
         if not (touch_menu and type(touch_menu.updateItems) == "function" and entry) then
             return
+        end
+        if ctx.button_single then
+            return touch_menu:_openSubmenu({
+                text = touch_menu._pending_navigation_title,
+                sub_title = _("Bottom swipe gesture"),
+            }, build_entry_items(entry, parent))
         end
         table.insert(touch_menu.item_table_stack, touch_menu.item_table)
         touch_menu.parent_id = nil
@@ -225,7 +232,9 @@ function M.build(ctx)
     end
 
     local function insert_entry(entry, folder)
-        if folder then
+        if ctx.button_single then
+            cfg.entries = { entry }
+        elseif folder then
             folder.children = folder.children or {}
             folder.children[#folder.children + 1] = entry
         else
@@ -410,7 +419,7 @@ function M.build(ctx)
     end
 
     local function show_koreader_menu_picker(on_select, touch_menu)
-        local found = NativeMenu.scan("active")
+        local found = NativeMenu.scan(ctx.button_scope or "active")
         if #found == 0 then
             local InfoMessage = require("ui/widget/infomessage")
             UIManager:show(InfoMessage:new{ text = _("No KOReader submenus found") })
@@ -454,6 +463,11 @@ function M.build(ctx)
 
     local function open_new_action_picker(folder, touch_menu)
         if not ok_disp then return end
+        local current = ctx.button_single and cfg.entries and cfg.entries[1]
+        if current and current.type == "action" then
+            open_entry_settings(touch_menu, current, folder)
+            return
+        end
         local entry = new_action_entry(nil, true)
         local committed = false
         local function commit()
@@ -589,6 +603,10 @@ function M.build(ctx)
                 end,
             },
         }
+        if ctx.button_config then
+            for _i, item in ipairs(ctx.button_add_items and ctx.button_add_items() or {}) do items[#items + 1] = item end
+            return items
+        end
         if not folder then
             items[#items + 1] = IconItem.decorate({
                 text = _("Folder"),
@@ -711,6 +729,7 @@ function M.build(ctx)
     build_entry_items = function(entry, parent)
         local items = {}
         local function add_icon_item()
+            if ctx.button_single then return end
             items[#items + 1] = IconItem.decorate({
                 text_func = function()
                     return T(_("Icon: %1"),
@@ -723,17 +742,21 @@ function M.build(ctx)
             }, icons.icon)
         end
         local function add_label_item()
+            if ctx.button_single then return end
             items[#items + 1] = IconItem.decorate({
                 text_func = function()
                     return _("Label") .. ": " .. entry.label
                 end,
                 keep_menu_open = true,
                 callback = function(touch_menu)
-                    prompt_label(entry, _("Launcher label"), touch_menu)
+                    prompt_label(entry, ctx.button_config and _("Label") or _("Launcher label"), touch_menu)
                 end,
             }, icons.label)
         end
-        if entry.type == "action" then
+        if entry.type == "reader_control" then
+            add_label_item()
+            add_icon_item()
+        elseif entry.type == "action" then
             local picker = build_action_picker(entry)
             if picker then items[#items + 1] = picker end
             add_icon_item()
@@ -857,7 +880,7 @@ function M.build(ctx)
             add_label_item()
             add_icon_item()
         end
-        if entry.type ~= "break" then
+        if entry.type ~= "break" and not ctx.button_config then
             items[#items + 1] = IconItem.decorate({
                 text = _("Reader action"),
                 checked_func = function()
@@ -907,8 +930,13 @@ function M.build(ctx)
         local list = current_list(parent)
         local ZenArrangeList = require("common/ui/zen_arrange_list")
         local sort_items
+        local add_choices = {}
         local function build_sort_items()
             local items = {}
+            if ctx.button_add_items then
+                for i = #add_choices, 1, -1 do add_choices[i] = nil end
+                for _i, item in ipairs(arrange_add_items(parent)) do add_choices[#add_choices + 1] = item end
+            end
             list = current_list(parent)
             for _i, entry in ipairs(list) do
                 items[#items + 1] = {
@@ -938,7 +966,7 @@ function M.build(ctx)
             title = parent and parent.label or _("Buttons"),
             item_table = sort_items,
             add_title = _("Add"),
-            add_item_table = arrange_add_items(parent),
+            add_item_table = ctx.button_add_items and add_choices or arrange_add_items(parent),
             open_add_on_show = #sort_items == 0,
             callback = function()
                 list = current_list(parent)
@@ -966,8 +994,16 @@ function M.build(ctx)
         }
     end
 
+    if ctx.button_single then
+        return { text = _("Bottom swipe gesture"), sub_item_table = arrange_add_items(nil) }
+    end
+    if ctx.button_config then
+        return { text = _("Buttons"), callback = function() show_entries_arrange(nil) end }
+    end
+
     local root_items = {
         {
+            icon_glyph = icons.enable,
             text = _("Enable"),
             checked_func = function()
                 return config.features.app_launcher == true
@@ -978,6 +1014,7 @@ function M.build(ctx)
             end,
         },
         {
+            icon_glyph = icons.action,
             text = _("Buttons") .. " \u{25B8}",
             separator = true,
             keep_menu_open = true,
@@ -987,6 +1024,7 @@ function M.build(ctx)
             end,
         },
         {
+            icon_glyph = icons.book_switcher,
             text = _("Book switcher"),
             checked_func = function()
                 return cfg.show_book_switcher == true
@@ -1044,6 +1082,7 @@ function M.build(ctx)
             },
         },
         {
+            icon_glyph = icons.details,
             text = _("Book details"),
             checked_func = function()
                 return cfg.show_book_details == true
@@ -1061,6 +1100,7 @@ function M.build(ctx)
             },
         },
         {
+            icon_glyph = icons.keywords,
             text = _("Show labels"),
             checked_func = function()
                 return cfg.show_labels ~= false
@@ -1074,11 +1114,13 @@ function M.build(ctx)
             end,
         },
         {
+            icon_glyph = icons.sort,
             text = _("Order") .. " \u{25B8}",
             keep_menu_open = true,
             callback = show_page_order,
         },
         {
+            icon_glyph = icons.open_menu,
             text = _("Open menu to Launcher"),
             checked_func = function()
                 return cfg.open_first == true
@@ -1092,6 +1134,7 @@ function M.build(ctx)
             end,
         },
         {
+            icon_glyph = icons.hide_reader_actions,
             text = _("Hide reader actions in library"),
             checked_func = function()
                 return cfg.hide_reader_actions_in_library == true
@@ -1105,14 +1148,6 @@ function M.build(ctx)
             end,
         },
     }
-    IconItem.decorate(root_items[1], icons.enable)
-    IconItem.decorate(root_items[2], icons.action)
-    IconItem.decorate(root_items[3], icons.book_switcher)
-    IconItem.decorate(root_items[4], icons.details)
-    IconItem.decorate(root_items[5], icons.keywords)
-    IconItem.decorate(root_items[6], icons.sort)
-    IconItem.decorate(root_items[7], icons.open_menu)
-    IconItem.decorate(root_items[8], icons.hide_reader_actions)
 
     local function open_entry_settings_from_search(entry, parent)
         local items = build_entry_items(entry, parent)

@@ -23,6 +23,23 @@ local function find_widget(predicate)
     end
 end
 
+local function menu_anchor(widget)
+    local anchor = widget._zen_anchor_source or widget.anchor
+    return type(anchor) == "function" and anchor() or anchor
+end
+
+local function menu_rows(dialog)
+    local rows = {}
+    for _i, row in ipairs(dialog and dialog.buttontable.buttons_layout or {}) do
+        local button = row[1]
+        local label = button.label_container and button.label_container[1]
+        rows[#rows + 1] = { text = button.text, align = button.align,
+            icon = label and label[1] and label[1].file,
+            padding_left = button.frame.padding_left, padding_right = button.frame.padding_right }
+    end
+    return rows
+end
+
 local function page_browser()
     return find_widget(function(widget)
         return type(widget._zen_switch_single) == "function"
@@ -110,16 +127,85 @@ function M.page_browser_state()
     local selected = browser.selected
     local row = selected and browser.layout and browser.layout[selected.y]
     local focused = row and row[selected.x]
-    local controls = { "single", "carousel", "grid" }
-    if find_control(browser.title_bar or browser, "appbar.textsize", {}, 0) then
-        controls[#controls + 1] = "aa"
+    local header_icons, header_paths = {}, {}
+    for _i, button in ipairs(browser._zen_header_buttons or {}) do
+        header_icons[#header_icons + 1] = button.file and button.file:match("([^/]+)$") or button.icon
+        header_paths[#header_paths + 1] = button.file
     end
+    local layout_menu = find_widget(function(widget)
+        return browser._zen_layout_button and menu_anchor(widget) == browser._zen_layout_button.dimen
+            and widget.buttons and #widget.buttons == 3
+    end)
+    local layout_rows = menu_rows(layout_menu)
+    local ready, preview_bounds = 0, {}
+    for idx = 1, browser.nb_grid_items or 0 do
+        local frame = browser.grid[idx]
+        preview_bounds[idx] = { page = frame.page_idx, bounds = frame.dimen }
+        local container = browser.grid[idx][1]
+        if container and container[1] and container[1].is_page_thumbnail then ready = ready + 1 end
+    end
+    local focused_frame = browser.grid[(browser.focus_page_shift or 0) + 1]
+    local focused_preview = focused_frame and focused_frame[1] and focused_frame[1][1]
+    local full_preview = browser._zen_full_page_preview
+    local more_menu = find_widget(function(widget)
+        return browser._zen_more_button and menu_anchor(widget) == browser._zen_more_button.dimen and widget.buttons
+    end)
     return {
         layout = browser._zen_layout_mode,
+        preview_ready = full_preview and full_preview.bb ~= nil or focused_preview and focused_preview.is_page_thumbnail == true,
+        full_page = browser:_zenIsFullPage(),
+        full_page_bounds = full_preview and full_preview.dimen,
+        full_page_top = full_preview and full_preview.top,
+        full_page_bottom = full_preview and full_preview.bottom,
+        more_bounds = browser._zen_more_button.dimen,
+        close_bounds = browser.title_bar.right_button.dimen,
+        more_menu = more_menu and { text = more_menu.buttons[1][1].text,
+            enabled = more_menu.buttontable.buttons_layout[1][1].enabled ~= false,
+            bounds = more_menu.movable.dimen, rows = menu_rows(more_menu) },
+        preview_id = tostring(browser.grid),
+        preview_geometry = { w = browser.grid_width, h = browser.grid_height,
+            item_w = browser.grid_item_width, item_h = browser.grid_item_height },
+        preview_bounds = preview_bounds,
+        header_height = browser.title_bar_h,
+        header_tabs = browser._zen_tab_bar.dimen,
+        status_bar = browser._zen_status_row and {
+            bounds = browser._zen_status_row.dimen,
+            instance = tostring(browser._zen_status_row),
+            values = browser._zen_status_row._zen_status_item_values,
+        },
+        status_refresh_bound = browser._zen_status_clock_bound == true,
+        edge_padding = browser._zen_header_top_padding,
+        screen_width = browser.dimen.w,
+        screen_height = browser.dimen.h,
+        content_bottom = browser._zen_content_panel and browser._zen_content_panel.dimen.y
+            + browser._zen_content_panel.dimen.h,
+        top_is_browser = UIManager._window_stack[#UIManager._window_stack].widget == browser,
+        panel_height = browser._zen_panel_h,
+        preview_divider = browser._zen_preview_divider and browser._zen_preview_divider.dimen,
+        chapter_bounds = browser._zen_chapter_zone,
+        previous_bounds = browser._zen_btn_skip_left_zone,
+        next_bounds = browser._zen_btn_skip_right_zone,
+        grid_bounds = browser._zen_layout_zone,
+        search_bounds = browser._zen_search_zone,
+        slider_bounds = browser._zen_slider and browser._zen_slider.dimen,
+        active_tab = browser._zen_active_tab,
+        browser_buttons_visible = browser._zen_active_tab == "browser",
+        content_items = browser._zen_content_panel and #browser._zen_content_panel.item_table or 0,
+        content_zen_scroll_bar = browser._zen_content_panel
+            and browser._zen_content_panel._zen_page_number_zones ~= nil or false,
+        aa_pages = browser._zen_active_tab == "aa" and browser._zen_row_panel._zen_panel_refs.page_num or nil,
         thumbnail_count = browser.nb_grid_items or 0,
+        thumbnails_ready = ready,
         focus_page = browser.focus_page or browser.cur_page,
+        preview_bookmarked = not not browser.bookmarked_pages[browser:_zenFocusedDocumentPage()],
         focused = focused and focused._zen_focus_id,
-        controls = controls,
+        controls = { "single", "carousel", "grid" },
+        header_icons = header_icons,
+        header_paths = header_paths,
+        footer_icons = { grid = browser._zen_layout_button.file, search = browser._zen_search_button.file,
+            previous = browser._zen_btn_skip_left.file, next = browser._zen_btn_skip_right.file },
+        layout_menu = layout_menu and { count = #layout_menu.buttons, rows = layout_rows, anchor = menu_anchor(layout_menu),
+            bounds = layout_menu.movable.dimen } or nil,
     }
 end
 
@@ -138,6 +224,7 @@ function M.hardware_overlay_state()
     if toc then
         return {
             kind = "toc",
+            show_back = toc.show_back,
             focused = toc._zen_focus_area,
             entry = toc._zen_focus_entry_idx,
             footer = toc._zen_footer_side,
@@ -160,14 +247,17 @@ function M.hardware_overlay_state()
         local area = focused == (title_bar and title_bar.left_button) and "back"
             or focused == (title_bar and title_bar.right_button) and "filter"
             or focused and "bookmark" or nil
-        return { kind = "bookmarks", focused = area }
+        return { kind = "bookmarks", focused = area, filtered = ui.bookmark.match_table ~= nil }
     end
+    local search = ui and ui.search and ui.search.input_dialog
+    if is_visible(search) then return { kind = "search", title = search.title } end
 end
 
 function M.hardware_overlay_key(key)
     local menu, container = bookmark_menu()
     local target = toc_overlay() or book_info_overlay()
         or (menu and is_visible(container) and menu)
+        or (reader() and reader().search and reader().search.input_dialog)
     if not target then return false, "hardware overlay unavailable" end
     local Event = require("ui/event")
     local Key = require("device/key")
@@ -200,6 +290,7 @@ function M.overlay_state()
     return {
         page_browser = browser ~= nil,
         aa_menu = is_visible(config_dialog),
+        vocabulary_builder = is_visible(ui.vocabbuilder and ui.vocabbuilder.widget),
         highlight_menu = highlight_visible,
         highlight_controls = controls,
         dictionary_menu = dictionary_requested
@@ -265,12 +356,497 @@ function M.launcher_state()
     local container = menu and menu.menu_container
     local touch_menu = container and container[1]
     local refs = touch_menu and touch_menu._zen_panel_refs
+    local buttons = {}
+    for _i, row in ipairs(refs and refs.layout_rows or {}) do
+        for _j, cell in ipairs(row) do
+            if cell.frame then
+                buttons[#buttons + 1] = { x = cell.dimen.x, y = cell.dimen.y, w = cell.dimen.w,
+                    h = cell.dimen.h, circle = cell.frame[1][1][2]:getSize().w }
+            end
+        end
+    end
     return {
         open = is_visible(container) and refs ~= nil and touch_menu.item_table
             and touch_menu.item_table.id == "app_launcher" or false,
         page = refs and refs.page or nil,
         page_num = refs and refs.page_num or nil,
+        buttons = buttons,
     }
+end
+
+function M.reader_controls(params)
+    local ui = reader()
+    if not ui then return { ok = false, error = "reader unavailable" } end
+    local TextWidget = require("ui/widget/textwidget")
+    if not TextWidget._zen_test_paint then
+        local paint = TextWidget.paintTo
+        TextWidget.paintTo = function(widget, bb, x, y)
+            widget._zen_test_x = x
+            return paint(widget, bb, x, y)
+        end
+        TextWidget._zen_test_paint = true
+    end
+    local PluginLoader = require("pluginloader")
+    local plugin = PluginLoader:getPluginInstance("zenos") or PluginLoader:getPluginInstance("zen_ui")
+    if not ui.menu.tab_item_table then ui.menu:setUpdateItemTable() end
+    if params.action == "open" then
+        ui.menu:onShowReaderControls()
+    elseif params.action == "bottom_swipe" then
+        plugin.config.reader_bottom_swipe.mode = "reader_controls"
+        ui.config:onSwipeShowConfigMenu{ direction = "north" }
+    end
+    if params.action == "swipe_open" then ui.menu:onSwipeShowMenu{ direction = "south" } end
+    local function active_controls()
+        local browser = page_browser()
+        return ui.menu.menu_container and ui.menu.menu_container[1]
+            or browser and browser._zen_active_tab == "aa" and browser._zen_row_panel
+    end
+    local function font_menu()
+        return find_widget(function(widget) return widget.title == "Font family" and widget.rows_per_page == 6 end)
+    end
+    local function setting_menu()
+        return find_widget(function(widget) return widget._reader_setting and widget.buttons and widget.anchor end)
+    end
+    local tm = active_controls()
+    if params.action == "choose" and tm then
+        for _attempt = 1, (tm._zen_panel_refs and tm._zen_panel_refs.button_pages or 1) do
+            local found, next_button
+            for _page = 1, (tm._zen_panel_refs and tm._zen_panel_refs.page_num or 1) do
+                for _i, ref in ipairs(tm._zen_panel_refs and tm._zen_panel_refs.buttons or {}) do
+                    if ref.widget._reader_control_id == params.id or ref.widget._reader_setting == params.id
+                            or ref.widget._reader_button_page == params.id
+                            or ref.widget.text == params.id then found = ref; break end
+                    if ref.widget._reader_button_page == "next" then next_button = ref end
+                end
+                if found then break end
+                if tm._zen_panel_refs.goto_page and tm._zen_panel_refs.page_num > 1 then
+                    tm._zen_panel_refs.goto_page(tm._zen_panel_refs.page + 1)
+                end
+            end
+            if found then
+                if not found.widget.dimen then UIManager:forceRePaint() end
+                local bounds = params.toggle and found.widget.toggle and found.widget.toggle.dimen or found.widget.dimen
+                local gesture = { pos = require("ui/geometry"):new{
+                    x = bounds.x + (params.tap and bounds.w / 2 or 1),
+                    y = bounds.y + (params.tap and bounds.h / 2 or 1), w = 1, h = 1 } }
+                if params.toggle or params.tap then (tm.onTapCloseAllMenus or tm.onTap)(tm, nil, gesture)
+                elseif params.hold then (tm.onHoldCloseAllMenus or tm.onHold)(tm, nil, gesture)
+                elseif found.callback then found.callback(tm) end
+                break
+            elseif next_button then next_button.callback(tm)
+            elseif tm._zen_panel_refs and (tm._zen_panel_refs.button_pages or 1) > 1 then
+                tm._zen_panel_refs.swipe_zones[1].move(1)
+            end
+        end
+    elseif params.action == "pager" and tm and tm._zen_panel_refs.pager then
+        local refs = tm._zen_panel_refs
+        local layout = refs.layout_rows[#refs.layout_rows - (refs.section_tabs and 1 or 0)]
+        local button = layout[params.direction == "previous" and 1 or 2]
+        local bounds = button.dimen
+        local tap = tm.onTapCloseAllMenus or tm.onTap
+        tap(tm, nil, { pos = require("ui/geometry"):new{
+            x = bounds.x + bounds.w / 2, y = bounds.y + bounds.h / 2, w = 1, h = 1 } })
+    elseif params.action == "swipe" and tm then
+        local zones = tm._zen_panel_refs.swipe_zones
+        local bounds = params.zone == "settings" and tm._zen_panel_refs.pager.dimen
+            or zones[(params.zone == "fonts" or params.zone == "themes") and 2 or 1].widget.dimen
+        tm:handleEvent(require("ui/event"):new("Gesture", { ges = "swipe", direction = params.direction or "west",
+            pos = require("ui/geometry"):new{ x = bounds.x + 10, y = bounds.y + 10, w = 1, h = 1 }, distance = 100 }))
+    elseif params.action == "slider_swipe" and tm then
+        local slider = tm._zen_panel_refs.sliders[1].slider
+        tm:handleEvent(require("ui/event"):new("Gesture", { ges = "swipe", direction = "east",
+            pos = require("ui/geometry"):new{ x = slider:_knobAbsX(), y = slider.dimen.y + 10, w = 1, h = 1 }, distance = 40 }))
+    elseif params.action == "font_family" or params.action == "choose_font" then
+        local dialog = font_menu()
+        if not dialog and tm then
+            for _i, ref in ipairs(tm._zen_panel_refs.buttons) do
+                if ref.widget._reader_setting == "font_face" then ref.callback(tm); break end
+            end
+            dialog = font_menu()
+        end
+        if dialog and params.action == "choose_font" then
+            local button = dialog.buttons[params.index or 1][1]
+            if params.hold then button.hold_callback() else button.callback() end
+        end
+    elseif params.action == "font_menu" then
+        local dialog = font_menu()
+        if dialog then
+            if params.close then UIManager:close(dialog)
+            elseif params.scroll and dialog.cropping_widget then dialog.cropping_widget:_scrollBy(0, params.scroll) end
+        end
+    elseif params.action == "setting_menu" then
+        local dialog = setting_menu()
+        if not dialog then return { ok = false } end
+        local settings = require("modules/menu/reader_controls/settings")
+        local option = settings.options(ui)[dialog._reader_setting]
+        local params_config = option and option.more_options_param or {}
+        local function current()
+            if dialog._reader_setting == "font_face" then return ui.font.font_face end
+            if params_config.names then
+                return { ui.document.configurable[params_config.names[1]], ui.document.configurable[params_config.names[2]] }
+            end
+            return ui.document.configurable[dialog._reader_setting]
+        end
+        local function press(text)
+            for _i, row in ipairs(dialog.layout or {}) do
+                for _j, button in ipairs(row) do
+                    if button.text == text or button.text == "✓ " .. text then button.callback(); return end
+                end
+            end
+        end
+        if params.button then press(params.button == "default" and "Reset" or params.button)
+        elseif params.close then dialog:onClose() end
+        dialog = setting_menu()
+        if not dialog then return { ok = false } end
+        UIManager:forceRePaint()
+        local labels, positions = {}, {}
+        for _i, row in ipairs(dialog.layout or {}) do
+            for _j, button in ipairs(row) do
+                local text = type(button.text) == "string" and button.text:gsub("^✓ ", "")
+                if text == "Set as default" or text == "Reset" or text == "Sync" or text == "Back" then
+                    labels[#labels + 1] = text
+                    positions[text] = { x = button.dimen.x, y = button.dimen.y, w = button.dimen.w, h = button.dimen.h,
+                        checked = button.text ~= text, enabled = button.enabled ~= false }
+                end
+            end
+        end
+        local value = current()
+        local default = G_reader_settings:readSetting(settings.group(ui) .. "_" .. dialog._reader_setting)
+        if default == nil and option then default = option.default_value end
+        return { ok = true, buttons = labels, value = type(value) == "table" and value[params.right and 2 or 1] or value,
+            positions = positions, bounds = dialog.movable.dimen, anchor = dialog._zen_anchor_source,
+            left_value = type(value) == "table" and value[1] or nil,
+            right_value = type(value) == "table" and value[2] or nil,
+            paired = type(value) == "table" and (not params_config.names or not settings.syncedMargins(ui)),
+            scrollable = dialog.cropping_widget ~= nil, default_value = default }
+    elseif params.action == "inject_color_option" and tm then
+        table.insert(require("modules/menu/reader_controls/settings").panel(ui, "appbar.contrast").options, {
+            name = "zen_test_color", name_text = "Native test color", labels = { "None", "Light", "Strong" },
+            values = { 2, 4, 8 }, default_value = 2,
+        })
+        ui.document.configurable.zen_test_color = 2
+        tm:updateItems(1)
+    elseif params.action == "dithering_option" and tm then
+        local options = require("modules/menu/reader_controls/settings").options(ui)
+        for _i, name in ipairs({ "hw_dithering", "sw_dithering" }) do options[name].show = name == params.name end
+        tm:updateItems(1)
+    elseif params.action == "inject_rakuyomi_option" and tm then
+        table.insert(ui.config.options[1].options, {
+            name = "rakuyomi_view_mode", name_text = "View Mode", event = "SetRakuViewMode",
+            toggle = { "Default", "RTL", "LTR", "Vertical", "Scroll" }, values = { 0, 1, 2, 3, 4 },
+            default_value = 0,
+        })
+        ui.document.configurable.rakuyomi_view_mode = 0
+        tm:updateItems(1)
+    elseif params.action == "buttons_next" and tm then
+        local zone = tm._zen_panel_refs.swipe_zones[1]
+        if zone then zone.move(1) end
+    elseif params.action == "tab" and tm then
+        if params.id == "reader_controls" then
+            ui.menu:onShowReaderControls()
+        else
+            if tm.item_table.id == "reader_controls" then
+                ui.menu:onCloseReaderMenu()
+                ui.menu:onShowMenu()
+            end
+            tm = ui.menu.menu_container[1]
+            for i, tab in ipairs(tm.tab_item_table) do
+                if tab.id == params.id then tm.bar.icon_widgets[i].callback(); break end
+            end
+        end
+    elseif params.action == "resize" then
+        ui.menu:onSetDimensions(require("device").screen:getSize())
+    elseif params.action == "edit_buttons" then
+        local section = require("modules/settings/sections/reader_controls_settings").build{
+            config = plugin.config, plugin = plugin,
+            save_and_apply = function() plugin:saveConfig() end,
+        }
+        section.sub_item_table[1].callback()
+    elseif params.action == "slider" and tm then
+        local ref = tm._zen_panel_refs.sliders[params.index or 1]
+        if ref then
+            local slider = ref.slider
+            slider._dragging = true
+            slider:setValue(slider:getValue() + 1)
+            slider.on_change(slider:getValue())
+            slider._dragging = false
+            slider.on_drag_end()
+        end
+    elseif params.action == "touch_slider" and tm then
+        local slider = tm._zen_panel_refs.sliders[params.index or 1].slider
+        local input, C = require("device").input, require("ffi").C
+        local time = require("ui/time")
+        local function absolute(code, value)
+            input:handleTouchEv{ type = C.EV_ABS, code = code, value = math.floor(value) }
+        end
+        local function frame(x, tracking_id)
+            absolute(C.ABS_MT_SLOT, input.main_finger_slot)
+            if tracking_id then absolute(C.ABS_MT_TRACKING_ID, tracking_id) end
+            absolute(C.ABS_MT_POSITION_X, x)
+            absolute(C.ABS_MT_POSITION_Y, slider.dimen.y + slider.dimen.h / 2)
+            local sec, usec = time.split_s_us(time.now())
+            for _i, event in ipairs(input:handleTouchEv{
+                type = C.EV_SYN, code = C.SYN_REPORT, time = { sec = sec, usec = usec },
+            } or {}) do UIManager:sendEvent(event) end
+        end
+        if params.start then frame(slider:_knobAbsX(), 1) end
+        frame(slider.dimen.x + slider:_valueToX(params.value or slider:getValue()), params.release and -1 or nil)
+    elseif params.action == "drag_slider" and tm then
+        local ref = tm._zen_panel_refs.sliders[params.index or 1]
+        if ref then
+            local slider = ref.slider
+            local pos = require("ui/geometry"):new{ x = slider:_knobAbsX(), y = slider.dimen.y + slider.dimen.h / 2 }
+            if not slider._dragging then slider:handlePan{ pos = pos, direction = "east" } end
+            pos.x = slider.dimen.x + slider:_valueToX(params.value or slider:getValue() + 1)
+            slider:handlePan{ pos = pos, direction = "east" }
+            if params.release then slider:handlePanRelease{ pos = pos } end
+        end
+    elseif params.action == "close" and tm then
+        tm:closeMenu()
+    elseif params.action == "focus_slider" and tm then
+        local target = tm._zen_panel_refs.sliders[1].slider
+        for y, row in ipairs(tm.layout) do
+            for x, widget in ipairs(row) do
+                if widget.slider == target then tm:moveFocusTo(x, y); break end
+            end
+        end
+    elseif params.action == "key" and tm then
+        tm:handleEvent(require("ui/event"):new("KeyPress", require("device/key"):new(params.key, {})))
+    elseif params.action == "switch_book" then
+        require("apps/reader/readerui"):showReader(params.path)
+        return { ok = true }
+    elseif params.action == "paint" then
+        UIManager:setDirty("all", "ui")
+        UIManager:forceRePaint()
+    elseif params.action == "next_page" and tm then
+        tm:onNextPage()
+    elseif params.action == "setting" then
+        require("modules/menu/reader_controls/settings").apply(ui, params.name, params.value)
+    elseif params.action == "defaults" then
+        require("modules/menu/reader_controls/settings").saveDefaults(ui, params.selected or {})
+    elseif params.action == "capture" then
+        ui.profiles.data[params.name] = require("modules/menu/reader_controls/profiles").capture(ui,
+            plugin, params.name, true)
+        ui.profiles.updated = true
+        ui.profiles:onFlushSettings()
+    elseif params.action == "apply_profile" then
+        ui.profiles:onProfileExecute(params.name, { qm_show = false })
+    elseif params.action == "theme" then
+        require("common/reader_themes").restore(plugin, params.theme)
+        ui:saveSettings()
+    end
+    tm = active_controls()
+    local controls, labels, toggles, radios, font_count, header = {}, {}, {}, {}, 0, {}
+    local bounds, selections, step_styles, zen_buttons, label_ends = {}, {}, {}, {}, {}
+    local icons, outlined, title_heights = {}, {}, {}
+    local slider_bounds, slider_states, value_cells, theme_count, family_label, family_radius = {}, {}, {}, 0, nil, nil
+    for _i, row in ipairs(tm and tm.layout or {}) do
+        for _j, widget in ipairs(row) do
+            if widget._reader_font_choice then font_count = font_count + 1 end
+            if widget._reader_theme_choice then theme_count = theme_count + 1 end
+            if widget._reader_setting == "font_face" then
+                family_label, family_radius = widget.text, widget.radius
+            end
+            if widget._reader_control_id then header[#header + 1] = {
+                id = widget._reader_control_id, x = widget.dimen.x, y = widget.dimen.y,
+                w = widget.dimen.w, h = widget.dimen.h, label = widget.text } end
+            if widget._reader_control_id then
+                icons[widget._reader_control_id] = widget.image.file
+            end
+            if widget.label_box then
+                labels[widget._reader_setting or widget.text] = widget.label.text .. (widget.number and widget.number.text or "")
+            end
+            local id = widget._reader_setting or widget._reader_button_page or widget.text
+            local dimen = widget.dimen or widget.slider and widget[1].dimen
+            if widget.slider then
+                local spec = require("modules/menu/reader_controls/settings").slider(ui, id)
+                local visible_presets = 0
+                for _k, value in ipairs(spec.option.values or {}) do
+                    local position = spec.position(value)
+                    if position >= widget.slider.value_min and position <= widget.slider.value_max then
+                        visible_presets = visible_presets + 1
+                    end
+                end
+                slider_states[id] = { value = widget.slider:getValue(), minimum = widget.slider.value_min,
+                    maximum = widget.slider.value_max,
+                    knob_radius = widget.slider.knob_radius,
+                    default_value = widget.slider.default_value, presets = spec.option.values, visible_presets = visible_presets,
+                    dragging = widget.slider._dragging == true, knob_visible = not widget.slider.hide_knob,
+                    instance = tostring(widget.slider) }
+                if widget.number_box then
+                    local cell = widget.number_box.dimen
+                    value_cells[id] = { x = cell.x, y = cell.y, w = cell.w, h = cell.h,
+                        text = widget.number.text, text_width = widget.number:getSize().w, text_x = widget.number._zen_test_x,
+                        title = widget.label.text, title_x = widget.label_box.dimen.x,
+                        title_width = widget.label:getSize().w }
+                end
+            end
+            if id and dimen then
+                bounds[id] = { x = dimen.x, y = dimen.y, w = dimen.w, h = dimen.h }
+                if widget.selected ~= nil then selections[id] = widget.selected end
+                if widget.selected ~= nil and widget[1][1].file then
+                    icons[id] = widget[1][1].file
+                    icons[id .. "_height"] = widget[1][1].height
+                end
+                if widget.slider then
+                    local slider = widget.slider.dimen
+                    slider_bounds[id] = { x = slider.x, y = slider.y, w = slider.w, h = slider.h }
+                elseif widget.text == "−" or widget.text == "＋" then
+                    local label = widget.label_widget:getSize()
+                    step_styles[id] = { size = widget.text_font_size, face = widget.text_font_face,
+                        bold = widget.text_font_bold, border = widget.bordersize, flash = widget.allow_flash,
+                        glyph_x = dimen.x + math.floor((dimen.w - label.w) / 2),
+                        glyph_w = label.w }
+                elseif widget.paintTo == require("common/ui/zen_action_button").paintTo then
+                    zen_buttons[id] = true
+                    outlined[id] = widget.outlined == true
+                end
+                if widget.label_box then
+                    label_ends[id] = widget.number_box and widget.number_box.dimen.x + widget.number_box.dimen.w
+                        or widget.label_box.dimen.x + widget.label:getSize().w
+                    title_heights[id] = widget.label:getSize().h
+                end
+            end
+            if id and widget.image then
+                icons[id] = widget.image.file
+                icons[id .. "_height"] = widget.image.height
+            end
+            if widget.toggle then toggles[widget._reader_setting or widget.text] = widget.toggle:getValue() end
+            if widget.radio then radios[widget.text] = widget.checked end
+            if widget._reader_control_id or widget._reader_setting or widget.text then
+                controls[#controls + 1] = widget._reader_control_id or widget._reader_setting or widget.text
+            end
+        end
+    end
+    local tabs = {}
+    for _i, tab in ipairs(ui.menu.tab_item_table or {}) do
+        tabs[#tabs + 1] = tab.id
+    end
+    local native_settings = require("modules/menu/reader_controls/settings")
+    local options = native_settings.options(ui)
+    local color_options = {}
+    local color_panel = native_settings.panel(ui, "appbar.contrast")
+    for _i, option in ipairs(color_panel and color_panel.options or {}) do
+        color_options[#color_options + 1] = { name = option.name,
+            available = native_settings.available(ui, option), slider = option.buttonprogress == true,
+            values = option.values, labels = option.toggle or option.labels }
+    end
+    local headings = {}
+    for text, widget in pairs(tm and tm._zen_panel_refs and tm._zen_panel_refs.headings or {}) do
+        if widget.dimen then
+            headings[text] = { x = widget.dimen.x, y = widget.dimen.y, w = widget.dimen.w,
+                bold = widget[1].bold == true }
+        end
+    end
+    local refs = tm and tm._zen_panel_refs
+    local dividers, settings_row_bounds = {}, {}
+    for _i, widget in ipairs(tm and tm._reader_controls_embedded and tm[1][1] or {}) do
+        if widget == refs.pager or widget[1] == refs.section_tabs then break end
+        local line = widget[1]
+        local row_bounds = widget.dimen or line and line.dimen
+        if line and widget.dimen and getmetatable(line) == require("ui/widget/linewidget") then
+            dividers[#dividers + 1] = { x = widget.dimen.x + widget._padding_left,
+                y = widget.dimen.y + widget._padding_top, width = line.dimen.w,
+                height = line.dimen.h, spacing = widget.dimen.h - line.dimen.h,
+                light_gray = line.background == require("ffi/blitbuffer").COLOR_LIGHT_GRAY }
+        elseif row_bounds and getmetatable(widget) ~= require("ui/widget/verticalspan") then
+            local size = widget:getSize()
+            settings_row_bounds[#settings_row_bounds + 1] = { x = row_bounds.x, y = row_bounds.y, w = size.w, h = size.h }
+        end
+    end
+    local pager = refs and refs.pager and refs.pager.dimen
+    local pager_buttons = {}
+    for _i, widget in ipairs(refs and refs.pager
+            and refs.layout_rows[#refs.layout_rows - (refs.section_tabs and 1 or 0)] or {}) do
+        pager_buttons[#pager_buttons + 1] = { x = widget.dimen.x, y = widget.dimen.y,
+            w = widget.dimen.w, h = widget.dimen.h, icon_width = widget.width, icon_height = widget.height }
+    end
+    local subsection_labels = {}
+    for _i, cell in ipairs(refs and refs.section_tabs and refs.section_tabs.cells or {}) do
+        subsection_labels[#subsection_labels + 1] = cell.text
+    end
+    local bar = refs and refs.tab_bar
+    local separators, footer_visible = {}, false
+    for _i, separator in ipairs(bar and bar.icon_seps or {}) do separators[#separators + 1] = separator.style end
+    for _i, widget in ipairs(tm and tm.item_group or {}) do footer_visible = footer_visible or widget == tm.footer end
+    local family_menu = font_menu()
+    local family_anchor = family_menu and menu_anchor(family_menu)
+    return { ok = true, header = header,
+        font_family_label = family_label,
+        font_family_radius = family_radius,
+        font_menu = family_menu and { open = true, count = #family_menu.buttons,
+            scrollable = family_menu.cropping_widget ~= nil,
+            scroll_y = family_menu.cropping_widget and family_menu.cropping_widget._scroll_offset_y,
+            anchor = { x = family_anchor.x, y = family_anchor.y, w = family_anchor.w, h = family_anchor.h },
+            bounds = family_menu.movable.dimen } or { open = false },
+        native_reader_tabs = bar and getmetatable(bar) == getmetatable(tm.bar) or false,
+        reader_tab_line_on_top = bar and bar[1][1][1] == bar.bar_sep or false,
+        reader_tab_gap = bar and bar.bar_sep.empty_segments,
+        reader_tab_separators = separators,
+        reader_status_row = refs and refs.status_row ~= nil or false,
+        footer_visible = footer_visible,
+        color_options = color_options,
+        document_dithering = { hw_dithering = ui.document.hw_dithering, sw_dithering = ui.document.sw_dithering },
+        saturation_available = native_settings.available(ui, options.saturation),
+        white_threshold_available = native_settings.available(ui, options.white_threshold),
+        active_tab = tm and (tm._reader_controls_embedded and "aa" or tm.item_table.id),
+        settings_rows = refs and refs.layout_rows and #refs.layout_rows - (refs.section_tabs and 2 or refs.pager and 1 or 0),
+        subsections = refs and refs.section_order,
+        subsection_labels = subsection_labels,
+        section_tabs = refs and refs.section_tabs and refs.section_tabs.dimen,
+        section_tab_radius = refs and refs.section_tabs and refs.section_tabs.radius,
+        settings_dividers = dividers,
+        settings_row_bounds = settings_row_bounds,
+        button_page = tm and tm._zen_panel_refs and tm._zen_panel_refs.button_page,
+        button_pages = tm and tm._zen_panel_refs and tm._zen_panel_refs.button_pages,
+        page_chevrons = plugin.config.reader_controls.show_page_chevrons,
+        theme_page = tm and tm._reader_controls_state and tm._reader_controls_state.themes_page,
+        theme_pages = tm and tm._reader_controls_state and tm._reader_controls_state.themes_pages,
+        theme_count = theme_count, slider_bounds = slider_bounds, slider_states = slider_states, value_cells = value_cells,
+        headings = headings,
+        menu_bottom = tm and tm.dimen and tm.dimen.y + tm.dimen.h,
+        menu_top = tm and tm.dimen and tm.dimen.y,
+        screen_height = require("device").screen:getHeight(),
+        screen_width = require("device").screen:getWidth(),
+        footer_margin = tm and (refs and refs.footer_top_margin or tm.footer_top_margin)
+            and (refs and refs.footer_top_margin or tm.footer_top_margin):getSize().h,
+        native_footer_margin = tm and tm.footer_top_margin and tm.footer_top_margin:getSize().h,
+        font_face = ui.font and ui.font.font_face,
+        hatched_background = tm and tm._zen_hatched_background ~= nil or false,
+        hatching_enabled = plugin.config.quick_settings.background_hatching,
+        controls = controls, labels = labels, toggles = toggles, radios = radios, font_count = font_count,
+        bounds = bounds, selections = selections, step_styles = step_styles, zen_buttons = zen_buttons, label_ends = label_ends,
+        icons = icons, outlined = outlined, title_heights = title_heights,
+        tabs = tabs, config = ui.document.configurable,
+        menu_open = ui.menu.menu_container ~= nil,
+        locked = tm and tm._zen_panel_locked,
+        input_inhibited = require("device").input._abs_ev_handler ~= nil,
+        pan_threshold = require("device").input.gesture_detector.PAN_THRESHOLD,
+        section = tm and tm._reader_controls_state and tm._reader_controls_state.section,
+        page_num = tm and tm._zen_panel_refs and tm._zen_panel_refs.page_num,
+        page = refs and refs.page,
+        pager = pager and { x = pager.x, y = pager.y, w = pager.w, h = pager.h },
+        pager_buttons = pager_buttons,
+        global_themes = plugin.config.reader_themes,
+        theme = require("common/reader_themes").capture(plugin),
+        default_size = G_reader_settings:readSetting("copt_font_size"),
+        default_font = G_reader_settings:readSetting("cre_font"),
+        default_margins = G_reader_settings:readSetting("copt_h_page_margins"),
+        default_top = G_reader_settings:readSetting("copt_t_page_margin"),
+        default_bottom = G_reader_settings:readSetting("copt_b_page_margin"),
+        profile = params.name and ui.profiles and ui.profiles.data[params.name] }
+end
+
+local function tap_browser_widget(widget, gesture, direction)
+    if not (widget and widget.dimen) then return false, "control unavailable" end
+    local bounds = widget.dimen
+    local screen_width = require("device").screen:getWidth()
+    UIManager:sendEvent(require("ui/event"):new("Gesture", {
+        ges = gesture or "tap", direction = direction or "south", distance = 4,
+        pos = require("ui/geometry"):new{ x = (math.max(0, bounds.x) + math.min(screen_width, bounds.x + bounds.w)) / 2,
+            y = bounds.y + bounds.h / 2, w = 1, h = 1 },
+    }))
+    return true
 end
 
 function M.activate(name)
@@ -315,30 +891,66 @@ function M.activate(name)
         }) == true
     end
     local browser = page_browser()
-    if name == "page_browser_toc" then
+    if name == "page_browser_controls" or name == "page_browser_toc" or name == "page_browser_bookmarks" then
         if not browser then return false, "page browser unavailable" end
-        return activate_icon(browser.title_bar or browser, "toc")
-    elseif name == "page_browser_bookmarks" then
+        local icons = { page_browser_controls = "appbar.textsize", page_browser_toc = "toc", page_browser_bookmarks = "bookmark" }
+        return tap_browser_widget(find_control(browser.title_bar, icons[name], {}, 0))
+    elseif name == "page_browser_search" then
         if not browser then return false, "page browser unavailable" end
-        return activate_icon(browser.title_bar or browser, "bookmark")
-    elseif name == "page_browser_book_info" then
+        if browser._zen_active_tab ~= "browser" then return false, "page browser tab inactive" end
+        return tap_browser_widget(browser._zen_search_button)
+    elseif name == "page_browser_pages" then
         if not browser then return false, "page browser unavailable" end
-        return activate_icon(browser.title_bar or browser, "info")
-    elseif name == "page_browser_single" then
+        return tap_browser_widget(browser._zen_tab_bar.cells[1])
+    elseif name == "page_browser_layout_menu" then
         if not browser then return false, "page browser unavailable" end
-        browser._zen_switch_single()
+        return tap_browser_widget(browser._zen_layout_button)
+    elseif name == "page_browser_more" then
+        if not browser then return false, "page browser unavailable" end
+        return tap_browser_widget(browser._zen_more_button)
+    elseif name == "page_browser_full_page" or name == "page_browser_reader_controls"
+            or name == "page_browser_reader_settings" then
+        if not browser then return false, "page browser unavailable" end
+        local menu = find_widget(function(widget)
+            return menu_anchor(widget) == browser._zen_more_button.dimen and widget.buttons
+        end)
+        local text = name == "page_browser_full_page" and "Show full page"
+            or name == "page_browser_reader_controls" and "Reader controls" or "Settings"
+        for _i, row in ipairs(menu and menu.buttontable.buttons_layout or {}) do
+            if row[1].text == text or row[1].text == text .. " ✓" then return tap_browser_widget(row[1]) end
+        end
+        return false, "menu entry unavailable"
+    elseif name == "page_browser_font_next" or name == "page_browser_font_previous" then
+        if not browser or browser._zen_active_tab ~= "aa" then return false, "font tab unavailable" end
+        local refs = browser._zen_row_panel._zen_panel_refs
+        local buttons = refs.layout_rows[#refs.layout_rows - 1]
+        return tap_browser_widget(buttons[name == "page_browser_font_next" and 2 or 1])
+    elseif name:match("^page_browser_section_") then
+        if not browser or browser._zen_active_tab ~= "aa" then return false, "font tab unavailable" end
+        local section = name:sub(#"page_browser_section_" + 1)
+        local tabs = browser._zen_row_panel._zen_panel_refs.section_tabs
+        for _i, cell in ipairs(tabs.cells) do
+            if cell._reader_section == section then return tap_browser_widget(cell) end
+        end
+        return false, "section unavailable"
+    elseif name == "page_browser_tab_swipe" then
+        if not browser then return false, "page browser unavailable" end
+        return tap_browser_widget(browser._zen_tab_bar.cells[2], "swipe")
+    elseif name:match("^page_browser_preview_") then
+        if not browser then return false, "page browser unavailable" end
+        local action = name:sub(#"page_browser_preview_" + 1)
+        local index = (browser.focus_page_shift or 0) + 1 + (action == "left" and -1 or action == "right" and 1 or 0)
+        return tap_browser_widget(browser._zen_full_page_preview or browser.grid[index], action == "hold" and "hold"
+            or action:match("^swipe") and "swipe" or "tap", action == "swipe_previous" and "east" or "west")
+    elseif name == "page_browser_single" or name == "page_browser_carousel" or name == "page_browser_grid" then
+        if not browser then return false, "page browser unavailable" end
+        local mode = name:sub(#"page_browser_" + 1)
+        local dialog = find_widget(function(widget)
+            return menu_anchor(widget) == browser._zen_layout_button.dimen and widget.buttons and #widget.buttons == 3
+        end)
+        if dialog then dialog.buttons[mode == "single" and 1 or mode == "carousel" and 2 or 3][1].callback()
+        else browser["_zen_switch_" .. mode]() end
         return true
-    elseif name == "page_browser_carousel" then
-        if not browser then return false, "page browser unavailable" end
-        browser._zen_switch_carousel()
-        return true
-    elseif name == "page_browser_grid" then
-        if not browser then return false, "page browser unavailable" end
-        browser._zen_switch_grid()
-        return true
-    elseif name == "page_browser_aa" then
-        if not browser then return false, "page browser unavailable" end
-        return activate_icon(browser.title_bar or browser, "appbar.textsize")
     elseif name == "show_highlight_menu" then
         local highlight = ui.highlight
         if not (highlight and type(highlight.onShowHighlightMenu) == "function") then

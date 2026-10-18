@@ -655,6 +655,7 @@ local function file_chooser_items()
             center_item_count = type(status_bar.center_order) == "table"
                 and #status_bar.center_order or 0,
             custom_height = filemanager_status_height(),
+            custom_y = filemanager_status_y(),
             hide_browser_bar = status_bar.hide_browser_bar == true,
         },
         mosaic_title_strip = {
@@ -2432,6 +2433,9 @@ function Driver:handleCommand(command)
     if kind == "reader_overlay_state" then
         return { ok = true, overlays = require("reader_tools").overlay_state() }
     end
+    if kind == "reader_controls" then
+        return require("reader_tools").reader_controls(params)
+    end
     if kind == "reader_launcher_state" then
         return { ok = true, launcher = require("reader_tools").launcher_state() }
     end
@@ -2751,6 +2755,8 @@ function Driver:handleCommand(command)
                 breadcrumb = item._zen_settings_breadcrumb,
                 radio = item.radio == true,
                 checked = checked,
+                enabled = item.enabled ~= false and (not item.enabled_func or item.enabled_func() == true),
+                icon_glyph = item.icon_glyph,
                 icon_file = item.icon_file,
                 icon_bounds = dimen_bounds(icon and icon.dimen),
                 row_bounds = row_bounds,
@@ -2922,10 +2928,11 @@ function Driver:handleCommand(command)
     end
     if kind == "native_settings_confirm" then
         local ConfirmBox = require("ui/widget/confirmbox")
+        local MultiConfirmBox = require("ui/widget/multiconfirmbox")
         for index = #UIManager._window_stack, 1, -1 do
             local widget = UIManager._window_stack[index].widget
-            if getmetatable(widget) == ConfirmBox then
-                if params.accept ~= false then widget.ok_callback() end
+            if getmetatable(widget) == ConfirmBox or getmetatable(widget) == MultiConfirmBox then
+                if params.accept ~= false then (widget.ok_callback or widget.choice1_callback)() end
                 UIManager:close(widget)
                 return { ok = true }
             end
@@ -3097,6 +3104,8 @@ function Driver:handleCommand(command)
                 has_more = title_bar.more_button ~= nil,
                 has_close = title_bar.close_button ~= nil,
                 has_action = title_bar.action_button ~= nil,
+                action_icon = title_bar.action_button and title_bar.action_button.image
+                    and title_bar.action_button.image.file,
                 status_visible = title_bar.status_widget ~= nil,
                 status_height = widget_height(title_bar.status_widget),
                 status_y = widget_y(title_bar.status_widget),

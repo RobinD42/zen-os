@@ -11,10 +11,10 @@ local icons = require("common/inline_icon_map")
 local IconItem = require("common/ui/icon_menu_item")
 local defaults = require("config/defaults")
 local LibraryFontPath = require("common/library_font_path")
+local Accent = require("common/ui/accent")
 
 local metadata_section    = require("modules/settings/sections/library_settings/metadata_settings")
 local settings_apply      = require("modules/settings/zen_settings_apply")
-local zen_settings_utils  = require("modules/settings/zen_settings_utils")
 
 local M = {}
 local BOOK_DETAIL_ORDER = defaults.book_details.order
@@ -246,7 +246,14 @@ function M.build(ctx)
         },
     }
 
+    local badge_sizes = {
+        { label = _("Compact"),     value = "compact"     },
+        { label = _("Normal"),      value = "normal"      },
+        { label = _("Large"),       value = "large"       },
+        { label = _("Extra large"), value = "extra_large" },
+    }
     table.insert(appearance_items, {
+        icon_glyph = icons.settings_covers,
         text = _("Covers"),
         sub_item_table = {
             {
@@ -254,15 +261,17 @@ function M.build(ctx)
                 sub_item_table = {
                     {
                         text = _("Badge size"),
+                        text_func = function()
+                            local size = type(config.browser_cover_badges) == "table"
+                                and config.browser_cover_badges.badge_size or "normal"
+                            for _i, option in ipairs(badge_sizes) do
+                                if option.value == size then return _("Badge size") .. ": " .. option.label end
+                            end
+                            return _("Badge size") .. ": " .. _("Normal")
+                        end,
                         sub_item_table = (function()
-                            local sizes = {
-                                { label = _("Compact"),     value = "compact"     },
-                                { label = _("Normal"),      value = "normal"      },
-                                { label = _("Large"),       value = "large"       },
-                                { label = _("Extra large"), value = "extra_large" },
-                            }
                             local badge_size_items = {}
-                            for _i, sz in ipairs(sizes) do
+                            for _i, sz in ipairs(badge_sizes) do
                                 local v = sz.value
                                 table.insert(badge_size_items, {
                                     text = sz.label,
@@ -285,40 +294,42 @@ function M.build(ctx)
                             return badge_size_items
                         end)(),
                     },
-                    zen_settings_utils.buildColorSubMenu({
-                        label        = _("Badge color: "),
-                        get          = function()
+                    {
+                        text_func = function()
                             local c = type(config.browser_cover_badges) == "table"
                                 and config.browser_cover_badges.badge_color
-                            return type(c) == "table" and c or nil
+                            return _("Badge color") .. ": " .. (type(c) == "table"
+                                and string.format("%d,%d,%d", c[1], c[2], c[3]) or _("Accent color"))
                         end,
-                        set          = function(r, g, b)
-                            if type(config.browser_cover_badges) ~= "table" then
-                                config.browser_cover_badges = {}
+                        keep_menu_open = true,
+                        callback = function(touchmenu_instance)
+                            local badges = type(config.browser_cover_badges) == "table"
+                                and config.browser_cover_badges or {}
+                            local c = badges.badge_color
+                            local function save_color(color, opacity)
+                                config.browser_cover_badges = badges
+                                badges.badge_color = color
+                                badges.badge_opacity = opacity
+                                plugin:saveConfig()
+                                UIManager:setDirty(nil, getFullRefreshMode())
+                                if touchmenu_instance then touchmenu_instance:updateItems() end
                             end
-                            config.browser_cover_badges.badge_color = { r, g, b }
-                            plugin:saveConfig()
-                            UIManager:setDirty(nil, getFullRefreshMode())
+                            UIManager:show(require("common/ui/color_wheel_widget"):new{
+                                title_text = _("Badge color"),
+                                back_button = true,
+                                hex = type(c) == "table" and string.format("#%02X%02X%02X", c[1], c[2], c[3])
+                                    or Accent.hex(config),
+                                opacity = type(c) == "table" and (badges.badge_opacity or 100)
+                                    or Accent.opacity(config),
+                                callback = function(hex, opacity)
+                                    save_color({ tonumber(hex:sub(2, 3), 16), tonumber(hex:sub(4, 5), 16),
+                                        tonumber(hex:sub(6, 7), 16) }, opacity)
+                                end,
+                                reset_text = _("Accent color"),
+                                reset_callback = function() save_color(nil, nil) end,
+                            }, getFullRefreshMode())
                         end,
-                        reset        = function()
-                            if type(config.browser_cover_badges) == "table" then
-                                config.browser_cover_badges.badge_color = nil
-                            end
-                            plugin:saveConfig()
-                            UIManager:setDirty(nil, getFullRefreshMode())
-                        end,
-                        default_text = _("Default"),
-                        reset_text   = _("Default"),
-                        presets = {
-                            { text = _("Black"), r = 0,    g = 0,    b = 0    },
-                            { text = _("White"), r = 255,  g = 255,  b = 255  },
-                            { text = _("Gray"),  r = 204,  g = 204,  b = 204  },
-                            { text = _("Blue"),  r = 0x99, g = 0xBB, b = 0xF0 },
-                            { text = _("Green"), r = 0x99, g = 0xCC, b = 0x99 },
-                            { text = _("Amber"), r = 0xF0, g = 0xD0, b = 0x80 },
-                            { text = _("Red"),   r = 0xDD, g = 0x99, b = 0x99 },
-                        },
-                    }),
+                    },
                     {
                         text = _("Show page count"),
                         checked_func = function()
@@ -751,6 +762,7 @@ function M.build(ctx)
     }
 
     table.insert(appearance_items, {
+        icon_glyph = icons.settings_scroll,
         text = _("Scroll bar"),
         sub_item_table = scroll_bar_sub_items,
     })
@@ -799,6 +811,7 @@ function M.build(ctx)
     })
 
     table.insert(appearance_items, 1, {
+        icon_glyph = icons.settings_layout,
         text = _("Layout"),
         sub_item_table = layout_items,
     })
@@ -1317,9 +1330,6 @@ function M.build(ctx)
             settings_apply.prompt_restart()
         end,
     }, icons.settings_subfolders))
-    IconItem.decorate(appearance_items[1], icons.settings_layout)
-    IconItem.decorate(appearance_items[2], icons.settings_covers)
-    IconItem.decorate(appearance_items[3], icons.settings_scroll)
     return {
         IconItem.decorate({ text = _("Appearance"), sub_item_table = appearance_items }, icons.navbar_styling),
         IconItem.decorate(folders_item, icons.settings_folders),

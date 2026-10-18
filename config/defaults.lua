@@ -91,6 +91,7 @@ local defaults = {
         navbar = true,
         quick_settings = true,
         app_launcher = true,
+        reader_controls = true,
         zen_mode = true,
         status_bar = true,
         disable_top_menu_swipe_zones = true,
@@ -286,6 +287,7 @@ local defaults = {
         show_native_progress_bar = false,
         show_new_banner = true,
         badge_size = "normal",
+        badge_opacity = 100,
         dim_finished_books = false,
     },
     browser_page_count = {
@@ -349,6 +351,9 @@ local defaults = {
         show_archive = false,
         show_plugin_actions = false,
     },
+    reader_controls = { entries = {}, next_id = 0 },
+    reader_bottom_swipe = { entries = {}, next_id = 0 },
+
     reader_top_status_bar = {
         font_face = "default",
         font_size = 14,
@@ -378,8 +383,10 @@ local defaults = {
         hide_in_cbz = true,
     },
     page_browser = {
+        show_status_bar = true,
         toc_font_size = 18,
         bookmarks_font_size = 18,
+        font_full_page = false,
     },
     highlight_lookup = {
         allow_unknown_items = false,

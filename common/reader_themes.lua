@@ -162,8 +162,62 @@ function M.applyFont(reader, plugin)
     local theme = theme_for(plugin)
     local face = theme and theme.font_face
     if type(face) ~= "string" or face == "default" then return false end
-    document:setFontFace(face)
+    if reader.font and type(reader.handleEvent) == "function" then
+        reader:handleEvent(require("ui/event"):new("SetFont", face))
+    else
+        document:setFontFace(face)
+    end
     return true
+end
+
+function M.capture(plugin)
+    local util = require("util")
+    local source = { config = { features = { reader_themes = true },
+        reader_themes = plugin and plugin.config and plugin.config.reader_themes } }
+    return {
+        enabled = is_enabled(plugin),
+        light_mode = util.tableDeepCopy(theme_for(source, false) or {}),
+        dark_mode = util.tableDeepCopy(theme_for(source, true) or {}),
+    }
+end
+
+function M.saveConfig(plugin)
+    local PresetStore = require("config/preset_store")
+    local store = PresetStore.loadStore("reader")
+    store.reader_themes = plugin.config.reader_themes
+    PresetStore.saveStore("reader", store)
+    plugin:saveConfig()
+end
+
+function M.restore(plugin, snapshot)
+    local util = require("util")
+    local themes = plugin.config.reader_themes
+    themes.custom = themes.custom or {}
+    plugin.config.features.reader_themes = snapshot.enabled == true
+    for _i, mode in ipairs({ "light_mode", "dark_mode" }) do
+        local theme = snapshot[mode]
+        if type(theme) == "table" then
+            local selected = "default"
+            if valid_color(theme.text) and valid_color(theme.background) then
+                selected = nil
+                for _j, choices in ipairs({ M.BUILTIN_THEMES, themes.custom }) do
+                    for key, candidate in pairs(choices) do
+                        if util.tableEquals(theme, candidate) then selected = key; break end
+                    end
+                    if selected then break end
+                end
+                if not selected then
+                    local number = 1
+                    while themes.custom["custom_" .. number] do number = number + 1 end
+                    selected = "custom_" .. number
+                    themes.custom[selected] = util.tableDeepCopy(theme)
+                end
+            end
+            themes[mode] = selected
+        end
+    end
+    M.saveConfig(plugin)
+    return M.applyCurrent(plugin)
 end
 
 function M.applyFooterColors(footer, plugin)

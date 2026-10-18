@@ -39,7 +39,9 @@ local function apply_reader_themes()
     ReaderTypeset.onReadSettings = function(self, ...)
         local result = orig_onReadSettings(self, ...)
         ReaderThemes.applyBackground(self.ui, plugin)
-        ReaderThemes.applyFont(self.ui, plugin)
+        if not self.ui.doc_settings:readSetting("font_face") then
+            ReaderThemes.applyFont(self.ui, plugin)
+        end
         return result
     end
 

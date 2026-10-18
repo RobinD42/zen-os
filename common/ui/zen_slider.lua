@@ -82,7 +82,7 @@ function ZenSlider:new(o)
     obj.dimen     = Geom:new{ w = obj.width or 0, h = obj.height }
     obj._value    = math.max(obj.value_min,
                     math.min(obj.value_max,
-                    Math.round(obj.value or obj.value_min)))
+                    obj.fractional_value and (obj.value or obj.value_min) or Math.round(obj.value or obj.value_min)))
     return obj
 end
 
@@ -196,6 +196,13 @@ function ZenSlider:paintTo(bb, x, y)
     local fill_w = Math.round(frac * w)
     if fill_w > 0 then
         paintPill(bb, x, fill_y, fill_w, fh, self.fill_color)
+    end
+
+    if self.default_value ~= nil then
+        local default = math.max(self.value_min, math.min(self.value_max, self.default_value))
+        local tick_w, tick_h = Screen:scaleBySize(2), Screen:scaleBySize(14)
+        bb:paintRect(math.floor(x + self:_valueToX(default)) - math.floor(tick_w / 2),
+            track_cy - math.floor(tick_h / 2), tick_w, tick_h, Blitbuffer.COLOR_BLACK)
     end
 
     -- Knob: white outer circle, then black inner circle (hidden while dragging)

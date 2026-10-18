@@ -459,7 +459,8 @@ describe("ZenOS icon packs", function()
                 features = config.features, custom_icons = { active_pack = pack_id },
             })
             local custom_path = pack_id == "selected" and selected .. "/home.svg" or icons_root .. "/home.svg"
-            for _j, entry in ipairs({ { icon = "home" }, { file = custom_path, alpha = false },
+            for _j, entry in ipairs({ { icon = "home" }, { icon = ZenSpec.root .. "/icons/home.svg" },
+                    { file = custom_path, alpha = false },
                     { file = ZenSpec.root .. "/icons/home.svg", fallback = true } }) do
                 local loaded = IconWidget:new{
                     icon = entry.icon, file = entry.file, width = 3, height = 1,
@@ -467,6 +468,7 @@ describe("ZenOS icon packs", function()
                 }
                 finally(function() loaded:free() end)
                 loaded:getSize()
+                if entry.icon then assert.are.equal(custom_path, loaded.file) end
                 assert.are.equal(entry.fallback and 255 or 0,
                     loaded._bb:getPixel(2, 0):getColorRGB32().alpha)
                 local icon = IconWidget:new{

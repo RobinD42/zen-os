@@ -27,11 +27,7 @@ describe("Quickstart reader tour", function()
             new = function(_self, spec) return spec end,
         })
 
-        local function button(x)
-            return { image = { dimen = { x = x, y = 20, w = 32, h = 32 } } }
-        end
         browser = {
-            _zen_reader_tour_targets = { button(210), button(270), button(330) },
             _zen_btn_group = { dimen = { x = 205, y = 704, w = 180, h = 48 } },
             _zen_grid_dimen = { x = 0, y = 70, w = 600, h = 590 },
             _zen_btn_view_zone = { x = 190, y = 700, w = 70, h = 48 },
@@ -52,7 +48,7 @@ describe("Quickstart reader tour", function()
         ZenSpec.unload("common/quickstart/reader_tour")
     end)
 
-    it("runs independently through reader, header, and layout coachmarks", function()
+    it("runs through the swipe and layout coachmarks without removed header actions", function()
         local started = require("common/quickstart/reader_tour").start(
             plugin, {}, function(layout)
                 opened_layout = layout
@@ -70,24 +66,15 @@ describe("Quickstart reader tour", function()
         assert.is_true(plugin.config._meta.quickstart_reader_tour_pending)
         run_next(0.1)
 
-        assert.are.equal(3, #shown[2].steps)
-        assert.are.equal("Reader menu", shown[2].steps[1].text)
-        assert.are.equal("Bookmarks", shown[2].steps[2].text)
-        assert.are.equal("Table of contents", shown[2].steps[3].text)
-        assert.are.equal(browser._zen_reader_tour_targets[2].image.dimen,
-            shown[2].steps[2].target)
-
-        shown[2].on_complete()
         assert.are.equal(1, grid_switches)
-        run_next(0.1)
-
+        assert.are.equal(1, #shown[2].steps)
         assert.are.equal("Change page browser view to single, coverflow, or grid",
-            shown[3].steps[1].text)
-        assert.are.equal(browser._zen_btn_group.dimen, shown[3].steps[1].target)
-        assert.are.equal(browser._zen_grid_dimen, shown[3].steps[1].unhatched)
+            shown[2].steps[1].text)
+        assert.are.equal(browser._zen_btn_group.dimen, shown[2].steps[1].target)
+        assert.are.equal(browser._zen_grid_dimen, shown[2].steps[1].unhatched)
         assert.is_true(plugin.config._meta.quickstart_reader_tour_pending)
 
-        shown[3].on_complete()
+        shown[2].on_complete()
         assert.is_false(plugin.config._meta.quickstart_reader_tour_pending)
         assert.is_false(plugin.config._meta.quickstart_menu_tour_pending)
         assert.are.equal(1, plugin.save_calls)

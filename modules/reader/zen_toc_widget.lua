@@ -109,22 +109,20 @@ local ZenTocWidget = InputContainer:extend{
     font_size  = nil,
 }
 
-function ZenTocWidget:init()
-    local sw = Screen:getWidth()
-    local sh = Screen:getHeight()
-    self.dimen = Geom:new{ x = 0, y = 0, w = sw, h = sh }
-
+function ZenTocWidget.getEntries(ui)
     -- Collect TOC entries, cap depth at 3 to avoid overwhelming the list.
     -- ReaderToc exposes the raw array as .toc (not a method).
     -- Entries sharing the same page are merged: titles joined with " · ".
-    local raw = (self.ui and self.ui.toc and self.ui.toc.toc) or {}
+    local toc = ui and ui.toc
+    if toc and type(toc.fillToc) == "function" then toc:fillToc() end
+    local raw = (toc and toc.toc) or {}
     local entries = {}
     local page_to_idx = {}
     for _i, e in ipairs(raw) do
         local pg    = e.page or 1
         local depth = e.depth or 1
         if depth <= 3 then
-            local title = get_entry_title(self.ui, e, pg)
+            local title = get_entry_title(ui, e, pg)
             local idx   = page_to_idx[pg]
             if idx then
                 -- Merge: append title only if it's not a duplicate string
@@ -143,12 +141,20 @@ function ZenTocWidget:init()
                 table.insert(entries, {
                     title      = title,
                     page       = pg,
-                    page_label = get_toc_page_label(self.ui, e, pg),
+                    page_label = get_toc_page_label(ui, e, pg),
                     depth      = depth,
                 })
             end
         end
     end
+    return entries
+end
+
+function ZenTocWidget:init()
+    local sw = Screen:getWidth()
+    local sh = Screen:getHeight()
+    self.dimen = Geom:new{ x = 0, y = 0, w = sw, h = sh }
+    local entries = ZenTocWidget.getEntries(self.ui)
     self._entries = entries
 
     local text_font_size = tonumber(self.font_size)
@@ -234,7 +240,7 @@ function ZenTocWidget:init()
     self:_initActivePage()
     self._zen_focus_enabled = supports_hardware_focus()
     if self._zen_focus_enabled then
-        self._zen_focus_area = "back"
+        self._zen_focus_area = self.show_back == false and "close" or "back"
         self._zen_focus_entry_idx = (self._toc_page - 1) * per_page + 1
     end
 
@@ -289,7 +295,7 @@ end
 
 function ZenTocWidget:_setFocus(area, entry_idx, footer_side)
     if not self._zen_focus_enabled then return end
-    self._zen_focus_area = area
+    self._zen_focus_area = area == "back" and self.show_back == false and "close" or area
     if entry_idx then self._zen_focus_entry_idx = entry_idx end
     if footer_side then self._zen_footer_side = footer_side end
     UIManager:setDirty(self, "fast")
@@ -479,29 +485,31 @@ function ZenTocWidget:paintTo(bb, x, y)
 
     -- Back icon (left chevron)
     local icon_sz    = TitleStyle.ICON_SIZE
-    local back_icon = IconWidget:new{
-        file   = BACK_ICON_PATH,
-        width  = icon_sz,
-        height = icon_sz,
-    }
-    local back_focused = self._zen_focus_enabled and self._zen_focus_area == "back"
-    back_icon.invert = back_focused
-    if back_focused then
-        local focus_pad = Screen:scaleBySize(4)
-        bb:paintRect(
-            TitleStyle.getLeadingIconX(mx) - focus_pad,
+    if self.show_back ~= false then
+        local back_icon = IconWidget:new{
+            file   = BACK_ICON_PATH,
+            width  = icon_sz,
+            height = icon_sz,
+        }
+        local back_focused = self._zen_focus_enabled and self._zen_focus_area == "back"
+        back_icon.invert = back_focused
+        if back_focused then
+            local focus_pad = Screen:scaleBySize(4)
+            bb:paintRect(
+                TitleStyle.getLeadingIconX(mx) - focus_pad,
+                my + TitleStyle.VERTICAL_PADDING
+                    + math.floor((TitleStyle.ROW_HEIGHT - icon_sz) / 2) - focus_pad,
+                icon_sz + 2 * focus_pad,
+                icon_sz + 2 * focus_pad,
+                Blitbuffer.COLOR_BLACK
+            )
+        end
+        back_icon:paintTo(bb,
+            TitleStyle.getLeadingIconX(mx),
             my + TitleStyle.VERTICAL_PADDING
-                + math.floor((TitleStyle.ROW_HEIGHT - icon_sz) / 2) - focus_pad,
-            icon_sz + 2 * focus_pad,
-            icon_sz + 2 * focus_pad,
-            Blitbuffer.COLOR_BLACK
-        )
+                + math.floor((TitleStyle.ROW_HEIGHT - icon_sz) / 2))
+        back_icon:free()
     end
-    back_icon:paintTo(bb,
-        TitleStyle.getLeadingIconX(mx),
-        my + TitleStyle.VERTICAL_PADDING
-            + math.floor((TitleStyle.ROW_HEIGHT - icon_sz) / 2))
-    back_icon:free()
 
     -- Close-all icon (X)
     local close_icon = IconWidget:new{
@@ -658,7 +666,7 @@ function ZenTocWidget:_onTap(ges)
     local L = self._L
 
     -- Tap on back button hit zone (top-left of title bar)
-    if p.x >= L.back_x and p.x < L.back_x + L.back_w
+    if self.show_back ~= false and p.x >= L.back_x and p.x < L.back_x + L.back_w
     and p.y >= L.back_y and p.y < L.back_y + L.back_h then
         self:_flashHeader(false)
         self:onClose()

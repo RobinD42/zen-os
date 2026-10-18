@@ -632,11 +632,33 @@ describe("reader top status bar refresh", function()
         assert.are.equal(2, #group)
         assert.is_true(widgets[1]._is_color)
         assert.are.equal("B", widgets[1].text)
-        assert.is_false(widgets[2]._is_color)
+        assert.is_true(widgets[2]._is_color)
+        assert.is_false(widgets[2].invert_night_mode)
         assert.are.equal("73%", widgets[2].text)
 
         _G.__ZEN_UI_PLUGIN.config.reader_top_status_bar.colored = false
         assert.is_nil(collect_item_texts({ "battery" })[1].color)
+    end)
+
+    it("rebuilds text, labels and separators with the current theme color", function()
+        local theme_color = "sepia"
+        package.loaded["common/reader_themes"].getTextColor = function() return theme_color end
+        local texts = { { text = "12:00" }, { text = "Title" } }
+        for _i, color in ipairs({ "sepia", "warm_gray" }) do
+            theme_color = color
+            local _group, widgets = build_group_from_texts(texts, {}, " | ", 500)
+            assert.are.equal(3, #widgets)
+            for _j, widget in ipairs(widgets) do
+                assert.is_true(widget._is_color)
+                assert.are.equal(color, widget.fgcolor)
+                assert.is_false(widget.invert_night_mode)
+            end
+        end
+        local _group, widgets = build_group_from_texts(texts, {}, " | ", 1)
+        assert.are.equal(1, #widgets)
+        assert.is_true(widgets[1]._is_color)
+        assert.are.equal(theme_color, widgets[1].fgcolor)
+        assert.is_false(widgets[1].invert_night_mode)
     end)
 
     it("uses KOReader footer padding with right bookmark clearance and optional reader margins", function()

@@ -784,18 +784,8 @@ function ZenUI:init()
             end
         end
 
-        for _i, tab_index in ipairs({ count - 1, count }) do
-            local icon = icons[tab_index]
-            local orig_callback = icon.callback
-            icon.callback = function(...)
-                local result = orig_callback(...)
-                sync_tab_borders(tab_index)
-                return result
-            end
-        end
-        if touch_menu.cur_tab == count - 1 or touch_menu.cur_tab == count then
-            sync_tab_borders(touch_menu.cur_tab)
-        end
+        bar._zen_sync_tab_borders = sync_tab_borders
+        if touch_menu.cur_tab then sync_tab_borders(touch_menu.cur_tab) end
     end
 
     local TouchMenu = require("ui/widget/touchmenu")
@@ -805,6 +795,13 @@ function ZenUI:init()
         TouchMenu.init = function(t_self, ...)
             orig_touch_menu_init(t_self, ...)
             keep_tab_pair_right(t_self)
+        end
+        local orig_switch_tab = TouchMenu.switchMenuTab
+        TouchMenu.switchMenuTab = function(t_self, tab_num, ...)
+            local result = orig_switch_tab(t_self, tab_num, ...)
+            local sync_borders = t_self.bar and t_self.bar._zen_sync_tab_borders
+            if sync_borders then sync_borders(tab_num) end
+            return result
         end
     end
 

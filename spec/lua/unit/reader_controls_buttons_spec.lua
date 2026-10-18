@@ -1,0 +1,197 @@
+describe("reader controls buttons", function()
+    local Buttons
+    before_each(function()
+        ZenSpec.replace("device", { isTouchDevice = function() return true end })
+        ZenSpec.unload("modules/menu/reader_controls/buttons")
+        Buttons = require("modules/menu/reader_controls/buttons")
+    end)
+
+    it("adds built-ins once and preserves existing custom buttons", function()
+        local custom = { id = "al_1", type = "action", label = "Custom", action = {} }
+        local config = { reader_controls = { entries = { custom }, next_id = 1, open_first = false } }
+        local cfg = Buttons.ensure(config)
+        assert.are.equal(14, #cfg.entries)
+        assert.are.equal("font", cfg.entries[1].control)
+        assert.are.equal(custom, cfg.entries[14])
+        assert.is_false(cfg.open_first)
+        assert.are.equal(14, #Buttons.ensure(config).entries)
+    end)
+
+    it("keeps deleted and edited built-ins after loading the saved list", function()
+        local config = {}
+        local cfg = Buttons.ensure(config)
+        table.remove(cfg.entries, 1)
+        cfg.entries[2].label = "Layout"
+        cfg.entries[2].icon = "info"
+        local copy = require("util").tableDeepCopy(config)
+        local restored = Buttons.ensure(copy)
+        assert.are.equal(12, #restored.entries)
+        assert.are.equal("page", restored.entries[2].control)
+        assert.are.equal("Layout", restored.entries[2].label)
+        assert.are.equal("info", restored.entries[2].icon)
+        assert.is_nil(restored.open_first)
+        restored.entries = {}
+        assert.are.same({}, Buttons.visible(copy, "copt"))
+    end)
+
+    it("replaces the old Highlights button with Search once without touching custom actions", function()
+        local entries = Buttons.defaults()
+        table.remove(entries, 2)
+        entries[7] = { id = "reader_highlights", type = "reader_control", control = "highlights", enabled = false }
+        local custom = { id = "custom_highlight", type = "action", label = "Highlight", action = {} }
+        entries[#entries + 1] = custom
+        local config = { reader_controls = { entries = entries, buttons_initialized = true } }
+        local cfg = Buttons.ensure(config)
+        assert.are.equal("search", cfg.entries[8].control)
+        assert.are.equal("quick_search", cfg.entries[8].icon)
+        assert.are.equal(custom, cfg.entries[14])
+        table.remove(cfg.entries, 8)
+        assert.are.equal(13, #Buttons.ensure(config).entries)
+        for _i, entry in ipairs(cfg.entries) do assert.are_not.equal("highlights", entry.control) end
+    end)
+
+    it("respects ordering, toggles, and engine-specific document controls", function()
+        local config = {}
+        local cfg = Buttons.ensure(config)
+        cfg.entries[1].enabled = false
+        cfg.entries[3], cfg.entries[10] = cfg.entries[10], cfg.entries[3]
+        local reflowable = Buttons.visible(config, "copt")
+        assert.are.equal(8, #reflowable)
+        assert.are.equal("themes", reflowable[1].control)
+        for _i, entry in ipairs(reflowable) do assert.are_not.equal("document", entry.control) end
+        local fixed = Buttons.visible(config, "kopt")
+        assert.are.equal(9, #fixed)
+        for _i, entry in ipairs(fixed) do assert.are_not.equal("themes", entry.control) end
+    end)
+
+    it("defaults page chevrons to non-touch devices and preserves explicit choices", function()
+        for _i, touch in ipairs({ true, false }) do
+            ZenSpec.replace("device", { isTouchDevice = function() return touch end })
+            local config = {}
+            assert.are.equal(not touch, Buttons.ensure(config).show_page_chevrons)
+            config.reader_controls.show_page_chevrons = touch
+            assert.are.equal(touch, Buttons.ensure(config).show_page_chevrons)
+        end
+    end)
+
+    it("keeps Page Browser off by default and persists enabling it", function()
+        local config = {}
+        local cfg = Buttons.ensure(config)
+        local browser
+        for _i, entry in ipairs(cfg.entries) do
+            if entry.control == "page_browser" then browser = entry end
+        end
+        assert.are.equal("page_browser", browser.control)
+        assert.is_false(browser.enabled)
+        for _i, entry in ipairs(Buttons.visible(config, "copt")) do
+            assert.are_not.equal("page_browser", entry.control)
+        end
+        browser.enabled = true
+        assert.are.equal(browser, Buttons.visible(config, "copt")[#Buttons.visible(config, "copt")])
+        local restored = Buttons.ensure(require("util").tableDeepCopy(config))
+        for _i, entry in ipairs(restored.entries) do
+            if entry.control == "page_browser" then assert.is_true(entry.enabled) end
+        end
+    end)
+
+    it("adds missing menu buttons to saved lists once", function()
+        local config = { reader_controls = { entries = {}, buttons_initialized = true,
+            annotations_merged = true, contrast_split = true } }
+        local cfg = Buttons.ensure(config)
+        assert.are.equal(3, #cfg.entries)
+        local vocab = cfg.entries[1]
+        assert.are.equal("vocabulary", vocab.control)
+        assert.are.equal("Vocabulary builder", vocab.label)
+        assert.are.equal("tab_vocab", vocab.icon)
+        assert.are_not.equal(false, vocab.enabled)
+        assert.are.equal("page_browser", cfg.entries[2].control)
+        assert.is_false(cfg.entries[2].enabled)
+        assert.are.equal("koreader_menu", cfg.entries[3].control)
+        assert.is_false(cfg.entries[3].enabled)
+        assert.are.equal(3, #Buttons.ensure(config).entries)
+        table.remove(cfg.entries, 2)
+        assert.are.equal(2, #Buttons.ensure(require("util").tableDeepCopy(config)).entries)
+    end)
+
+    it("preserves existing menu buttons and their customizations during migration", function()
+        local custom = { id = "al_1", type = "action", label = "Custom", action = {} }
+        local browser = { id = "reader_page_browser", type = "reader_control", control = "page_browser",
+            label = "Browse", icon = "info", enabled = true }
+        local vocab = { id = "reader_vocabulary", type = "reader_control", control = "vocabulary",
+            label = "Words", icon = "bookmark", enabled = false }
+        local config = { reader_controls = { entries = { custom, browser, vocab }, buttons_initialized = true,
+            annotations_merged = true, contrast_split = true } }
+        local cfg = Buttons.ensure(config)
+        assert.are.same({ custom, browser, vocab, { id = "reader_koreader_menu", type = "reader_control",
+            control = "koreader_menu", label = "KOReader reader menu", icon = "koreader", enabled = false } }, cfg.entries)
+        assert.are.equal(4, #Buttons.ensure(require("util").tableDeepCopy(config)).entries)
+    end)
+
+    it("keeps the KOReader bottom menu button disabled by default", function()
+        local config = {}
+        local cfg = Buttons.ensure(config)
+        local menu = cfg.entries[#cfg.entries]
+        assert.are.equal("koreader_menu", menu.control)
+        assert.are.equal("KOReader reader menu", menu.label)
+        assert.is_false(menu.enabled)
+        for _i, entry in ipairs(Buttons.visible(config, "copt")) do
+            assert.are_not.equal("koreader_menu", entry.control)
+        end
+        menu.enabled = true
+        local fixed = Buttons.visible(config, "kopt")
+        assert.are.equal(menu, fixed[#fixed])
+    end)
+
+    it("keeps Font and Contrast independent and visible only for their document engines", function()
+        local config = {}
+        local cfg = Buttons.ensure(config)
+        local font, contrast = cfg.entries[1], cfg.entries[2]
+        assert.are.equal("contrast", contrast.control)
+        assert.are.equal("Contrast", contrast.label)
+        assert.are.equal("appbar.contrast", contrast.icon)
+        assert.are.equal(font, Buttons.visible(config, "copt")[1])
+        assert.are.equal(contrast, Buttons.visible(config, "kopt")[1])
+        for _i, entry in ipairs(Buttons.visible(config, "copt")) do
+            assert.are_not.equal("contrast", entry.control)
+        end
+        for _i, entry in ipairs(Buttons.visible(config, "kopt")) do
+            assert.are_not.equal("font", entry.control)
+        end
+        font.enabled = false
+        assert.are.equal(contrast, Buttons.visible(config, "kopt")[1])
+        contrast.label, contrast.icon, contrast.enabled = "Images", "custom_color", false
+        assert.are.equal("page", Buttons.visible(config, "kopt")[1].control)
+        assert.are.equal("Font", font.label)
+        assert.are.equal("appbar.textsize", font.icon)
+    end)
+
+    it("splits a legacy Font button once while preserving its fixed-layout preferences", function()
+        local font = { id = "reader_font", type = "reader_control", control = "font",
+            label = "Appearance", icon = "custom_color", enabled = false }
+        local custom = { id = "al_1", type = "action", label = "Custom", action = {} }
+        local config = { reader_controls = { entries = { custom, font },
+            buttons_initialized = true, annotations_merged = true, menu_buttons_added = true } }
+        local cfg = Buttons.ensure(config)
+        assert.are.same({ custom, font, cfg.entries[3] }, cfg.entries)
+        local contrast = cfg.entries[3]
+        assert.are.equal("reader_contrast", contrast.id)
+        assert.are.equal("contrast", contrast.control)
+        assert.are.equal("Appearance", contrast.label)
+        assert.are.equal("custom_color", contrast.icon)
+        assert.is_false(contrast.enabled)
+        contrast.enabled = true
+        assert.is_false(font.enabled)
+        assert.are.equal(3, #Buttons.ensure(config).entries)
+        table.remove(cfg.entries, 3)
+        assert.are.equal(2, #Buttons.ensure(require("util").tableDeepCopy(config)).entries)
+    end)
+
+    it("keeps Contrast disabled when the legacy Font button was removed", function()
+        local config = { reader_controls = { entries = {},
+            buttons_initialized = true, annotations_merged = true, menu_buttons_added = true } }
+        local cfg = Buttons.ensure(config)
+        assert.are.equal("contrast", cfg.entries[1].control)
+        assert.is_false(cfg.entries[1].enabled)
+        assert.are.same({}, Buttons.visible(config, "kopt"))
+    end)
+end)

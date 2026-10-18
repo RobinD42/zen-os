@@ -1669,7 +1669,6 @@ local function apply_quick_settings()
         end
     end
 
-    -- Open launcher first when requested; otherwise Controls remains the default.
     local orig_init = TouchMenu.init
     function TouchMenu:init()
         if launcher_opens_first() then

@@ -132,4 +132,15 @@ describe("Zen mode menu patch", function()
         assert.is_true(config:onShowConfigMenu())
         assert.are.equal(2, config.shows)
     end)
+
+    it("allows an explicit reader-controls request without enabling the bottom swipe", function()
+        plugin.config.features.zen_mode = true
+        plugin.config.features.reader_bottom_menu = false
+        local config = setmetatable({}, { __index = ReaderConfig })
+        assert.is_nil(config:onShowConfigMenu())
+        assert.is_true(config:onShowConfigMenu(true))
+        assert.are.equal(1, config.shows)
+        assert.is_false(plugin.config.features.reader_bottom_menu)
+        assert.is_nil(config:onShowConfigMenu())
+    end)
 end)

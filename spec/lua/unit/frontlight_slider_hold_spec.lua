@@ -17,6 +17,7 @@ describe("frontlight slider", function()
         "ui/widget/verticalgroup",
         "ui/widget/verticalspan",
         "common/ui/zen_slider",
+        "common/ui/slider_step_button",
         "common/ui/accent",
         "common/utils",
         "common/widget_resources",
@@ -88,6 +89,7 @@ describe("frontlight slider", function()
         })
         ZenSpec.replace("gettext", function(text) return text end)
         ZenSpec.unload("modules/menu/patches/brightness_slider")
+        ZenSpec.unload("common/ui/slider_step_button")
         ZenSpec.unload("modules/menu/patches/warmth_slider")
     end)
 

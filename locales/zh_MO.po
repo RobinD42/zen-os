@@ -717,8 +717,8 @@ msgstr "找不到背景圖片檔案。"
 #. Type: setting
 #. Context: 書庫的顯示及操作設定中的設定項目名稱。
 #: library_settings.lua:289
-msgid "Badge color: "
-msgstr "徽章顏色： "
+msgid "Badge color"
+msgstr "徽章顏色"
 
 #. Type: setting
 #. Context: 書庫的顯示及操作設定中的設定項目名稱。
@@ -7073,3 +7073,74 @@ msgstr "禪PM"
 #: zenpm_installer.lua:381
 msgid "ZenPM has been installed. Restart KOReader to use it."
 msgstr "ZenPM 已安裝。重新啟動 KOReader 使用。"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Margins"
+msgstr "頁邊距"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Left/Right"
+msgstr "左/右"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Top/Bottom"
+msgstr "上/下"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Top"
+msgstr "上"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Sync Top/Bottom"
+msgstr "同步上/下"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Weight"
+msgstr "字重"
+
+#: modules/settings/sections/reader_controls_settings.lua
+msgid "Show page chevrons"
+msgstr "顯示翻頁箭頭"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Straighten"
+msgstr "傾斜校正"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Overlap"
+msgstr "重疊"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Horizontal"
+msgstr "水平"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Vertical"
+msgstr "垂直"
+
+#. Type: setting
+#. Context: Reader settings for the controls tab.
+#: reader_controls_settings.lua:29
+msgid "Reader controls"
+msgstr "閱讀控制"
+
+#. Type: setting
+#. Context: Action triggered by swiping up from the bottom of the reader.
+#: reader_settings.lua:1344
+msgid "Bottom swipe gesture"
+msgstr "底部滑動手勢"
+
+#. Type: setting
+#. Context: Bottom swipe option that opens KOReader’s native reader menu.
+#: reader_settings.lua:1313
+msgid "KOReader reader menu"
+msgstr "KOReader 閱讀選單"
+
+#. Type: label
+#. Context: Reader control for contrast in fixed-layout documents (PDF/CBZ).
+#: buttons.lua:7 model.lua:338
+msgid "Contrast"
+msgstr "對比度"

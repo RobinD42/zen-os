@@ -14,6 +14,12 @@ local function in_panel_mode(tm)
         and tm.item_table.panel ~= nil
 end
 
+local function cancel_sliders(tm)
+    for _i, ref in ipairs(tm._zen_panel_refs and tm._zen_panel_refs.sliders or {}) do
+        if ref.cancel then ref.cancel() end
+    end
+end
+
 local function handle_panel_gesture(touch_menu, ges, is_hold)
     local refs = touch_menu._zen_panel_refs
     if not refs then return false end
@@ -59,6 +65,8 @@ local function handle_panel_gesture(touch_menu, ges, is_hold)
 
     return false
 end
+
+M.handlePanelGesture = handle_panel_gesture
 
 function M.install(plugin)
     active_plugin = plugin or active_plugin or rawget(_G, "__ZEN_UI_PLUGIN")
@@ -150,14 +158,23 @@ function M.install(plugin)
 
     local orig_updateItems = TouchMenu.updateItems
     function TouchMenu:updateItems(target_page, target_item_id)
+        cancel_sliders(self)
         -- FileManager may create its TouchMenu before Zen UI patches the class.
         ensure_panel_gestures(self)
-        -- The selected tab border provides feedback without an extra refresh.
-        for i, tab in ipairs(self.tab_item_table or {}) do
-            local button = self.bar.icon_widgets[i]
-            if tab.panel and button then button.allow_flash = false end
+        if self.footer and self.footer.resetLayout then
+            for _i, slot in ipairs(self.footer) do
+                if slot.dimen then
+                    slot._zen_normal_height = slot._zen_normal_height or slot.dimen.h
+                    slot.dimen.h = slot._zen_normal_height
+                end
+            end
+            self.footer:resetLayout()
         end
         if not self.item_table or not self.item_table.panel then
+            if self._zen_panel_refs and self._zen_panel_refs.bottom_tabs then
+                self.dimen.y = 0
+                UIManager:setDirty("all", "ui")
+            end
             local cancelPanelRefresh = get_shared("cancelPanelRefresh")
             if type(cancelPanelRefresh) == "function" then
                 cancelPanelRefresh(self)
@@ -180,14 +197,15 @@ function M.install(plugin)
         end
         self.item_group:clear()
         self.layout = {}
-        table.insert(self.item_group, self.bar)
-        table.insert(self.layout, self.bar.icon_widgets)
-
         local panel_fn = self.item_table.panel
         local panel = type(panel_fn) == "function" and panel_fn(self) or panel_fn
+        local refs = self._zen_panel_refs
+        if not (refs and refs.bottom_tabs) then
+            table.insert(self.item_group, self.bar)
+            table.insert(self.layout, self.bar.icon_widgets)
+        end
         table.insert(self.item_group, panel)
 
-        local refs = self._zen_panel_refs
         if refs then refs.tab_id = self.item_table.id end
         if refs and type(refs.layout_rows) == "table" then
             for _i, row in ipairs(refs.layout_rows) do
@@ -199,10 +217,19 @@ function M.install(plugin)
             table.insert(self.layout, refs.button_layout_row)
         end
 
-        table.insert(self.item_group, self.footer_top_margin)
-        table.insert(self.item_group, self.footer)
         local page = refs and refs.page or 1
         local page_num = refs and refs.page_num or 1
+        if refs and refs.bottom_tabs then
+            if page_num > 1 and not refs.pager then
+                table.insert(self.item_group, self.page_info)
+                table.insert(self.layout, { self.page_info_left_chev, self.page_info_right_chev })
+            end
+            table.insert(self.item_group, refs.bottom_tabs)
+            table.insert(self.layout, refs.tab_layout)
+        else
+            table.insert(self.item_group, refs and refs.footer_top_margin or self.footer_top_margin)
+            table.insert(self.item_group, self.footer)
+        end
         if page_num > 1 then
             self.page_info_text:setText(T(_("Page %1 of %2"), page, page_num))
         else
@@ -213,6 +240,7 @@ function M.install(plugin)
         local cycle_pages = self.item_table.id == "app_launcher"
         self.page_info_left_chev:enableDisable(page_num > 1 and (cycle_pages or page > 1))
         self.page_info_right_chev:enableDisable(page_num > 1 and (cycle_pages or page < page_num))
+        if refs and refs.bottom_tabs and page_num > 1 then self.page_info:resetLayout() end
 
         local schedulePanelRefresh = get_shared("schedulePanelRefresh")
         if type(schedulePanelRefresh) == "function" then
@@ -222,18 +250,22 @@ function M.install(plugin)
         local old_dimen = self.dimen:copy()
         self.dimen.w = self.width
         self.dimen.h = self.item_group:getSize().h + self.bordersize * 2 + self.padding
+        self.dimen.y = refs and refs.bottom_tabs and Screen:getHeight() - self.dimen.h or 0
+        local tab_x, tab_y = self.cur_tab, 1
+        if refs and refs.bottom_tabs then tab_x, tab_y = 1, #self.layout end
         if old_selected then
             local row = self.layout[old_selected.y]
             if row and row[old_selected.x] then
                 self:moveFocusTo(old_selected.x, old_selected.y, 0)
             else
-                self:moveFocusTo(self.cur_tab, 1, FocusManager.NOT_FOCUS)
+                self:moveFocusTo(tab_x, tab_y, FocusManager.NOT_FOCUS)
             end
         else
-            self:moveFocusTo(self.cur_tab, 1, FocusManager.NOT_FOCUS)
+            self:moveFocusTo(tab_x, tab_y, FocusManager.NOT_FOCUS)
         end
 
-        local keep_bg = old_dimen and self.dimen.h >= old_dimen.h
+        local keep_bg = self.dimen.y == old_dimen.y and (self.dimen.h >= old_dimen.h
+            or self._zen_hatched_background)
         local colored = Accent.isEnabled(active_plugin and active_plugin.config)
         local is_fresh = self.is_fresh -- Background hatching may clear this in onShow.
         local tab_changed = not is_fresh and previous_tab ~= self.item_table.id
@@ -248,6 +280,22 @@ function M.install(plugin)
             end
             return refresh_type, refresh_dimen, color_refresh
         end)
+    end
+
+    local orig_switchMenuTab = TouchMenu.switchMenuTab
+    function TouchMenu:switchMenuTab(tab_num, ...)
+        local tab = self.tab_item_table and self.tab_item_table[tab_num]
+        if tab_num == self.cur_tab and tab and not tab.callback then
+            local changed = self.item_table ~= tab or (self.page or 1) ~= 1
+            if tab.panel then
+                local reset = self._zen_panel_refs and self._zen_panel_refs.reset
+                changed = reset and reset() or self.item_table ~= tab
+            end
+            if not changed then return end
+            self.item_table_stack, self.parent_id, self.item_table = {}, nil, tab
+            return self:updateItems(1)
+        end
+        return orig_switchMenuTab(self, tab_num, ...)
     end
 
     local orig_onTapCloseAllMenus = TouchMenu.onTapCloseAllMenus
@@ -338,11 +386,13 @@ function M.install(plugin)
 
     local orig_onCloseWidget = TouchMenu.onCloseWidget
     function TouchMenu:onCloseWidget()
+        cancel_sliders(self)
         local cancelPanelRefresh = get_shared("cancelPanelRefresh")
         if type(cancelPanelRefresh) == "function" then
             cancelPanelRefresh(self)
         end
         self._zen_panel_refs = nil
+        self._reader_controls_state = nil
         self._zen_panel_opening_pan = false
         if orig_onCloseWidget then orig_onCloseWidget(self) end
     end

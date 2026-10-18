@@ -476,6 +476,13 @@ local function get_badge_rgb(config)
         local r = math.max(0, math.min(255, tonumber(c[1] or c.r) or 0))
         local g = math.max(0, math.min(255, tonumber(c[2] or c.g) or 0))
         local b = math.max(0, math.min(255, tonumber(c[3] or c.b) or 0))
+        local opacity = math.max(0, math.min(100, tonumber(config.browser_cover_badges.badge_opacity) or 100))
+        if opacity < 100 then
+            local Blitbuffer = require("ffi/blitbuffer")
+            local color = Blitbuffer.COLOR_WHITE:getColorRGB32()
+            color:blend(Blitbuffer.ColorRGB32(r, g, b, 255), math.floor(opacity * 255 / 100 + 0.5))
+            return color:getR(), color:getG(), color:getB()
+        end
         return r, g, b
     end
 end

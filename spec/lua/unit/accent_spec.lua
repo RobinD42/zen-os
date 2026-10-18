@@ -5,7 +5,8 @@ describe("interface accent", function()
     local originals, plugin, screen, Accent
     local modules = {
         "device", "ui/uimanager", "config/manager", "common/utils", "common/ui/accent",
-        "common/ui/zen_slider", "common/ui/zen_toggle",
+        "common/ui/zen_slider", "common/ui/zen_toggle", "common/ui/zen_button",
+        "ui/font", "ui/widget/textwidget",
     }
 
     before_each(function()
@@ -24,6 +25,7 @@ describe("interface accent", function()
         ZenSpec.unload("common/utils")
         ZenSpec.unload("common/ui/zen_slider")
         ZenSpec.unload("common/ui/zen_toggle")
+        ZenSpec.unload("common/ui/zen_button")
         Accent = require("common/ui/accent")
     end)
 
@@ -223,6 +225,77 @@ describe("interface accent", function()
         config.browser_cover_badges.badge_color = nil
         screen.isColorScreen = function() return true end
         assert.are.equal(tostring(Accent.color(config)), tostring(utils.getBadgeColor(config)))
+    end)
+
+    it("blends custom badge opacity and keeps it independent of the accent", function()
+        local utils = require("common/utils")
+        local config = {
+            accent_color = "#204080", accent_opacity = 60,
+            browser_cover_badges = { badge_color = { 0, 0, 0 }, badge_opacity = 50 },
+        }
+        local gray = tostring(Blitbuffer.ColorRGB32(127, 127, 127, 255))
+        assert.are.equal(gray, tostring(utils.getBadgeColor(config)))
+        assert.are.equal(Blitbuffer.COLOR_BLACK, utils.getBadgeTextColor(config))
+        config.accent_color, config.accent_opacity = "#FF0000", 100
+        assert.are.equal(gray, tostring(utils.getBadgeColor(config)))
+        for _i, entry in ipairs({
+            { 0, 255 }, { -20, 255 }, { 100, 0 }, { 120, 0 }, { "invalid", 0 },
+        }) do
+            config.browser_cover_badges.badge_opacity = entry[1]
+            local value = entry[2]
+            assert.are.equal(tostring(Blitbuffer.ColorRGB32(value, value, value, 255)),
+                tostring(utils.getBadgeColor(config)))
+            assert.are.equal(value == 0, utils.isBadgeDark(config))
+        end
+        config.browser_cover_badges.badge_color = nil
+        assert.are.equal(tostring(Accent.color(config)), tostring(utils.getBadgeColor(config)))
+        config.accent_color, config.accent_opacity = "#00FF00", 35
+        assert.are.equal(tostring(Accent.color(config)), tostring(utils.getBadgeColor(config)))
+    end)
+
+    it("uses live accent borders and black labels for outlined Zen buttons", function()
+        local label_color
+        ZenSpec.replace("ui/font", { getFace = function() return {} end })
+        ZenSpec.replace("ui/widget/textwidget", {
+            new = function(_self, options)
+                label_color = options.fgcolor
+                return {
+                    getSize = function() return { w = 0, h = 0 } end,
+                    paintTo = function() end,
+                    free = function() end,
+                }
+            end,
+        })
+        local buttons = require("common/ui/zen_button")
+        local config = _G.__ZEN_UI_PLUGIN.config
+        local bb = Blitbuffer.new(100, 50, Blitbuffer.TYPE_BBRGB32)
+        for _i, state in ipairs({
+            { "#204080", 100, false, true, true },
+            { "#CC2244", 100, false, true, true },
+            { "#CC2244", 50, false, true, true },
+            { "#CC2244", 50, true, true, true },
+            { "#CC2244", 50, false, false, true },
+            { "#CC2244", 50, false, true, false },
+        }) do
+            config.accent_color, config.accent_opacity, screen.night_mode, config.accent_enabled =
+                state[1], state[2], state[3], state[4]
+            screen.isColorScreen = function() return state[5] end
+            bb:fill(Blitbuffer.COLOR_WHITE)
+            assert.are.same({ x = 10, y = 5, w = 80, h = 40 },
+                buttons.paintOutlined(bb, 10, 5, 80, 40, "Accent color", 22, 10, 2))
+            local color = tostring(Accent.color():getColorRGB32())
+            assert.are.equal(Blitbuffer.COLOR_BLACK, label_color)
+            for _j, pos in ipairs({
+                { 50, 5 }, { 50, 44 }, { 10, 25 }, { 89, 25 },
+                { 13, 9 }, { 86, 9 }, { 13, 40 }, { 86, 40 },
+            }) do
+                assert.are.equal(color, tostring(bb:getPixel(pos[1], pos[2])))
+            end
+            for _j, pos in ipairs({ { 10, 5 }, { 50, 25 } }) do
+                assert.are.equal(255, bb:getPixel(pos[1], pos[2]):getColor8().a)
+            end
+        end
+        bb:free()
     end)
 
     it("colors the slider rail and fill while keeping toggle outlines black", function()

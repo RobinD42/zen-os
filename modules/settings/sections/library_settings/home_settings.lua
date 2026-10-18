@@ -2662,11 +2662,13 @@ function M.build(ctx)
 
     local home_items = {
             {
+                icon_glyph = icons.widgets,
                 text = _("Widgets") .. " \u{25B8}",
                 keep_menu_open = true,
                 callback = arrange_widgets,
             },
             {
+                icon_glyph = icons.edit,
                 text = _("Edit mode"),
                 help_text = _("Hold a widget to open settings directly"),
                 checked_func = function()
@@ -2678,10 +2680,12 @@ function M.build(ctx)
                 end,
             },
             {
+                icon_glyph = icons.save,
                 text = _("Presets"),
                 sub_item_table_func = build_preset_items,
             },
             {
+                icon_glyph = icons.settings_status,
                 text = _("Show top status bar"),
                 checked_func = function()
                     return dcfg.show_status_bar ~= false
@@ -2754,11 +2758,6 @@ function M.build(ctx)
             },
             ]]
     }
-    IconItem.decorate(home_items[1], icons.widgets)
-    IconItem.decorate(home_items[2], icons.edit)
-    IconItem.decorate(home_items[3], icons.save)
-    IconItem.decorate(home_items[4], icons.settings_status)
-    IconItem.decorate(home_items[5], icons.settings_status)
 
     return {
         text = _("Home"),

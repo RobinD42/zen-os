@@ -226,6 +226,11 @@ local function install_icon_hook()
     function IconWidget:init(...)
         if not self.image and not self.file and type(self.icon) == "string" then
             local path = resolved_icons[self.icon]
+            -- TouchMenu also passes absolute plugin paths as icon names.
+            if not path and self.icon:sub(1, 1) == "/" then
+                local name = self.icon:match("/([^/]+)%.svg$") or self.icon:match("/([^/]+)%.png$")
+                path = name and resolved_icons[name] or file_mode(self.icon) == "file" and self.icon
+            end
             if path then self.file = path end
         end
         original_init(self, ...)

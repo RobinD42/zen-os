@@ -408,6 +408,22 @@ msgstr "加入收藏"
 msgid "Add to vocabulary builder"
 msgstr "新增至生字簿"
 
+#: page_browser.lua
+msgid "Carousel"
+msgstr "輪播"
+
+#: reader_controls.lua menus.lua
+msgid "Font family"
+msgstr "字型"
+
+#: page_browser.lua
+msgid "Grid"
+msgstr "網格"
+
+#: page_browser.lua
+msgid "Single page"
+msgstr "單頁"
+
 #. Type: label
 #. Context: 書籍與資料夾的操作選單中用來標示項目或資訊的文字。
 #: context_menu.lua:556
@@ -723,8 +739,8 @@ msgstr "找不到背景圖片檔案。"
 #. Type: setting
 #. Context: 書庫的顯示與操作設定中的設定項目名稱。
 #: library_settings.lua:289
-msgid "Badge color: "
-msgstr "徽章顏色： "
+msgid "Badge color"
+msgstr "徽章顏色"
 
 #. Type: setting
 #. Context: 書庫的顯示與操作設定中的設定項目名稱。
@@ -5442,6 +5458,12 @@ msgstr "顯示收藏徽章"
 msgid "Show folder name"
 msgstr "顯示資料夾名稱"
 
+#. Type: setting
+#. Context: Toggle in the reader page browser font-tab menu; shows the page at its reading size behind the controls.
+#: page_browser.lua:948
+msgid "Show full page"
+msgstr "顯示整頁"
+
 #. Type: menu
 #. Context: 閱讀目標設定及首頁的目標小工具中的選單項目。
 #: reading_goals.lua:115
@@ -7091,3 +7113,250 @@ msgstr "ZenPM"
 #: zenpm_installer.lua:381
 msgid "ZenPM has been installed. Restart KOReader to use it."
 msgstr "ZenPM 已安裝。重新啟動 KOReader 即可使用。"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Book info"
+msgstr "書籍資訊"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Custom buttons"
+msgstr "自訂按鈕"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Defaults"
+msgstr "預設值"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Document"
+msgstr "文件"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Embedded language tags"
+msgstr "內嵌語言標籤"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Enable KOReader's Profiles plugin to save reader profiles."
+msgstr "請啟用 KOReader 的「設定檔」外掛程式以儲存閱讀設定檔。"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Enable partial renderings"
+msgstr "啟用部分渲染"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Existing book settings take precedence over these defaults."
+msgstr "每本書已儲存的設定優先於這些預設設定。"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Fixed-layout documents"
+msgstr "固定版面文件"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Floating punctuation"
+msgstr "懸掛標點"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Font-family fonts"
+msgstr "字型"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Force algorithmic hyphenation"
+msgstr "強制使用演算法斷詞"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Hide non-linear fragments"
+msgstr "隱藏非線性片段"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Highlights"
+msgstr "劃線"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Hyphenation"
+msgstr "斷詞"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Include reader theme"
+msgstr "包含閱讀主題"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Manage profiles"
+msgstr "管理設定檔"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Page"
+msgstr "頁面"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Profiles"
+msgstr "設定檔"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Reader tab"
+msgstr "閱讀分頁"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Reduction"
+msgstr "減少"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Reflowable documents"
+msgstr "可重排文件"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Save all"
+msgstr "儲存全部"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Save current reader settings"
+msgstr "儲存目前閱讀設定"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Save defaults"
+msgstr "儲存預設設定"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Save selected"
+msgstr "儲存所選項目"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Scaling"
+msgstr "縮放"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Soft hyphens only"
+msgstr "只有選擇性連字號"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Style sheet"
+msgstr "樣式表"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "TOC"
+msgstr "目錄"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Themes"
+msgstr "主題"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "This action is not available."
+msgstr "此操作無法使用。"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "This reader profile is not compatible with the current document."
+msgstr "此閱讀設定檔與目前文件不相容。"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Trust soft hyphens"
+msgstr "信任選擇性連字號"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Typography language"
+msgstr "排版語言"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Update"
+msgstr "更新"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Update from current book"
+msgstr "從目前書籍更新"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Update this profile from the current book settings?"
+msgstr "使用目前書籍的設定更新此設定檔？"
+
+#. Context: Reader tab controls, defaults, profiles, and themes.
+msgid "Use global theme settings"
+msgstr "使用全域主題設定"
+
+#. Context: Reader tab controls.
+msgid "Left/Right Margins"
+msgstr "左/右邊距"
+
+#. Context: Reader tab controls.
+msgid "Top/Bottom Margins"
+msgstr "上/下邊距"
+
+#. Context: Reader tab controls.
+msgid "Sync Top/Bottom Margins"
+msgstr "同步上下邊距"
+
+#. Context: Reader tab controls.
+msgid "Reader theme settings"
+msgstr "閱讀主題設定"
+
+#. Context: Reader tab settings.
+msgid "Open menu to Reader"
+msgstr "開啟選單時顯示閱讀控制"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Margins"
+msgstr "頁邊距"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Left/Right"
+msgstr "左/右"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Top/Bottom"
+msgstr "上/下"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Top"
+msgstr "上"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Sync Top/Bottom"
+msgstr "同步上/下"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Weight"
+msgstr "字重"
+
+#: modules/settings/sections/reader_controls_settings.lua
+msgid "Show page chevrons"
+msgstr "顯示翻頁箭頭"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Straighten"
+msgstr "傾斜校正"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Overlap"
+msgstr "重疊"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Horizontal"
+msgstr "水平"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Vertical"
+msgstr "垂直"
+
+#. Type: setting
+#. Context: Reader settings for the controls tab.
+#: reader_controls_settings.lua:29
+msgid "Reader controls"
+msgstr "閱讀控制"
+
+#. Type: setting
+#. Context: Action triggered by swiping up from the bottom of the reader.
+#: reader_settings.lua:1344
+msgid "Bottom swipe gesture"
+msgstr "底部滑動手勢"
+
+#. Type: setting
+#. Context: Bottom swipe option that opens KOReader’s native reader menu.
+#: reader_settings.lua:1313
+msgid "KOReader reader menu"
+msgstr "KOReader 閱讀選單"
+
+#. Type: label
+#. Context: Reader control for contrast in fixed-layout documents (PDF/CBZ).
+#: buttons.lua:7 model.lua:338
+msgid "Contrast"
+msgstr "對比度"

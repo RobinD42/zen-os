@@ -1923,6 +1923,7 @@ local function apply_navbar()
         local label_face = library_font.getFace(label_size)
         local label
         local label_color = active_color or outlined and not show_icon and fill_color
+        if not filled and label_color and label_color == Blitbuffer.COLOR_BLACK then label_color = nil end
         if label_color then
             label = ColorTextWidget:new{
                 text = tab.label,
@@ -1953,7 +1954,8 @@ local function apply_navbar()
                 dimen = Geom:new{ w = underline_w, h = underline_thickness },
             }
             function color_line:paintTo(bb, x, y)
-                local color = Screen.night_mode and underline_color:invert() or underline_color
+                local color = Screen.night_mode and underline_color ~= Blitbuffer.COLOR_BLACK
+                    and underline_color:invert() or underline_color
                 bb:paintRectRGB32(x, y, self.dimen.w, self.dimen.h, color)
             end
             underline = color_line
@@ -2008,7 +2010,8 @@ local function apply_navbar()
                     color.alpha = math.floor(opacity * 255 / 100 + 0.5)
                 end
                 function icon_label_group:paintTo(bb, x, y)
-                    local background = Screen.night_mode and color:invert() or color
+                    local background = Screen.night_mode and (filled or color ~= Blitbuffer.COLOR_BLACK)
+                        and color:invert() or color
                     if outlined then
                         local size = self:getSize()
                         bb:paintBorderRGB32(x, y, size.w, size.h, Screen:scaleBySize(2), background, self.radius)

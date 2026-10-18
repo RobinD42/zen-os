@@ -718,8 +718,8 @@ msgstr "Το αρχείο εικόνας φόντου δεν βρέθηκε."
 #. Type: setting
 #. Context: Ονομασία ρύθμισης στις ρυθμίσεις εμφάνισης και λειτουργίας της βιβλιοθήκης.
 #: library_settings.lua:289
-msgid "Badge color: "
-msgstr "Χρώμα σήματος: "
+msgid "Badge color"
+msgstr "Χρώμα σήματος"
 
 #. Type: setting
 #. Context: Ονομασία ρύθμισης στις ρυθμίσεις εμφάνισης και λειτουργίας της βιβλιοθήκης.
@@ -7074,3 +7074,74 @@ msgstr "ZenPM"
 #: zenpm_installer.lua:381
 msgid "ZenPM has been installed. Restart KOReader to use it."
 msgstr "Το ZenPM εγκαταστάθηκε. Επανεκκινήστε το KOReader για να το χρησιμοποιήσετε."
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Margins"
+msgstr "Περιθώρια"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Left/Right"
+msgstr "Αριστερά/δεξιά"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Top/Bottom"
+msgstr "Πάνω/κάτω"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Top"
+msgstr "Πάνω"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Sync Top/Bottom"
+msgstr "Συγχρονισμός πάνω/κάτω"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Weight"
+msgstr "Πάχος"
+
+#: modules/settings/sections/reader_controls_settings.lua
+msgid "Show page chevrons"
+msgstr "Εμφάνιση βελών σελίδας"
+
+#: modules/menu/patches/reader_controls.lua
+msgid "Straighten"
+msgstr "Ευθυγράμμιση"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Overlap"
+msgstr "Επικάλυψη"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Horizontal"
+msgstr "Οριζόντια"
+
+#. Context: Reader document overlap controls.
+#: modules/menu/patches/reader_controls.lua
+msgid "Vertical"
+msgstr "Κατακόρυφα"
+
+#. Type: setting
+#. Context: Reader settings for the controls tab.
+#: reader_controls_settings.lua:29
+msgid "Reader controls"
+msgstr "Χειριστήρια ανάγνωσης"
+
+#. Type: setting
+#. Context: Action triggered by swiping up from the bottom of the reader.
+#: reader_settings.lua:1344
+msgid "Bottom swipe gesture"
+msgstr "Χειρονομία σάρωσης από κάτω"
+
+#. Type: setting
+#. Context: Bottom swipe option that opens KOReader’s native reader menu.
+#: reader_settings.lua:1313
+msgid "KOReader reader menu"
+msgstr "Μενού ανάγνωσης KOReader"
+
+#. Type: label
+#. Context: Reader control for contrast in fixed-layout documents (PDF/CBZ).
+#: buttons.lua:7 model.lua:338
+msgid "Contrast"
+msgstr "Αντίθεση"

@@ -1,16 +1,10 @@
         local function apply_app_launcher(plugin_ref)
-    local Blitbuffer = require("ffi/blitbuffer")
-    local Accent = require("common/ui/accent")
     local CenterContainer = require("ui/widget/container/centercontainer")
     local Device = require("device")
     local Font = require("ui/font")
-    local FrameContainer = require("ui/widget/container/framecontainer")
     local Geom = require("ui/geometry")
-    local GestureRange = require("ui/gesturerange")
     local HorizontalGroup = require("ui/widget/horizontalgroup")
     local HorizontalSpan = require("ui/widget/horizontalspan")
-    local IconWidget = require("ui/widget/iconwidget")
-    local InputContainer = require("ui/widget/container/inputcontainer")
     local TextWidget = require("ui/widget/textwidget")
     local UIManager = require("ui/uimanager")
     local VerticalGroup = require("ui/widget/verticalgroup")
@@ -26,9 +20,7 @@
     local BookSwitcherPage = require("modules/menu/app_launcher/book_switcher_page")
     local PagePlan = require("modules/menu/app_launcher/page_plan")
     local ButtonLabelWidth = require("common/ui/button_label_width")
-    local ButtonFeedback = require("common/ui/button_feedback")
-    local ButtonModel = require("common/nav_button_model")
-    local ZenButton = require("common/ui/zen_button")
+    local ZenActionButton = require("common/ui/zen_action_button")
     local SettingsTransition = require("common/settings_transition")
     local SharedState = require("common/shared_state")
     local utils = require("common/utils")
@@ -41,12 +33,6 @@
     require("modules/menu/patches/touch_menu_panel").install(zen_plugin)
 
     local Screen = Device.screen
-    local _icons_dir
-    do
-        local root = require("common/plugin_root")
-        if root then _icons_dir = root .. "/icons/" end
-    end
-
     local function is_tab_enabled()
         local features = zen_plugin.config and zen_plugin.config.features
         return type(features) == "table" and features.app_launcher == true
@@ -56,163 +42,7 @@
     local DEFAULT_ENTRY_ICON = "lightning"
     local DEFAULT_FOLDER_ICON = "folder_open"
 
-    local function icon_spec(name)
-        local icon_name = (type(name) == "string" and name ~= "") and name or "app_launcher"
-        local icon_path = _icons_dir and utils.resolveIcon(_icons_dir, icon_name)
-        return icon_path, icon_name
-    end
-
-    local LauncherCell = InputContainer:extend{}
-    local EmptyActionButton = InputContainer:extend{}
-
-    function LauncherCell:init()
-        self.dimen = self.dimen or Geom:new{ w = self.width, h = self.height }
-        self.ges_events = {
-            TapSelect = {
-                GestureRange:new{ ges = "tap", range = self.dimen },
-            },
-        }
-    end
-
-    function LauncherCell:paintTo(bb, x, y)
-        self.dimen.x = x
-        self.dimen.y = y
-        self[1]:paintTo(bb, x, y)
-    end
-
-    function LauncherCell:onTapSelect()
-        if self.callback then
-            self.callback()
-        end
-        return true
-    end
-
-    function LauncherCell:onFocus()
-        self.frame.invert = true
-        if self.dimen then UIManager:setDirty(nil, "fast", self.dimen) end
-        return true
-    end
-
-    function LauncherCell:onUnfocus()
-        self.frame.invert = false
-        if self.dimen then UIManager:setDirty(nil, "fast", self.dimen) end
-        return true
-    end
-
-    function EmptyActionButton:init()
-        self.dimen = self.dimen or Geom:new{ w = self.width, h = self.height }
-        self.ges_events = {
-            TapSelect = {
-                GestureRange:new{ ges = "tap", range = self.dimen },
-            },
-        }
-    end
-
-    function EmptyActionButton:paintTo(bb, x, y)
-        self.dimen.x = x
-        self.dimen.y = y
-        ZenButton.paintFilled(bb, x, y, self.width, self.height, self.text, self.font_size, self.radius)
-        if self.invert then
-            bb:invertRect(x, y, self.width, self.height)
-        end
-    end
-
-    function EmptyActionButton:onTapSelect()
-        if self.callback then
-            self.callback()
-        end
-        return true
-    end
-
-    function EmptyActionButton:onFocus()
-        self.invert = true
-        if self.dimen then UIManager:setDirty(nil, "fast", self.dimen) end
-        return true
-    end
-
-    function EmptyActionButton:onUnfocus()
-        self.invert = false
-        if self.dimen then UIManager:setDirty(nil, "fast", self.dimen) end
-        return true
-    end
-
-    local function make_cell(opts)
-        local icon_path, icon_name = icon_spec(opts.icon)
-        local icon_size = opts.icon_size
-        local rendered_icon_size = math.floor(
-            icon_size * utils.iconOpticalScale(opts.icon) + 0.5)
-        local circle_size = opts.circle_size
-        local circle_border = opts.circle_border
-        local active = opts.active == true and not opts.dimmed
-        local label_face = opts.label_face
-        local fg = opts.dim and Blitbuffer.COLOR_DARK_GRAY or Blitbuffer.COLOR_BLACK
-        local show_label = opts.show_label ~= false
-        local icon = IconWidget:new{
-            file = icon_path or nil,
-            icon = icon_path and nil or icon_name,
-            width = rendered_icon_size,
-            height = rendered_icon_size,
-            alpha = true,
-        }
-        Accent.styleIcon(icon, active)
-        local border = circle_border
-        local icon_circle = FrameContainer:new{
-            width = circle_size,
-            height = circle_size,
-            padding = 0,
-            bordersize = border,
-            radius = math.floor(circle_size / 2),
-            background = active and Accent.color()
-                or opts.dimmed and Blitbuffer.COLOR_GRAY or Blitbuffer.COLOR_WHITE,
-            CenterContainer:new{
-                dimen = Geom:new{
-                    w = circle_size - border * 2,
-                    h = circle_size - border * 2,
-                },
-                icon,
-            },
-        }
-        local content_items = {
-            align = "center",
-            icon_circle,
-        }
-        if show_label then
-            local label_max_width = ButtonLabelWidth.maxWidth(opts.cell_w, opts.label_side_padding)
-            local label = TextWidget:new{
-                text = opts.label,
-                face = label_face,
-                fgcolor = fg,
-                max_width = label_max_width,
-            }
-            table.insert(content_items, 1, VerticalSpan:new{ width = opts.pad })
-            content_items[#content_items + 1] = VerticalSpan:new{ width = Screen:scaleBySize(4) }
-            content_items[#content_items + 1] = label
-        end
-        local content = VerticalGroup:new(content_items)
-        local frame = FrameContainer:new{
-            width = opts.cell_w,
-            height = opts.cell_h,
-            bordersize = 0,
-            background = Blitbuffer.COLOR_WHITE,
-            padding = 0,
-            CenterContainer:new{
-                dimen = Geom:new{ w = opts.cell_w, h = opts.cell_h },
-                content,
-            },
-        }
-        local cell = LauncherCell:new{
-            width = opts.cell_w,
-            height = opts.cell_h,
-            dimen = Geom:new{ w = opts.cell_w, h = opts.cell_h },
-            callback = opts.callback and function()
-                ButtonFeedback.flash(icon_circle.dimen, icon_circle.radius)
-                opts.callback()
-            end or nil,
-            frame = frame,
-            frame,
-        }
-        return cell
-    end
+    local make_cell = require("common/ui/launcher_cell")
 
     local function current_entries(touch_menu)
         local cfg = Model.ensure(zen_plugin.config)
@@ -225,11 +55,6 @@
             touch_menu._app_launcher_folder_id = nil
         end
         return cfg.entries, nil
-    end
-
-    local function show_unavailable()
-        local InfoMessage = require("ui/widget/infomessage")
-        UIManager:show(InfoMessage:new{ text = _("Launcher entry is unavailable") })
     end
 
     local function open_app_launcher_settings(touch_menu, open_buttons)
@@ -278,56 +103,7 @@
             touch_menu:updateItems(1)
             return
         end
-        if entry.type == "action" then
-            touch_menu:closeMenu()
-            SettingsTransition.close()
-            UIManager:nextTick(function()
-                if type(entry.action) == "table" and next(entry.action) then
-                    Dispatcher:execute(entry.action)
-                end
-            end)
-            return
-        end
-        if entry.type == "folder_shortcut" or entry.type == "tag" then
-            touch_menu:closeMenu()
-            SettingsTransition.close()
-            UIManager:nextTick(function()
-                ButtonModel.execute(entry, zen_plugin)
-            end)
-            return
-        end
-        if entry.type == "quick_setting" then
-            local controls = rawget(_G, "__ZEN_UI_QUICK_SETTINGS")
-            if not (controls and controls.activate and controls.activate(entry.quick_setting_id, touch_menu)) then
-                show_unavailable()
-            end
-            return
-        end
-        if entry.type == "plugin" and type(entry.plugin) == "table" then
-            local launch = PluginScan.resolve(entry.plugin.key, entry.plugin.method)
-            if not launch then
-                show_unavailable()
-                return
-            end
-            touch_menu:closeMenu()
-            SettingsTransition.close()
-            UIManager:nextTick(function()
-                pcall(launch)
-            end)
-            return
-        end
-        if entry.type == "koreader_menu" and type(entry.koreader_menu) == "table" then
-            local launch = NativeMenu.resolve(entry.koreader_menu.id, "active")
-            if not launch then
-                show_unavailable()
-                return
-            end
-            touch_menu:closeMenu()
-            SettingsTransition.close()
-            UIManager:nextTick(function()
-                pcall(launch)
-            end)
-        end
+        return require("modules/menu/app_launcher/entry_action")(entry, touch_menu, zen_plugin)
     end
 
     local function open_book_from_switcher(touch_menu, path, release_cover)
@@ -522,6 +298,11 @@
         touch_menu._app_launcher_page = page
         refs.page = page
         refs.page_num = page_num
+        refs.reset = function()
+            if page == 1 and not touch_menu._app_launcher_folder_id then return false end
+            touch_menu._app_launcher_page, touch_menu._app_launcher_folder_id = 1, nil
+            return true
+        end
 
         local function set_page_refs()
             refs.goto_page = function(nb)
@@ -585,7 +366,7 @@
         if #visible == 0 then
             local button_w = math.min(inner_w, Screen:scaleBySize(190))
             local button_h = Screen:scaleBySize(46)
-            local add_button = EmptyActionButton:new{
+            local add_button = ZenActionButton:new{
                 width = button_w,
                 height = button_h,
                 dimen = Geom:new{ w = button_w, h = button_h },

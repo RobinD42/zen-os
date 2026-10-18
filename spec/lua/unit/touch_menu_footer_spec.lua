@@ -138,15 +138,61 @@ describe("TouchMenu footer", function()
         G_reader_settings:saveSetting("avoid_flashing_ui", false)
         screen.night_mode = false
 
-        local result = menu:paintTo({
+        local restored, freed, copies = nil, 0, 0
+        local background = {
             hatchRect = function(_self, ...)
                 paint_order[#paint_order + 1] = "hatch"
                 hatch_args = { ... }
             end,
-        }, 0, 0)
+            free = function() freed = freed + 1 end,
+        }
+        local bb = {
+            copy = function() copies = copies + 1; return background end,
+            blitFrom = function(_self, source, ...)
+                assert.are.equal(background, source)
+                restored = { ... }
+            end,
+        }
+        local result = menu:paintTo(bb, 0, 0)
         assert.are.equal("painted", result)
         assert.are.same({ "hatch", "menu" }, paint_order)
-        assert.are.same({ 0, 300, 600, 500, 2, "black", 0.4 }, hatch_args)
+        assert.are.same({ 0, 0, 600, 800, 2, "black", 0.4 }, hatch_args)
+        assert.are.same({ 0, 300, 0, 300, 600, 500 }, restored)
+
+        hatch_args = nil
+        menu:paintTo(bb, 0, 0)
+        assert.is_nil(hatch_args)
+        assert.are.equal(1, copies)
+
+        for _i, height in ipairs({ 200, 600, 300 }) do
+            menu.dimen.h = height
+            menu:paintTo(bb, 0, 0)
+            assert.are.same({ 0, height, 0, height, 600, 800 - height }, restored)
+            assert.is_nil(hatch_args)
+            assert.are.equal(1, copies)
+        end
+
+        local bottom_menu = setmetatable({}, { __index = TouchMenu })
+        bottom_menu:init()
+        bottom_menu.item_table = { id = "reader_controls" }
+        refresh, restored, paint_order = nil, nil, {}
+        bottom_menu:onShow()
+        bottom_menu:paintTo(bb, 0, 500)
+        assert.are.same({ "menu" }, paint_order)
+        assert.is_nil(bottom_menu._zen_hatched_background)
+        assert.is_nil(restored)
+        assert.is_nil(refresh)
+        assert.is_true(bottom_menu.is_fresh)
+        assert.are.equal(1, copies)
+
+        screen.night_mode = true
+        menu:paintTo(bb, 0, 0)
+        assert.are.equal(2, copies)
+        assert.are.equal(1, freed)
+        screen.night_mode = false
+        menu:paintTo(bb, 0, 0)
+        assert.are.equal(3, copies)
+        assert.are.equal(2, freed)
 
         ZenSpec.replace("apps/reader/readerui", {
             instance = { config = { config_dialog = {{
@@ -194,6 +240,8 @@ describe("TouchMenu footer", function()
             G_reader_settings:saveSetting("avoid_flashing_ui", false)
         end
         assert.are.equal(3, close_calls)
+        assert.are.equal(3, freed)
+        assert.is_nil(menu._zen_hatched_background)
 
         screen.night_mode = false
         refresh = nil

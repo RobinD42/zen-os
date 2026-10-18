@@ -4,12 +4,14 @@ local initialized = false
 local FEATURES = {
     "quick_settings",
     "app_launcher",
+    "reader_controls",
     "zen_mode",
 }
 
 local PATCH_MODULES = {
     quick_settings = "modules/menu/patches/quick_settings",
     app_launcher = "modules/menu/patches/app_launcher",
+    reader_controls = "modules/menu/patches/reader_controls",
     zen_mode = "modules/menu/patches/zen_mode",
     disable_top_menu_swipe_zones = "modules/menu/patches/disable_top_menu_swipe_zones",
     touch_menu_footer = "modules/menu/patches/touch_menu_footer",

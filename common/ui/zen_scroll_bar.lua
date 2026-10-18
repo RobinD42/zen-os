@@ -19,6 +19,7 @@ local function apply_zen_scroll_bar()
         zen_settings = true,
         network_switcher = true,
         bluetooth_switcher = true,
+        page_browser_toc = true,
     }
 
     local function getRakuyomi()
