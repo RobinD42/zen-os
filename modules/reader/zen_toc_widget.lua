@@ -34,7 +34,8 @@ local utils          = require("common/utils")
 local _              = require("gettext")
 
 local function resolve_stock_icon(name)
-    return utils.resolveLocalIcon(lfs.currentdir() .. "/resources/icons/mdlight/", name)
+    local directory = lfs.currentdir() .. "/resources/icons/mdlight/"
+    return utils.resolveIcon(directory, name) or utils.resolveLocalIcon(directory, name)
 end
 
 local BACK_ICON_PATH = resolve_stock_icon("chevron.left")
@@ -522,16 +523,6 @@ function ZenTocWidget:paintTo(bb, x, y)
         + math.floor((TitleStyle.ROW_HEIGHT - icon_sz) / 2)
     local close_focused = self._zen_focus_enabled and self._zen_focus_area == "close"
     close_icon.invert = close_focused
-    if close_focused then
-        local focus_pad = Screen:scaleBySize(4)
-        bb:paintRect(
-            close_x - focus_pad,
-            close_y - focus_pad,
-            icon_sz + 2 * focus_pad,
-            icon_sz + 2 * focus_pad,
-            Blitbuffer.COLOR_BLACK
-        )
-    end
     close_icon:paintTo(bb, close_x, close_y)
     close_icon:free()
 
@@ -658,7 +649,8 @@ function ZenTocWidget:_flashHeader(close_all)
         w = TitleStyle.ICON_SIZE, h = TitleStyle.ICON_SIZE,
     }
     if not close_all and self._title_hit then region = region:combine(self._title_hit) end
-    require("common/ui/button_feedback").flashButton(region)
+    local Feedback = require("common/ui/button_feedback")
+    Feedback.flashButton(close_all and Feedback.paddedRegion(region) or region)
 end
 
 function ZenTocWidget:_onTap(ges)

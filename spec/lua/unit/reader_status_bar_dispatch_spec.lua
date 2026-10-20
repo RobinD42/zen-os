@@ -77,4 +77,18 @@ describe("reader status bar dispatcher actions", function()
         footer.view.footer_visible = nil
         assert.is_true(Dispatch.isBottomStatusBarVisible(plugin))
     end)
+
+    it("saves bottom bar toggles outside the reader and preserves its last mode", function()
+        require("apps/reader/readerui").instance = nil
+
+        assert.is_true(Dispatch.setBottomStatusBar(plugin, false))
+        assert.is_false(Dispatch.isBottomStatusBarVisible(plugin))
+        assert.are.equal(3, plugin.config.reader_footer.last_status_bar_mode)
+        assert.are.equal(0, G_reader_settings:readSetting("reader_footer_mode"))
+
+        assert.is_true(Dispatch.setBottomStatusBar(plugin, true))
+        assert.is_true(Dispatch.isBottomStatusBarVisible(plugin))
+        assert.are.equal(3, G_reader_settings:readSetting("reader_footer_mode"))
+        assert.are.equal(2, plugin.saves)
+    end)
 end)

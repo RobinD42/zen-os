@@ -9,6 +9,7 @@ describe("Zen TOC hardware focus", function()
     local font_calls
     local text_specs
     local saved_feedback
+    local feedback_region
 
     local function input_container()
         local InputContainer = {}
@@ -35,7 +36,15 @@ describe("Zen TOC hardware focus", function()
 
     before_each(function()
         saved_feedback = package.loaded["common/ui/button_feedback"]
-        ZenSpec.replace("common/ui/button_feedback", { flashButton = function() end })
+        feedback_region = nil
+        ZenSpec.replace("common/ui/button_feedback", {
+            flashButton = function(region) feedback_region = region end,
+            paddedRegion = function(region)
+                return require("ui/geometry"):new{
+                    x = region.x - 4, y = region.y - 4, w = region.w + 8, h = region.h + 8,
+                }
+            end,
+        })
         close_calls = 0
         close_request = nil
         dirty_calls = 0
@@ -81,11 +90,12 @@ describe("Zen TOC hardware focus", function()
         ZenSpec.replace("datastorage", { getDataDir = function() return "/koreader" end })
         ZenSpec.replace("common/utils", {
             resolveLocalIcon = function(_, name) return "/icons/" .. name .. ".svg" end,
+            resolveIcon = function(_, name) return "/active-icons/" .. name .. ".svg" end,
         })
         ZenSpec.replace("ui/widget/iconwidget", {
             new = function(_self, values)
-                if values.file == "/icons/chevron.left.svg" then back_icon = values end
-                if values.file == "/icons/close.svg" then close_icon = values end
+                if values.file:match("/chevron.left.svg$") then back_icon = values end
+                if values.file:match("/close.svg$") then close_icon = values end
                 values.paintTo = function(self, _bb, x)
                     self.paint_x = x
                 end
@@ -251,6 +261,21 @@ describe("Zen TOC hardware focus", function()
         assert.are.equal(12, back_icon.paint_x)
         assert.are.equal(28, close_icon.width)
         assert.are.equal(544, close_icon.paint_x)
+    end)
+
+    it("uses the active titlebar icons and standard close feedback bounds", function()
+        local widget = new_widget(nil, nil, false)
+        local focus_backgrounds = 0
+        widget:paintTo({ paintRect = function(_bb, _x, _y, _w, _h, color)
+            if color == "black" then focus_backgrounds = focus_backgrounds + 1 end
+        end }, 0, 0)
+
+        assert.are.equal("/active-icons/close.svg", close_icon.file)
+        assert.are.equal(28, close_icon.width)
+        assert.is_true(close_icon.invert)
+        assert.are.equal(0, focus_backgrounds)
+        assert.is_true(widget:_onTap{ pos = { x = 560, y = 20 } })
+        assert.are.same({ x = 540, y = 10, w = 36, h = 36 }, feedback_region)
     end)
 
     it("hides Back and skips its focus and touch target when opened from Reader controls", function()

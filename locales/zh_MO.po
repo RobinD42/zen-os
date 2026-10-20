@@ -7098,10 +7098,6 @@ msgstr "同步上/下"
 msgid "Weight"
 msgstr "字重"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "顯示翻頁箭頭"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "傾斜校正"

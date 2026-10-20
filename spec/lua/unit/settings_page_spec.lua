@@ -29,6 +29,11 @@ describe("Zen settings page", function()
         "apps/filemanager/filemanager",
         "apps/reader/readerui",
         "common/reader_themes",
+        "common/dispatch_action",
+        "modules/menu/bluetooth/bluetooth",
+        "modules/settings/sections/reader_settings",
+        "modules/settings/zen_settings_utils",
+        "common/ui/zen_arrange_list",
     }
 
     local Menu = {}
@@ -946,6 +951,54 @@ describe("Zen settings page", function()
         assert.is_true(shown_widgets[1].invisible)
         assert.is_nil(refresh())
         assert.are.equal("Quotes", shown_widgets[2].title)
+    end)
+
+    it("keeps highlight settings as the parent of newly opened and restored menu editors", function()
+        local route
+        require("device").isTouchDevice = function() return true end
+        require("common/ui/icon_menu_item").decorate = function(item) return item end
+        ZenSpec.replace("common/dispatch_action", {})
+        ZenSpec.replace("modules/menu/bluetooth/bluetooth", { isAvailable = function() return false end })
+        ZenSpec.replace("modules/settings/zen_settings_utils", {
+            make_enable_feature_item = function(_feature, text) return { text = text } end,
+        })
+        ZenSpec.replace("common/ui/zen_arrange_list", {
+            show = function()
+                route = PageModule.claimArrangeRoute()
+                PageModule.noteArrangeRoute(route)
+            end,
+        })
+        ZenSpec.unload("modules/settings/sections/reader_settings")
+        require("modules/settings/zen_settings").build = function(plugin)
+            return { sub_item_table = {{
+                text = "Reader",
+                sub_item_table = require("modules/settings/sections/reader_settings").build({
+                    config = plugin.config, plugin = plugin, save_and_apply = function() end,
+                }),
+            }} }
+        end
+        local plugin = { config = { features = {}, reader_themes = {} } }
+        local first = PageModule.show(plugin)
+        assert.is_true(first:openPath({
+            { key = "text", value = "Reader" },
+            { key = "text", value = "Highlight / Lookup" },
+            { key = "text", value = "Highlight" },
+        }))
+        first:onMenuSelect(first.item_table[1])
+        assert.is_false(first._closed)
+        assert.are.equal("Highlight", first.title_bar.title)
+        assert.are.equal("Menu items", route.opener.text)
+        first:closeMenu()
+
+        local restored = PageModule.show(plugin)
+        assert.is_false(restored._closed)
+        assert.are.equal("Highlight", restored.title_bar.title)
+        assert.are.equal(restored, route.deferred_parent)
+        restored:backToUpperMenu()
+        assert.are.equal("Highlight / Lookup", restored.title_bar.title)
+        restored:backToUpperMenu()
+        assert.are.equal("Reader", restored.title_bar.title)
+        assert.is_false(restored._closed)
     end)
 
     it("restores a standalone widget-settings route from the top menu", function()

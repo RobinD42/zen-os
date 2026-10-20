@@ -7107,10 +7107,6 @@ msgstr "Синхронизиране горе/долу"
 msgid "Weight"
 msgstr "Дебелина"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "Показване на стрелките за страници"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "Изправяне"

@@ -1342,6 +1342,12 @@ msgstr "Selector de culoare"
 msgid "Colored status icons"
 msgstr "Pictograme de stare colorate"
 
+#. Type: setting
+#. Context: Setări pentru culorile și numele evidențierilor.
+#: reader_settings.lua:147
+msgid "Colors"
+msgstr "Culori"
+
 #. Type: label
 #. Context: Etichetă în interfața ZenOS.
 #: mosaic_layout_dialog.lua:45
@@ -2367,6 +2373,14 @@ msgstr "Ieșire"
 #: context_menu.lua:759
 msgid "Exit select mode"
 msgstr "Ieșiți din modul de selectare"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Extend end"
+msgstr "Extinde sfârșitul"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Extend start"
+msgstr "Extinde începutul"
 
 #. Type: setting
 #. Context: Denumirea unei setări în setările pentru aspectul și comportamentul bibliotecii.
@@ -3435,6 +3449,10 @@ msgstr "Dimensiunea maximă a fontului citatelor"
 #: nav_button_model.lua:27 navbar.lua:354 navbar_settings.lua:187
 msgid "Menu"
 msgstr "Meniu"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Menu items"
+msgstr "Elemente de meniu"
 
 #. Type: setting
 #. Context: Denumirea unei setări în setările furnizorilor de metadate pentru cărți.
@@ -4911,6 +4929,12 @@ msgstr "Resetează culoarea de accent"
 #: battery_stats_menu.lua:51 battery_stats_menu.lua:56
 msgid "Reset battery log"
 msgstr "Resetează jurnalul bateriei"
+
+#. Type: setting
+#. Context: Restabilește culorile și numele implicite ale evidențierilor.
+#: reader_settings.lua:240
+msgid "Reset colors and names"
+msgstr "Resetează culorile și numele"
 
 #. Type: dialog
 #. Context: Text de dialog în setările pentru butoanele de setări rapide. Text de dialog în setările pentru aranjarea paginii de pornire și widgeturile acesteia.
@@ -7314,10 +7338,6 @@ msgstr "Sincronizează sus/jos"
 msgid "Weight"
 msgstr "Grosime"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "Arată săgețile de paginare"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "Îndreptare"
@@ -7354,6 +7374,14 @@ msgstr "Gest de glisare de jos"
 #: reader_settings.lua:1313
 msgid "KOReader reader menu"
 msgstr "Meniul de lectură KOReader"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Contract end"
+msgstr "Restrânge sfârșitul"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Contract start"
+msgstr "Restrânge începutul"
 
 #. Type: label
 #. Context: Reader control for contrast in fixed-layout documents (PDF/CBZ).
@@ -7409,6 +7437,10 @@ msgstr "Mergi la"
 
 msgid "Hide"
 msgstr "Ascunde"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Highlight menu"
+msgstr "Meniu de evidențiere"
 
 msgid "Highlighted text"
 msgstr "Text evidențiat"

@@ -125,8 +125,7 @@ def test_reader_settings_hierarchy_icons_and_bottom_swipe(configured):
             assert state()["items"][0]["checked"] is not enabled
             select("Reader controls", control=True)
             select("Reader controls")
-            assert state()["labels"] == ["Buttons", "Show page chevrons"]
-            assert state()["items"][1]["icon_glyph"] == "\U000f0e73"
+            assert state()["labels"] == ["Buttons"]
             assert driver.command("settings_page_back")["ok"]
             select("Appearance")
             assert state()["labels"] == ["Top status bar", "Bottom status bar", "Align status bars with book margins",

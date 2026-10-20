@@ -40,6 +40,7 @@ local function apply_reader_top_status_bar()
     local ReaderView = require("apps/reader/modules/readerview")
     local ReaderUI = require("apps/reader/readerui")
     local ReaderStatusBar = require("common/reader_status_bar")
+    local HighlightViewport = require("modules/reader/highlight_viewport")
     local _ReaderView_paintTo_orig = ReaderView.paintTo
     local zen_plugin = rawget(_G, "__ZEN_UI_PLUGIN")
 
@@ -60,7 +61,7 @@ local function apply_reader_top_status_bar()
             local cfg = zen_plugin and zen_plugin.config and zen_plugin.config.reader_top_status_bar
             return type(cfg) == "table" and not cfg.hide_in_cbz
         end
-        return view.view_mode == "page"
+        return view.view_mode == "page" or HighlightViewport.isScrolling(view)
     end
 
     local function header_text_color()
@@ -74,6 +75,8 @@ local function apply_reader_top_status_bar()
         if top_widget == view.ui or top_widget == view.ui.show_parent then
             return true
         end
+        local highlight = view.ui.highlight
+        if highlight and top_widget == highlight.highlight_dialog then return true end
         local parent = top_widget.show_parent
         return parent ~= nil and (parent == view.ui or parent == view.ui.show_parent)
     end

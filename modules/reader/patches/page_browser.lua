@@ -922,11 +922,13 @@ local function apply_page_browser()
         local _orig_init = PageBrowserWidget.init
         PageBrowserWidget.init = function(self)
             local resume = self.ui and self.ui._zen_page_browser_resume
+            local resume_tab
             if resume then
                 self.ui._zen_page_browser_resume = nil
                 local age = os.time() - resume.closed_at
                 if age >= 0 and age <= RESUME_TTL_SECONDS then
                     self._zen_controls_state = resume.controls_state
+                    resume_tab = resume.active_tab
                 end
             end
             self._zen_plugin = _plugin_ref
@@ -1182,9 +1184,13 @@ local function apply_page_browser()
 
             -- Rebuild only the panel: the initial layout already used the
             -- selected fixed grid dimensions.
-            local first_tab = PageBrowserTabs.list(self._zen_plugin.config, self.ui)[1].id
-            if first_tab ~= "browser" then
-                self:_zenSelectTab(first_tab)
+            local tabs = PageBrowserTabs.list(self._zen_plugin.config, self.ui)
+            local initial_tab = tabs[1].id
+            for _i, tab in ipairs(tabs) do
+                if tab.id == resume_tab then initial_tab = tab.id; break end
+            end
+            if initial_tab ~= "browser" then
+                self:_zenSelectTab(initial_tab)
             else
                 self._zen_panel_only_rebuild = not self._zen_focus_enabled or stock_focus_layout
                 self:updateLayout()
@@ -2590,7 +2596,7 @@ local function apply_page_browser()
                     if type(value) ~= "function" then state[key] = value end
                 end
                 self.ui._zen_page_browser_resume = {
-                    closed_at = os.time(), controls_state = state,
+                    closed_at = os.time(), active_tab = self._zen_active_tab, controls_state = state,
                 }
             end
             self._zen_closed = true

@@ -2412,6 +2412,9 @@ function Driver:handleCommand(command)
         local ok, err = require("reader_tools").clear_page_bookmarks()
         return { ok = ok == true, error = err }
     end
+    if kind == "highlight_tools" then
+        return require("highlight_tools").command(params)
+    end
     if kind == "page_browser_state" then
         local state = require("reader_tools").page_browser_state()
         return state and { ok = true, page_browser = state }
@@ -2757,6 +2760,7 @@ function Driver:handleCommand(command)
             items[#items + 1] = {
                 label = label,
                 breadcrumb = item._zen_settings_breadcrumb,
+                submenu = item._zen_has_submenu == true,
                 radio = item.radio == true,
                 checked = checked,
                 enabled = item.enabled ~= false and (not item.enabled_func or item.enabled_func() == true),

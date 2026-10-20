@@ -21,6 +21,7 @@ describe("shared Reader controls", function()
         function Widget:getSize() return self.dimen or { w = #(self.text or "") * 8, h = 20 } end
         function Widget:setMaxWidth(width) self.max_width = width end
         function Widget:paintTo() end
+        function Widget:free() self.frees = (self.frees or 0) + 1 end
         for _i, name in ipairs({ "ui/geometry", "ui/gesturerange", "ui/widget/button", "ui/widget/container/inputcontainer",
             "ui/widget/container/framecontainer", "ui/widget/container/centercontainer", "ui/widget/horizontalgroup",
             "ui/widget/iconwidget", "ui/widget/linewidget", "ui/widget/textwidget" }) do ZenSpec.replace(name, Widget) end
@@ -73,6 +74,38 @@ describe("shared Reader controls", function()
         assert.is_false(bar.cells[2][1][1].accent)
         bar = Selection:new{ items = { { text = "small" }, { text = "large" } } }
         for _i, cell in ipairs(bar.cells) do assert.is_false(cell.selected) end
+    end)
+
+    it("restores existing tab colors and icon contrast after leaving dark mode", function()
+        local screen = require("device").screen
+        ZenSpec.replace("common/ui/accent", {
+            color = function() return screen.night_mode and "night accent" or "accent" end,
+            foreground = function() return screen.night_mode and "black" or "white" end,
+            styleIcon = function(icon) icon.foreground = screen.night_mode and "black" or "white" end,
+        })
+        local Selection = require("common/ui/zen_tab_bar")
+        for _i, icon in ipairs({ false, "/page-browser.svg" }) do
+            screen.night_mode = true
+            local callback = function() end
+            local bar = Selection:new{ items = { { text = "Active", icon = icon, callback = callback },
+                { text = "Inactive" } }, selected = 1 }
+            local cell, inactive = bar.cells[1], bar.cells[2]
+            local label = cell[1][1]
+            cell.invert = true
+            for _j, night in ipairs({ true, false, false, true, false }) do
+                screen.night_mode = night
+                bar:paintTo({}, 0, 0)
+                assert.are.equal(night and "night accent" or "accent", cell.background)
+                assert.are.equal(night and "black" or "white", cell.focus_border_color)
+                assert.are.equal(night and "black" or "white", icon and label.foreground or label.fgcolor)
+                assert.are.equal("white", inactive.background)
+                assert.are.equal("black", inactive[1][1].fgcolor)
+                assert.are.equal(cell, bar.cells[1])
+                assert.are.equal(callback, cell.callback)
+                assert.is_true(cell.invert)
+            end
+            assert.are.equal(icon and 3 or nil, label.frees)
+        end
     end)
 
     it("fills the requested width regardless of tab count", function()

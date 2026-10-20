@@ -563,12 +563,8 @@ describe("app launcher settings", function()
             config = config, save_and_apply = function() reader_saves = reader_saves + 1 end,
         }
         assert.are.equal("Buttons \u{25B8}", section.sub_item_table[1].text)
-        assert.are.equal(2, #section.sub_item_table)
-        assert.are.equal("Show page chevrons", section.sub_item_table[2].text)
+        assert.are.equal(1, #section.sub_item_table)
         assert.is_nil(config.reader_controls.open_first)
-        local chevrons = section.sub_item_table[2].checked_func()
-        section.sub_item_table[2].callback()
-        assert.are.equal(not chevrons, config.reader_controls.show_page_chevrons)
         section.sub_item_table[1].callback()
         assert.are.equal("Buttons", shown_options.title)
         assert.are.equal(13, #shown_options.item_table)
@@ -594,7 +590,7 @@ describe("app launcher settings", function()
         assert.are.equal("Font", shown_options.add_item_table[5].text)
         shown_options.add_item_table[5].callback()
         assert.are.equal("font", config.reader_controls.entries[13].control)
-        assert.are.equal(4, reader_saves)
+        assert.are.equal(3, reader_saves)
         assert.are.equal(0, saves)
     end)
 
@@ -614,21 +610,6 @@ describe("app launcher settings", function()
             row.callback()
             assert.are.equal(not checked, row.checked_func())
         end
-    end)
-
-    it("saves the Reader page chevron toggle", function()
-        local config = { features = { reader_controls = true }, reader_controls = { show_page_chevrons = false } }
-        local saved, refreshed
-        local section = require("modules/settings/sections/reader_controls_settings").build{
-            config = config, save_and_apply = function(key) saved = key end,
-        }
-        local item = section.sub_item_table[2]
-        assert.are.equal("Show page chevrons", item.text)
-        assert.is_false(item.checked_func())
-        item.callback({ updateItems = function() refreshed = true end })
-        assert.is_true(item.checked_func())
-        assert.are.equal("reader_controls", saved)
-        assert.is_true(refreshed)
     end)
 
 end)

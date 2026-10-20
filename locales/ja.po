@@ -7098,10 +7098,6 @@ msgstr "上下を同期"
 msgid "Weight"
 msgstr "太さ"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "ページ切り替え矢印を表示"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "傾き補正"

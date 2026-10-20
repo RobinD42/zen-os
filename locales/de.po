@@ -7103,10 +7103,6 @@ msgstr "Oben/unten synchronisieren"
 msgid "Weight"
 msgstr "Stärke"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "Seitenpfeile anzeigen"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "Ausrichten"

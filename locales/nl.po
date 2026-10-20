@@ -1342,6 +1342,12 @@ msgstr "Kleurkiezer"
 msgid "Colored status icons"
 msgstr "Gekleurde statuspictogrammen"
 
+#. Type: setting
+#. Context: Instellingen voor kleuren en namen van markeringen.
+#: reader_settings.lua:147
+msgid "Colors"
+msgstr "Kleuren"
+
 #. Type: label
 #. Context: Label in de gebruikersinterface van ZenOS.
 #: mosaic_layout_dialog.lua:45
@@ -2367,6 +2373,14 @@ msgstr "Afsluiten"
 #: context_menu.lua:759
 msgid "Exit select mode"
 msgstr "Verlaat de selectiemodus"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Extend end"
+msgstr "Einde uitbreiden"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Extend start"
+msgstr "Begin uitbreiden"
 
 #. Type: setting
 #. Context: Naam van een instelling in de instellingen voor het uiterlijk en gedrag van de bibliotheek.
@@ -3435,6 +3449,10 @@ msgstr "Maximale lettergrootte voor offertes"
 #: nav_button_model.lua:27 navbar.lua:354 navbar_settings.lua:187
 msgid "Menu"
 msgstr "Menu"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Menu items"
+msgstr "Menu-items"
 
 #. Type: setting
 #. Context: Naam van een instelling in de instellingen voor aanbieders van boekmetadata.
@@ -4911,6 +4929,12 @@ msgstr "Accentkleur herstellen"
 #: battery_stats_menu.lua:51 battery_stats_menu.lua:56
 msgid "Reset battery log"
 msgstr "Batterijlogboek wissen"
+
+#. Type: setting
+#. Context: Herstel de standaardkleuren en namen van markeringen.
+#: reader_settings.lua:240
+msgid "Reset colors and names"
+msgstr "Kleuren en namen herstellen"
 
 #. Type: dialog
 #. Context: Tekst in een dialoogvenster in de instellingen voor de knoppen van de snelle instellingen. Tekst in een dialoogvenster in de instellingen voor de indeling en widgets van de startpagina.
@@ -7314,10 +7338,6 @@ msgstr "Boven/onder synchroniseren"
 msgid "Weight"
 msgstr "Dikte"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "Paginapijlen tonen"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "Rechtzetten"
@@ -7354,6 +7374,14 @@ msgstr "Veeggebaar vanaf de onderkant"
 #: reader_settings.lua:1313
 msgid "KOReader reader menu"
 msgstr "KOReader-leesmenu"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Contract end"
+msgstr "Einde inkorten"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Contract start"
+msgstr "Begin inkorten"
 
 #. Type: label
 #. Context: Reader control for contrast in fixed-layout documents (PDF/CBZ).
@@ -7409,6 +7437,10 @@ msgstr "Ga naar"
 
 msgid "Hide"
 msgstr "Verbergen"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Highlight menu"
+msgstr "Markeermenu"
 
 msgid "Highlighted text"
 msgstr "Gemarkeerde tekst"

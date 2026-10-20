@@ -14,6 +14,7 @@ local TextWidget = require("ui/widget/textwidget")
 local ZenTabBar = FrameContainer:extend{}
 
 function ZenTabBar:init()
+    self._night_mode = Screen.night_mode
     self.padding, self.margin = 0, 0
     self.bordersize = Screen:scaleBySize(2)
     self.radius = Screen:scaleBySize(4)
@@ -72,6 +73,25 @@ function ZenTabBar:init()
     end
     self[1] = group
     require("common/widget_resources").paintFrameBorderOnTop(self)
+end
+
+function ZenTabBar:paintTo(bb, x, y)
+    if self._night_mode ~= Screen.night_mode then
+        self._night_mode = Screen.night_mode
+        local cell = self.cells[self.selected]
+        if cell then
+            cell.background = Accent.color()
+            cell.focus_border_color = Accent.foreground()
+            local label = cell[1][1]
+            if self.items[self.selected].icon then
+                label:free()
+                Accent.styleIcon(label, true)
+            else
+                label.fgcolor = cell.focus_border_color
+            end
+        end
+    end
+    return FrameContainer.paintTo(self, bb, x, y)
 end
 
 return ZenTabBar

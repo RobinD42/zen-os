@@ -251,7 +251,6 @@ end
 
 local function set_bottom_status_bar(plugin, enabled)
     local footer = get_footer()
-    if not footer then return false end
 
     local plugin_config = plugin and plugin.config or nil
     local reader_footer
@@ -262,7 +261,7 @@ local function set_bottom_status_bar(plugin, enabled)
         reader_footer = plugin_config.reader_footer
         reader_footer.status_bar_enabled = enabled
     end
-    local mode_list = footer.mode_list or {}
+    local mode_list = footer and footer.mode_list or {}
     local off_mode = mode_list.off or 0
     if enabled then
         local last_mode = reader_footer and reader_footer.last_status_bar_mode
@@ -272,20 +271,23 @@ local function set_bottom_status_bar(plugin, enabled)
         if type(last_mode) ~= "number" or last_mode == off_mode then
             last_mode = fallback_footer_mode(footer)
         end
-        footer:applyFooterMode(last_mode)
+        if footer then footer:applyFooterMode(last_mode) end
         G_reader_settings:saveSetting("reader_footer_mode", last_mode)
     else
-        if reader_footer and type(footer.mode) == "number" and footer.mode ~= off_mode then
-            reader_footer.last_status_bar_mode = footer.mode
+        local mode = footer and footer.mode or G_reader_settings:readSetting("reader_footer_mode")
+        if reader_footer and type(mode) == "number" and mode ~= off_mode then
+            reader_footer.last_status_bar_mode = mode
         end
-        footer:applyFooterMode(off_mode)
+        if footer then footer:applyFooterMode(off_mode) end
         G_reader_settings:saveSetting("reader_footer_mode", off_mode)
     end
     if reader_footer then save_config(plugin) end
 
-    footer:refreshFooter(true, true)
-    if type(footer.rescheduleFooterAutoRefreshIfNeeded) == "function" then
-        footer:rescheduleFooterAutoRefreshIfNeeded()
+    if footer then
+        footer:refreshFooter(true, true)
+        if type(footer.rescheduleFooterAutoRefreshIfNeeded) == "function" then
+            footer:rescheduleFooterAutoRefreshIfNeeded()
+        end
     end
     return true
 end

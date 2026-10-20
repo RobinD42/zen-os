@@ -2,13 +2,17 @@ describe("annotation viewer settings", function()
     local saved, Settings, shown
     before_each(function()
         saved = {}
-        for _i, name in ipairs({ "gettext", "ui/uimanager", "ui/widget/spinwidget",
+        for _i, name in ipairs({ "gettext", "ui/uimanager", "ui/widget/spinwidget", "common/plugin_root", "common/utils",
                 "modules/settings/sections/annotation_settings" }) do
             saved[name] = package.loaded[name] or false
         end
         ZenSpec.replace("gettext", function(text) return text end)
         ZenSpec.replace("ui/uimanager", { show = function(_self, widget) shown = widget end })
         ZenSpec.replace("ui/widget/spinwidget", { new = function(_self, spec) return spec end })
+        ZenSpec.replace("common/plugin_root", ZenSpec.root)
+        ZenSpec.replace("common/utils", {
+            resolveLocalIcon = function(dir, name) return dir .. name .. ".svg" end,
+        })
         ZenSpec.unload("modules/settings/sections/annotation_settings")
         Settings = require("modules/settings/sections/annotation_settings")
     end)
@@ -19,9 +23,11 @@ describe("annotation viewer settings", function()
     it("persists detail choices and reuses the saved annotation text size", function()
         local config = { page_browser = { bookmarks_font_size = 23 } }
         local saves = 0
-        local menu = Settings.build({ config = config, plugin = {
+        local item = Settings.build({ config = config, plugin = {
             saveConfig = function() saves = saves + 1 end,
-        } }).sub_item_table
+        } })
+        assert.are.equal(ZenSpec.root .. "/icons/bookmark.svg", item.icon_file)
+        local menu = item.sub_item_table
         assert.are.equal("Details", menu[1].text)
         local details = menu[1].sub_item_table
         assert.is_true(details[3].checked_func())

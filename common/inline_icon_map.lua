@@ -152,7 +152,6 @@ return {
     chapter_time_format = "\u{F19B9}",
     bottom_swipe = "\u{F0740}",
     page_browser = "\u{F0570}",
-    page_chevrons = "\u{F0E73}",
     restore_library_location = "\u{F006F}",
     hide_reader_actions = "\u{F0209}",
     remove       = "\u{F0374}",

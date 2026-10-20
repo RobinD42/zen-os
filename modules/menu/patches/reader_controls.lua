@@ -337,13 +337,15 @@ return function(plugin)
             }
             return track(widget, activate, nil, layout)
         end
-        local function button(item, width, layout)
+        local function button(item, width, layout, label_width)
             local widget, button_widget
             local callback = function() if item.callback then item.callback(tm, button_widget) end end
             local font_pad = pad
             width = width - font_pad * 2
             local setting_title = not item.zen_button and item.title and TextWidget:new{
                 text = item.title, face = Font:getFace("x_smallinfofont") }
+            local title_width = setting_title and (label_width or setting_title:getSize().w) or 0
+            if setting_title then setting_title:setMaxWidth(title_width) end
             local more = item.more and icon_button("more_vertical", item.more, {},
                 setting_title and setting_title:getSize().h)
             if more then
@@ -352,7 +354,7 @@ return function(plugin)
             end
             if item.zen_button or item.name == "font_face" then
                 local label = TextWidget:new{ text = item.text, face = Font:getFace("cfont", 18), bold = true }
-                local button_width = math.min(width - (setting_title and setting_title:getSize().w + pad or 0),
+                local button_width = math.min(width - (setting_title and title_width + pad or 0),
                     label:getSize().w + pad * 4)
                 label:free()
                 widget = ZenActionButton:new{ text = item.text, width = button_width, height = Screen:scaleBySize(40),
@@ -365,7 +367,7 @@ return function(plugin)
                     callback = callback, parent = tm, show_parent = tm }
             else
                 widget = Button:new{ text = (item.checked and "✓ " or "") .. item.text,
-                    max_width = width - (setting_title and setting_title:getSize().w + pad or 0),
+                    max_width = width - (setting_title and title_width + pad or 0),
                     height = Screen:scaleBySize(40),
                     text_font_face = state.section == "profiles" and "x_smallinfofont" or "cfont",
                     text_font_size = state.section == "profiles" and Font.sizemap.x_smallinfofont or 18,
@@ -398,13 +400,16 @@ return function(plugin)
             elseif item.theme_choice and embedded then
                 widget = LeftContainer:new{ dimen = Geom:new{ w = width, h = Screen:scaleBySize(40) }, widget }
             else
+                local title = setting_title and (embedded and LeftContainer or RightContainer):new{
+                    dimen = Geom:new{ w = title_width, h = widget:getSize().h }, setting_title }
                 local right = RightContainer:new{ dimen = Geom:new{
-                    w = width - (setting_title and setting_title:getSize().w or 0), h = widget:getSize().h }, widget }
-                widget = setting_title and HorizontalGroup:new{ align = "center", setting_title, right } or right
+                    w = width - title_width, h = widget:getSize().h }, widget }
+                widget = title and HorizontalGroup:new{ align = "center", title, right } or right
             end
             if more then widget = HorizontalGroup:new{ align = "center", widget, more } end
             return FrameContainer:new{ bordersize = 0, padding = 0, padding_left = pad, padding_right = pad,
-                padding_top = item.zen_button and pad / 2 or 0, padding_bottom = item.zen_button and pad / 2 or 0, widget }
+                padding_top = (item.zen_button or item.name == "font_face") and pad / 2 or 0,
+                padding_bottom = item.zen_button and pad / 2 or 0, widget }
         end
         local entries = tm._reader_controls_embedded and {} or Buttons.visible(plugin.config, Settings.group(ui))
         local direct = { toc = true, bookmarks = true, search = true, vocabulary = true,
@@ -543,8 +548,8 @@ return function(plugin)
         local side, gap = embedded and Screen:scaleBySize(40) or StepButton.width, Screen:scaleBySize(4)
         local more_width, label_width, value_width = 0, 0, 0
         for _i, row in ipairs(descriptors) do
-            if row.slider or row.presets or row.toggle ~= nil or state.section == "profiles" then
-                row.label = TextWidget:new{ text = row.text .. (row.slider and not embedded and ": " or ""),
+            if row.title or row.slider or row.presets or row.toggle ~= nil or state.section == "profiles" then
+                row.label = TextWidget:new{ text = row.title or row.text .. (row.slider and not embedded and ": " or ""),
                     face = Font:getFace("x_smallinfofont") }
                 local number_width = 0
                 if row.slider then
@@ -795,7 +800,7 @@ return function(plugin)
                             if move then move(delta) end
                         end }
                 end
-            else widget = button(row, state.section == "profiles" and label_width + pad * 2 or w, layout) end
+            else widget = button(row, state.section == "profiles" and label_width + pad * 2 or w, layout, label_width) end
             widgets[#widgets + 1] = { widget = widget, layout = layout, height = widget:getSize().h }
         end
         local divider_h = tm._reader_controls_embedded and Screen:scaleBySize(1) or 0

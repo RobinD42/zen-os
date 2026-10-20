@@ -1244,7 +1244,7 @@ describe("page browser entry", function()
         expect(not dirty)
     end)
 
-    it("opens the first enabled tab and retains recent controls settings", function()
+    it("restores the recent tab and controls page for six seconds, then opens the first enabled tab", function()
         local close_button_taps, closes, layouts = 0, 0, 0
         local now = 1000
         local time_stub = stub(os, "time", function() return now end)
@@ -1335,16 +1335,17 @@ describe("page browser entry", function()
         close.callback()
         expect(close_button_taps == 1)
 
-        local state = { section = "page", page = 2, advanced = { page = true }, section_pages = { font = 3 },
+        local state = { section = "font", page = 2, advanced = { page = true }, section_pages = { page = 3 },
             themes_move = function() error("closed panel callback retained") end }
         browser._zen_controls_state = state
         browser:onClose()
         now = now + 6
         local reopened = shell(browser.ui)
         PageBrowserWidget.init(reopened)
-        expect(reopened._zen_active_tab == "browser" and reopened._zen_layout_mode == "grid")
-        expect(reopened._zen_controls_state.section == "page" and reopened._zen_controls_state.page == 2)
-        expect(reopened._zen_controls_state.advanced.page and reopened._zen_controls_state.section_pages.font == 3)
+        expect(reopened._zen_active_tab == "aa" and reopened._zen_layout_mode == "single")
+        expect(reopened._zen_tab_bar.selected == 2)
+        expect(reopened._zen_controls_state.section == "font" and reopened._zen_controls_state.page == 2)
+        expect(reopened._zen_controls_state.advanced.page and reopened._zen_controls_state.section_pages.page == 3)
         expect(reopened._zen_controls_state.themes_move == nil)
         expect(reopened.ui._zen_page_browser_resume == nil)
 
@@ -1354,7 +1355,7 @@ describe("page browser entry", function()
             now = now + 1
             reopened = shell(browser.ui)
             PageBrowserWidget.init(reopened)
-            expect(reopened._zen_active_tab == "browser")
+            expect(reopened._zen_active_tab == tab)
         end
         reopened:_zenSelectTab("aa")
         reopened:onClose()
@@ -1377,6 +1378,13 @@ describe("page browser entry", function()
         PageBrowserWidget.init(ordered)
         expect(ordered._zen_active_tab == "annotations")
         expect(ordered._zen_tab_bar.cells[1].file == "/custom-icons/book_open.svg")
+        ordered:_zenSelectTab("aa")
+        ordered:onClose()
+        ordered = shell(browser.ui)
+        PageBrowserWidget.init(ordered)
+        expect(ordered._zen_active_tab == "aa" and ordered._zen_tab_bar.selected == 2)
+        ordered:_zenSelectTab("annotations")
+        ordered:onClose()
         cfg.tabs.annotations = false
         ordered = shell(browser.ui)
         PageBrowserWidget.init(ordered)

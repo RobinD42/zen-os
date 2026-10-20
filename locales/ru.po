@@ -1343,6 +1343,12 @@ msgstr "Выбор цвета"
 msgid "Colored status icons"
 msgstr "Цветные значки состояния"
 
+#. Type: setting
+#. Context: Настройки цветов и названий выделений.
+#: reader_settings.lua:147
+msgid "Colors"
+msgstr "Цвета"
+
 #. Type: label
 #. Context: Подпись в интерфейсе ZenOS.
 #: mosaic_layout_dialog.lua:45
@@ -2368,6 +2374,14 @@ msgstr "Выход"
 #: context_menu.lua:759
 msgid "Exit select mode"
 msgstr "Выйти из режима выбора"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Extend end"
+msgstr "Расширить конец"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Extend start"
+msgstr "Расширить начало"
 
 #. Type: setting
 #. Context: Название настройки в настройках внешнего вида и поведения библиотеки.
@@ -3436,6 +3450,10 @@ msgstr "Максимальный размер шрифта цитаты"
 #: nav_button_model.lua:27 navbar.lua:354 navbar_settings.lua:187
 msgid "Menu"
 msgstr "Меню"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Menu items"
+msgstr "Пункты меню"
 
 #. Type: setting
 #. Context: Название настройки в настройках источников метаданных книг.
@@ -4912,6 +4930,12 @@ msgstr "Сбросить акцентный цвет"
 #: battery_stats_menu.lua:51 battery_stats_menu.lua:56
 msgid "Reset battery log"
 msgstr "Сбросить журнал батареи"
+
+#. Type: setting
+#. Context: Восстановить стандартные цвета и названия выделений.
+#: reader_settings.lua:240
+msgid "Reset colors and names"
+msgstr "Сбросить цвета и названия"
 
 #. Type: dialog
 #. Context: Текст диалогового окна в настройках кнопок быстрых настроек. Текст диалогового окна в настройках расположения элементов и виджетов главной страницы.
@@ -7315,10 +7339,6 @@ msgstr "Синхронизировать сверху/снизу"
 msgid "Weight"
 msgstr "Насыщенность"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "Показывать стрелки страниц"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "Выравнивание"
@@ -7355,6 +7375,14 @@ msgstr "Жест смахивания снизу"
 #: reader_settings.lua:1313
 msgid "KOReader reader menu"
 msgstr "Меню чтения KOReader"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Contract end"
+msgstr "Сократить конец"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Contract start"
+msgstr "Сократить начало"
 
 #. Type: label
 #. Context: Reader control for contrast in fixed-layout documents (PDF/CBZ).
@@ -7410,6 +7438,10 @@ msgstr "Перейти"
 
 msgid "Hide"
 msgstr "Скрыть"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Highlight menu"
+msgstr "Меню выделения"
 
 msgid "Highlighted text"
 msgstr "Выделенный текст"

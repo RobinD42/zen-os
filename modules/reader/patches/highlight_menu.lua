@@ -7,19 +7,30 @@ local function apply()
     local ButtonDialog = require("ui/widget/buttondialog")
     local UIManager = require("ui/uimanager")
     local Event = require("ui/event")
+    local Handles = require("modules/reader/highlight_handles")
+    local Viewport = require("modules/reader/highlight_viewport")
+    local time = require("ui/time")
+    local ReaderView = require("apps/reader/modules/readerview")
+    local paintTo = ReaderView.paintTo
+    ReaderView.paintTo = function(self, bb, x, y)
+        paintTo(self, bb, x, y)
+        Viewport.paintMargins(self, bb, x, y)
+    end
     local logger = require("common/zen_logger").new("highlight_menu")
     local LookupPluginItems = require("modules/reader/lookup_plugin_items")
     local utils = require("common/utils")
     local plugin_root = require("common/plugin_root")
     local _icons_dir = plugin_root and plugin_root .. "/icons/"
-    local extend_icon = utils.resolveLocalIcon(_icons_dir, "lookup_extend")
+    local _stock_icons_dir = require("libs/libkoreader-lfs").currentdir() .. "/resources/icons/mdlight/"
+    local menu_icons = {
+        style = utils.resolveLocalIcon(_icons_dir, "font"),
+        color = utils.resolveLocalIcon(_icons_dir, "paint_palette"),
+        note = utils.resolveLocalIcon(_icons_dir, "edit"),
+        delete = utils.resolveLocalIcon(_icons_dir, "trash"),
+        more = utils.resolveLocalIcon(_icons_dir, "more_vertical"),
+    }
+    local settings_icon = utils.resolveLocalIcon(_stock_icons_dir, "appbar.settings")
     local ai_icon = utils.resolveLocalIcon(_icons_dir, "lookup_ai")
-    if extend_icon then
-        utils.overrideIcons({ [extend_icon] = extend_icon }, false)
-    end
-    if ai_icon then
-        utils.overrideIcons({ [ai_icon] = ai_icon }, false)
-    end
 
     local _plugin_ref = rawget(_G, "__ZEN_UI_PLUGIN")
 
@@ -38,6 +49,29 @@ local function apply()
             and _plugin_ref.config
             and _plugin_ref.config.features
         return type(features) == "table" and features.highlight_lookup == true
+    end
+
+    local ReaderUI = require("apps/reader/readerui")
+    local handleEvent = ReaderUI.handleEvent
+    ReaderUI.handleEvent = function(self, event)
+        if is_enabled() and event.handler == "onGesture" then
+            local highlight = self.highlight
+            local deadline = highlight and highlight._zen_highlight_tap_until
+            if deadline then
+                if time.now() >= deadline then
+                    highlight._zen_highlight_tap_until = nil
+                elseif event.args[1].ges == "tap" or event.args[1].ges == "double_tap" then
+                    return true
+                end
+            end
+        end
+        return handleEvent(self, event)
+    end
+
+    local onHoldRelease = ReaderHighlight.onHoldRelease
+    ReaderHighlight.onHoldRelease = function(self, ...)
+        if is_enabled() and self.selected_text then Handles.suppressReaderTaps(self) end
+        return onHoldRelease(self, ...)
     end
 
     local function show_wikipedia()
@@ -124,21 +158,17 @@ local function apply()
             return
         end
 
-        local extend_btn = index and find_highlight_button(self, index, "select")
-        local buttons = {{
-            extend_btn and {
-                icon = extend_icon,
-                enabled = extend_btn.enabled,
-                callback = extend_btn.callback,
-            } or {
+        local buttons = {{}}
+        if not index then
+            buttons[1][1] = {
                 icon = "lookup.highlight",
                 enabled = self.hold_pos ~= nil,
                 callback = function()
-                    self:saveHighlight(true)
+                    self:saveHighlight(not self.selected_text._zen_resized)
                     self:onClose()
                 end,
-            },
-        }}
+            }
+        end
 
         if show_wikipedia() then
             table.insert(buttons[1], {
@@ -183,6 +213,21 @@ local function apply()
             end,
         })
 
+        if index then
+            table.insert(buttons[1], {
+                id = "zen_highlight_settings", icon = settings_icon,
+                callback = function()
+                    local _ = require("gettext")
+                    self:onClose()
+                    require("modules/settings/zen_settings_page").show(_plugin_ref, {
+                        path = { { key = "text", value = _("Reader") },
+                            { key = "text", value = _("Highlight / Lookup") },
+                            { key = "text", value = _("Highlight") } },
+                    })
+                end,
+            })
+        end
+
         -- Include recognized companion-plugin buttons or opted-in unknown items.
         if self._highlight_buttons then
             local ffiUtil = require("ffi/util")
@@ -225,8 +270,94 @@ local function apply()
                 end
             end,
         }
+        Handles.attach(self, self.highlight_dialog, index, function()
+            self:onShowHighlightMenu(index)
+        end)
         logger.dbg("showing custom highlight_dialog")
         UIManager:show(self.highlight_dialog, "[ui]")
+    end
+
+    local orig_showHighlightDialog = ReaderHighlight.showHighlightDialog
+    ReaderHighlight.showHighlightDialog = function(self, index)
+        if not is_enabled() then return orig_showHighlightDialog(self, index) end
+        local MenuItems = require("modules/reader/highlight_menu_items")
+        local original_new = ButtonDialog.new
+        -- Intercept only this synchronous factory call to preserve upstream actions and bindings.
+        ButtonDialog.new = function(class, spec, ...)
+            if spec.name ~= "edit_highlight_dialog" then return original_new(class, spec, ...) end
+            local settings = _plugin_ref.config.highlight_lookup or {}
+            local available = Handles.available(self, index)
+            local original_buttons = spec.buttons
+            spec.buttons = MenuItems.arrange(spec.buttons, settings, available, menu_icons)
+            local empty = #spec.buttons == 0
+            if empty then spec.buttons = {{ { text = "", enabled = false } }} end
+            local dialog = original_new(class, spec, ...)
+            if empty then dialog.buttons = {} end
+            local controller = Handles.attach(self, dialog, index, function()
+                self:showHighlightDialog(index)
+            end)
+            if available and not controller then
+                dialog.buttons = MenuItems.arrange(original_buttons, settings, false, menu_icons)
+                dialog:reinit()
+            end
+            self.highlight_dialog = dialog
+            return dialog
+        end
+        local ok, result = pcall(orig_showHighlightDialog, self, index)
+        ButtonDialog.new = original_new
+        if not ok then error(result) end
+        return result
+    end
+
+    local ReaderBookmark = require("apps/reader/modules/readerbookmark")
+    local orig_setBookmarkNote = ReaderBookmark.setBookmarkNote
+    ReaderBookmark.setBookmarkNote = function(self, item_or_index, ...)
+        if not is_enabled() then return orig_setBookmarkNote(self, item_or_index, ...) end
+        local index = self.bookmark_menu and self:getBookmarkItemIndex(item_or_index) or item_or_index
+        local annotation = self.ui.annotation.annotations[index]
+        local InputDialog = require("ui/widget/inputdialog")
+        local original_new = InputDialog.new
+        InputDialog.new = function(class, spec, ...)
+            local _ = require("gettext")
+            local T = require("ffi/util").template
+            spec.description = "   " .. require("common/date_format").formatISODate(annotation.datetime)
+                .. " · " .. T(_("Page %1"), annotation.mandatory or self:getBookmarkPageString(annotation.page))
+            spec.add_scroll_buttons = false
+            spec.use_available_height = false
+            local Screen = require("device").screen
+            spec.text_height = math.floor(math.min(Screen:getWidth(), Screen:getHeight()) * 0.25)
+            local close = spec.buttons[1][1].callback
+            spec.buttons = {{ spec.buttons[1][3] }}
+            local dialog = original_new(class, spec, ...)
+            local function close_dialog()
+                close()
+                return true
+            end
+            dialog.onCloseDialog = close_dialog
+            require("common/ui/zen_modal_close").installDialog(dialog, close_dialog)
+            return dialog
+        end
+        local ok, result = pcall(orig_setBookmarkNote, self, item_or_index, ...)
+        InputDialog.new = original_new
+        if not ok then error(result) end
+        return result
+    end
+
+    for _i, method in ipairs({ "clear", "onClose", "onCloseDocument", "onSetDimensions", "onSuspend" }) do
+        local original = ReaderHighlight[method]
+        ReaderHighlight[method] = function(self, ...)
+            self._zen_highlight_viewport = nil
+            local controller = self._zen_highlight_handles
+            if (method == "clear" or method == "onClose") and is_enabled()
+                    and (self.hold_pos or self.highlight_dialog or controller) then
+                Handles.suppressReaderTaps(self)
+            end
+            if controller then
+                controller:close()
+                UIManager:close(controller.dialog)
+            end
+            if original then return original(self, ...) end
+        end
     end
 
     logger.dbg("onShowHighlightMenu override installed, new fn=",

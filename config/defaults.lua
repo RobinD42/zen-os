@@ -395,6 +395,9 @@ local defaults = {
         details = { book = "auto", author = "auto", chapter = true, page = true, date = false, tags = false },
     },
     highlight_lookup = {
+        submenu_order       = { "style", "color", "note", "start_prev", "start_next", "end_prev", "end_next",
+            "delete", "more" },
+        submenu_enabled     = {},
         allow_unknown_items = false,
         color_names         = {},
         color_codes         = {},

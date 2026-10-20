@@ -7099,10 +7099,6 @@ msgstr "Συγχρονισμός πάνω/κάτω"
 msgid "Weight"
 msgstr "Πάχος"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "Εμφάνιση βελών σελίδας"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "Ευθυγράμμιση"

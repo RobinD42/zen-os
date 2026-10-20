@@ -487,7 +487,14 @@ describe("reader footer patches", function()
     end)
 
     local function load_native_footer()
+        local function copy(value)
+            if type(value) ~= "table" then return value end
+            local result = {}
+            for key, entry in pairs(value) do result[key] = copy(entry) end
+            return result
+        end
         local modules = {
+            ["util"] = { tableDeepCopy = copy },
             ["device"] = {
                 screen = {
                     getWidth = function() return 1264 end,
@@ -495,6 +502,9 @@ describe("reader footer patches", function()
                 },
                 hasBattery = function() return false end,
                 hasAuxBattery = function() return false end,
+                hasFrontlight = function() return false end,
+                hasNaturalLight = function() return false end,
+                hasFastWifiStatusQuery = function() return false end,
                 hasColorScreen = function() return false end,
                 isAndroid = function() return false end,
                 isTouchDevice = function() return false end,
@@ -550,6 +560,65 @@ describe("reader footer patches", function()
         apply_patch("modules/reader/patches/reader_footer")
         return ReaderFooter
     end
+
+    it("edits native footer settings and presets without a reader or refresh timers", function()
+        local ReaderFooter = load_native_footer()
+        for name, module in pairs({
+            ["apps/filemanager/filemanagerbookinfo"] = {},
+            ["common/reader_status_bar"] = false,
+        }) do
+            saved_modules[name] = package.loaded[name] or false
+            ZenSpec.replace(name, module or nil)
+        end
+        local old_settings = G_reader_settings
+        _G.G_reader_settings = ZenSpec.memorySettings({
+            footer = { text_font_size = 21, all_at_once = true, lock_tap = false },
+            reader_footer_mode = 1,
+        })
+        finally(function() _G.G_reader_settings = old_settings end)
+        package.loaded["device"].isTouchDevice = function() return true end
+        package.loaded["ui/uimanager"].scheduleIn = function() error("unexpected refresh timer") end
+        local StatusBar = require("common/reader_status_bar")
+        local footer = StatusBar.getFooterForSettings()
+        assert.are.equal(21, footer.settings.text_font_size)
+        assert.is_false(ReaderFooter.default_settings.lock_tap)
+        local menu = {}
+        footer:addToMainMenu(menu)
+        local function find(items, text)
+            for _i, item in ipairs(items) do
+                if item.text == text or item.text_func and item.text_func() == text then return item end
+                local found = item.sub_item_table and find(item.sub_item_table, text)
+                if found then return found end
+            end
+        end
+        local items = menu.status_bar.sub_item_table
+        find(items, "native:Show status bar separator").callback()
+        find(items, "native:Lock status bar").callback()
+        find(items, "native:Auto refresh items").callback()
+        find(items, "native:Thin").callback()
+        find(items, "native:Show initial-position marker").callback()
+        local chapter = find(items, "native:Show chapter-progress bar instead")
+        chapter.callback()
+        chapter.callback()
+
+        local reopened = StatusBar.getFooterForSettings()
+        assert.is_true(reopened.settings.bottom_horizontal_separator)
+        assert.is_true(reopened.settings.lock_tap)
+        assert.is_true(reopened.settings.auto_refresh_time)
+        assert.is_true(reopened.settings.progress_style_thin)
+        assert.is_false(reopened.settings.chapter_progress_bar)
+        assert.is_true(reopened.settings.initial_marker)
+        local preset = reopened:buildPreset()
+        preset.footer.text_font_size = 27
+        preset.reader_footer_custom_text = "Saved outside reader"
+        reopened:loadPreset(preset)
+        assert.are.equal(27, G_reader_settings:readSetting("footer").text_font_size)
+        assert.are.equal("Saved outside reader", G_reader_settings:readSetting("reader_footer_custom_text"))
+
+        local live_footer = {}
+        package.loaded["apps/reader/readerui"].instance = { view = { footer = live_footer } }
+        assert.are.equal(live_footer, StatusBar.getFooterForSettings())
+    end)
 
     it("centers the LCR preset and joins pages with percentage when the second filler is disabled", function()
         local ReaderFooter = load_native_footer()

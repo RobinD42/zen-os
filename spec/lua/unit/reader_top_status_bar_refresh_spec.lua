@@ -403,6 +403,23 @@ describe("reader top status bar refresh", function()
         assert.are.equal(0, #dirty_calls)
     end)
 
+    it("keeps the header behind highlight popups and their temporary scrolling", function()
+        local view = make_view()
+        local popup = {}
+        view.ui.highlight = { highlight_dialog = popup, restore_page_mode_func = function() end }
+        UIManager._window_stack[#UIManager._window_stack + 1] = { widget = popup }
+        for _i, mode in ipairs({ "page", "scroll" }) do
+            view.view_mode = mode
+            view._zen_header_dimen = nil
+            ReaderView.paintTo(view, require("device").screen.bb, 0, 0)
+            assert.is_not_nil(view._zen_header_dimen)
+        end
+        view.ui.highlight.restore_page_mode_func = nil
+        view._zen_header_dimen = nil
+        ReaderView.paintTo(view, require("device").screen.bb, 0, 0)
+        assert.is_nil(view._zen_header_dimen)
+    end)
+
     it("uses the default header face when the selected or inherited font is unavailable", function()
         local get_header_face = get_upvalue(build_header, "getHeaderFace")
         local Font = get_upvalue(get_header_face, "Font")

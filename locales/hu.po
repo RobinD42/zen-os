@@ -7098,10 +7098,6 @@ msgstr "Felső/alsó szinkronizálása"
 msgid "Weight"
 msgstr "Vastagság"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "Lapozónyilak megjelenítése"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "Kiegyenesítés"

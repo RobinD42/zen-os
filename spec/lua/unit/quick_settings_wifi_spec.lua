@@ -2,6 +2,7 @@ describe("quick settings Wi-Fi", function()
     local original_modules
     local original_plugin
     local original_quick_settings
+    local original_settings
     local NetworkMgr
     local Device
     local UIManager
@@ -17,6 +18,7 @@ describe("quick settings Wi-Fi", function()
         "ffi/util",
         "ui/widget/container/centercontainer",
         "device",
+        "device/devicelistener",
         "ui/event",
         "ui/font",
         "ui/widget/container/framecontainer",
@@ -27,6 +29,7 @@ describe("quick settings Wi-Fi", function()
         "ui/network/manager",
         "ui/widget/confirmbox",
         "ui/widget/infomessage",
+        "ui/widget/notification",
         "ui/widget/textwidget",
         "ui/uimanager",
         "modules/filebrowser/patches/library_font",
@@ -72,6 +75,7 @@ describe("quick settings Wi-Fi", function()
         end
         original_plugin = rawget(_G, "__ZEN_UI_PLUGIN")
         original_quick_settings = rawget(_G, "__ZEN_UI_QUICK_SETTINGS")
+        original_settings = G_reader_settings
         native_available = true
         native_launches = {}
         transition_closes = 0
@@ -222,6 +226,37 @@ describe("quick settings Wi-Fi", function()
         ZenSpec.unload("modules/menu/patches/quick_settings")
         _G.__ZEN_UI_PLUGIN = original_plugin
         _G.__ZEN_UI_QUICK_SETTINGS = original_quick_settings
+        _G.G_reader_settings = original_settings
+    end)
+
+    it("refreshes reader highlight colors and document caches when toggling night mode", function()
+        _G.G_reader_settings = ZenSpec.memorySettings()
+        ZenSpec.replace("ui/widget/notification", {})
+        ZenSpec.unload("device/devicelistener")
+        Device.hasFrontlight = function() return false end
+        Device.hasGSensor = function() return false end
+        Device.isAlwaysFullscreen = function() return true end
+        local resets, selections, updates = 0, 0, 0
+        local listener = require("device/devicelistener"):new{ ui = {
+            document = { provider = "crengine", resetCallCache = function() resets = resets + 1 end },
+            highlight = { setSelectionColor = function() selections = selections + 1 end },
+        } }
+        Device.screen.toggleNightMode = function(self) self.night_mode = not self.night_mode end
+        UIManager.broadcastEvent = function(_self, event)
+            assert.are.equal("ToggleNightMode", event.name)
+            listener:onToggleNightMode()
+        end
+        UIManager.ToggleNightMode = function() end
+        UIManager.setDirty = function() end
+        local menu = { updateItems = function() updates = updates + 1 end }
+        for i, night in ipairs({ true, false }) do
+            assert.is_true(_G.__ZEN_UI_QUICK_SETTINGS.activate("night", menu))
+            assert.are.equal(night, Device.screen.night_mode)
+            assert.are.equal(night, G_reader_settings:isTrue("night_mode"))
+            assert.are.equal(i, resets)
+            assert.are.equal(i, selections)
+            assert.are.equal(i, updates)
+        end
     end)
 
     it("routes a Kindle Wi-Fi tap through the shared toggle", function()

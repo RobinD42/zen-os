@@ -7098,10 +7098,6 @@ msgstr "Sinkronkan atas/bawah"
 msgid "Weight"
 msgstr "Ketebalan"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "Tampilkan panah halaman"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "Luruskan"

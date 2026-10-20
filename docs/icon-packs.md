@@ -92,6 +92,11 @@ loaded: it can replace a matching ZenOS or KOReader icon, or be selected for
 a Navbar or Launcher icon. Use `large_chevron_up.svg` to replace the large
 up chevron in the top-menu footer.
 
+Highlight menus use `font.svg` (Style), `paint_palette.svg` (Color), `edit.svg`
+(Note), `trash.svg` (Delete), and `more_vertical.svg`. The settings gear in the More
+menu uses `appbar.settings.svg`. These names also work as loose icon overrides
+under `/koreader/icons` when no pack is selected.
+
 The sample ZIP also includes `ICON-LIST.md`, a human-readable catalog of every
 included icon, its exact replacement filename, and the Navbar, top-menu,
 bottom-menu, lookup, or shared control it changes.

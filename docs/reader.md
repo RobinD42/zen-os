@@ -170,8 +170,7 @@ Font lists installed fonts as radio buttons in two columns and four rows, aligne
 left with a divider under each font. Swipe the chooser or use its arrows to change
 font pages; dots mark the current page. Hold a font to open KOReader’s default-font prompt. Themes uses the same two-column chooser,
 with up to four rows per page and local paging. Swipe the tab row to change tab pages.
-**Zen Settings → Reader → Reader controls → Show page chevrons** controls the tab-row arrows.
-It defaults off on touch devices and on without touch. Enabled chevrons have padded tap targets at both edges, and fewer buttons fit per page. Swiping changes pages with or without chevrons.
+Tab-row arrows default off on touch devices and on without touch. Enabled chevrons have padded tap targets at both edges, and fewer buttons fit per page. Swiping changes pages with or without chevrons.
 Reader theme settings sits at the far right in Themes, as an outlined button without a repeated heading.
 Themes is available for reflowable books. Reflowable Font pages include font family, size,
 weight, contrast, kerning, hinting, word spacing, and expansion. Kerning, hinting, word spacing, and expansion use

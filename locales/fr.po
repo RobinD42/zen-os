@@ -1342,6 +1342,12 @@ msgstr "Sélecteur de couleur"
 msgid "Colored status icons"
 msgstr "Icônes d'état colorées"
 
+#. Type: setting
+#. Context: Réglages des couleurs et des noms des surlignages.
+#: reader_settings.lua:147
+msgid "Colors"
+msgstr "Couleurs"
+
 #. Type: label
 #. Context: Libellé dans l’interface de ZenOS.
 #: mosaic_layout_dialog.lua:45
@@ -2367,6 +2373,14 @@ msgstr "Quitter"
 #: context_menu.lua:759
 msgid "Exit select mode"
 msgstr "Quitter le mode de sélection"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Extend end"
+msgstr "Étendre la fin"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Extend start"
+msgstr "Étendre le début"
 
 #. Type: setting
 #. Context: Nom d’un réglage dans les réglages d’apparence et de fonctionnement de la bibliothèque.
@@ -3435,6 +3449,10 @@ msgstr "Taille maximale de la police des citations"
 #: nav_button_model.lua:27 navbar.lua:354 navbar_settings.lua:187
 msgid "Menu"
 msgstr "Menu"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Menu items"
+msgstr "Éléments du menu"
 
 #. Type: setting
 #. Context: Nom d’un réglage dans les réglages des fournisseurs de métadonnées des livres.
@@ -4911,6 +4929,12 @@ msgstr "Réinitialiser la couleur d’accentuation"
 #: battery_stats_menu.lua:51 battery_stats_menu.lua:56
 msgid "Reset battery log"
 msgstr "Réinitialiser le journal de la batterie"
+
+#. Type: setting
+#. Context: Rétablit les couleurs et les noms par défaut des surlignages.
+#: reader_settings.lua:240
+msgid "Reset colors and names"
+msgstr "Réinitialiser les couleurs et les noms"
 
 #. Type: dialog
 #. Context: Texte d’une boîte de dialogue dans les réglages des boutons du panneau de réglages rapides. Texte d’une boîte de dialogue dans les réglages de disposition et de widgets de l’accueil.
@@ -7314,10 +7338,6 @@ msgstr "Synchroniser haut/bas"
 msgid "Weight"
 msgstr "Graisse"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "Afficher les chevrons de page"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "Redressement"
@@ -7354,6 +7374,14 @@ msgstr "Geste de balayage depuis le bas"
 #: reader_settings.lua:1313
 msgid "KOReader reader menu"
 msgstr "Menu de lecture de KOReader"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Contract end"
+msgstr "Réduire la fin"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Contract start"
+msgstr "Réduire le début"
 
 #. Type: label
 #. Context: Reader control for contrast in fixed-layout documents (PDF/CBZ).
@@ -7409,6 +7437,10 @@ msgstr "Aller à"
 
 msgid "Hide"
 msgstr "Masquer"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Highlight menu"
+msgstr "Menu de surlignage"
 
 msgid "Highlighted text"
 msgstr "Texte surligné"

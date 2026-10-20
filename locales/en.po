@@ -1342,6 +1342,12 @@ msgstr "Color picker"
 msgid "Colored status icons"
 msgstr "Colored status icons"
 
+#. Type: setting
+#. Context: Highlight color and name settings.
+#: reader_settings.lua:147
+msgid "Colors"
+msgstr "Colors"
+
 #. Type: label
 #. Context: Label in the ZenOS interface.
 #: mosaic_layout_dialog.lua:45
@@ -2367,6 +2373,14 @@ msgstr "Exit"
 #: context_menu.lua:759
 msgid "Exit select mode"
 msgstr "Exit select mode"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Extend end"
+msgstr "Extend end"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Extend start"
+msgstr "Extend start"
 
 #. Type: setting
 #. Context: Settings label in the Library appearance and behavior settings.
@@ -3435,6 +3449,10 @@ msgstr "Maximum quote font size"
 #: nav_button_model.lua:27 navbar.lua:354 navbar_settings.lua:187
 msgid "Menu"
 msgstr "Menu"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Menu items"
+msgstr "Menu items"
 
 #. Type: setting
 #. Context: Settings label in the book metadata provider settings.
@@ -4911,6 +4929,12 @@ msgstr "Reset accent color"
 #: battery_stats_menu.lua:51 battery_stats_menu.lua:56
 msgid "Reset battery log"
 msgstr "Reset battery log"
+
+#. Type: setting
+#. Context: Restore default highlight colors and names.
+#: reader_settings.lua:240
+msgid "Reset colors and names"
+msgstr "Reset colors and names"
 
 #. Type: dialog
 #. Context: Dialog text in the Quick Settings button settings. Dialog text in the Home layout and widget settings.
@@ -7320,10 +7344,6 @@ msgstr "Sync Top/Bottom"
 msgid "Weight"
 msgstr "Weight"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "Show page chevrons"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "Straighten"
@@ -7360,6 +7380,14 @@ msgstr "Bottom swipe gesture"
 #: reader_settings.lua:1313
 msgid "KOReader reader menu"
 msgstr "KOReader reader menu"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Contract end"
+msgstr "Contract end"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Contract start"
+msgstr "Contract start"
 
 #. Type: label
 #. Context: Reader control for contrast in fixed-layout documents (PDF/CBZ).
@@ -7415,6 +7443,10 @@ msgstr "Go to"
 
 msgid "Hide"
 msgstr "Hide"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Highlight menu"
+msgstr "Highlight menu"
 
 msgid "Highlighted text"
 msgstr "Highlighted text"

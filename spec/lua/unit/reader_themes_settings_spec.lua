@@ -54,6 +54,10 @@ describe("reader themes settings", function()
             title = "title",
             search = "search",
         })
+        ZenSpec.replace("common/plugin_root", ZenSpec.root)
+        ZenSpec.replace("common/utils", {
+            resolveLocalIcon = function(dir, name) return dir .. name .. ".svg" end,
+        })
         ZenSpec.replace("common/ui/icon_menu_item", {
             decorate = function(item) return item end,
         })
@@ -257,7 +261,14 @@ describe("reader themes settings", function()
             if item.text == "Highlight / Lookup" then lookup = item end
         end
         local highlights = lookup.sub_item_table[3].sub_item_table_func()
-        local reset, red = highlights[1], highlights[2]
+        assert.is_true(highlights[1]._zen_settings_submenu)
+        assert.are.equal(2, #highlights)
+        assert.are.equal("Menu items", highlights[1].text)
+        assert.are.equal("Colors", highlights[2].text)
+        local colors = highlights[2].sub_item_table
+        assert.are.equal(10, #colors)
+        local reset, red = colors[#colors], colors[1]
+        assert.are.equal("Reset colors and names", reset.text)
         local name, color = red.sub_item_table[1], red.sub_item_table[2]
         local touchmenu = { updateItems = function() updates = updates + 1 end }
 
@@ -304,6 +315,81 @@ describe("reader themes settings", function()
         assert.are.equal("Color: #ff3300", color.text_func())
         assert.are.equal(4, saved)
         assert.are.equal(4, updates)
+    end)
+
+    describe("default highlight color", function()
+        local original_settings
+        local ReaderUI
+        local screen
+
+        local function default_choices()
+            local items = ReaderSettings.build({
+                config = { features = {}, reader_themes = {} },
+                plugin = {}, save_and_apply = function() end,
+            })
+            local choices = {}
+            local highlights = find_item(items, "Highlight").sub_item_table_func()
+            for _i, color in ipairs(find_item(highlights, "Colors").sub_item_table) do
+                if color.sub_item_table then
+                    choices[color.text_func()] = find_item(color.sub_item_table, "Set as default")
+                end
+            end
+            return choices
+        end
+
+        local function assert_default(choices, name)
+            for label, choice in pairs(choices) do
+                assert.is_true(choice.radio)
+                assert.are.equal(label == name, choice.checked_func())
+            end
+        end
+
+        before_each(function()
+            original_settings = G_reader_settings
+            _G.G_reader_settings = ZenSpec.memorySettings()
+            ReaderUI = { instance = nil }
+            screen = { isColorEnabled = function() return true end }
+            package.loaded["device"].screen = screen
+            ZenSpec.replace("apps/reader/readerui", ReaderUI)
+        end)
+
+        after_each(function()
+            _G.G_reader_settings = original_settings
+        end)
+
+        it("shows KOReader's screen-dependent default when none is saved", function()
+            local choices = default_choices()
+            assert_default(choices, "Yellow")
+            screen.isColorEnabled = function() return false end
+            assert_default(choices, "Gray")
+        end)
+
+        it("saves one default from the library and preserves it when reopening settings", function()
+            local choices = default_choices()
+            for _i, name in ipairs({ "Red", "Blue", "Blue" }) do
+                choices[name].callback()
+                assert.are.equal(name:lower(), G_reader_settings:readSetting("highlight_color"))
+                assert_default(choices, name)
+                assert_default(default_choices(), name)
+            end
+        end)
+
+        it("uses the new default immediately in the active book and refreshes selection color", function()
+            local selection_updates = 0
+            local annotation = { color = "red" }
+            ReaderUI.instance = {
+                view = { highlight = { saved_color = "orange" } },
+                annotation = { annotations = { annotation } },
+                highlight = { setSelectionColor = function()
+                    selection_updates = selection_updates + 1
+                end },
+            }
+            default_choices().Green.callback()
+            assert.are.equal("green", G_reader_settings:readSetting("highlight_color"))
+            assert.are.equal("green", ReaderUI.instance.view.highlight.saved_color)
+            assert.are.equal(1, selection_updates)
+            assert.are.equal("red", annotation.color)
+        end)
     end)
 
     it("creates a named custom copy only after a built-in theme changes", function()
@@ -392,6 +478,62 @@ describe("reader themes settings", function()
         by_text["Show X-Ray"].callback()
         assert.is_false(by_text["Show X-Ray"].checked_func())
         assert.are.equal(1, saved)
+    end)
+
+    it("shows footer presets as radio choices with the save action last", function()
+        local preset_module = "modules/reader/patches/reader_footer_presets"
+        local saved_presets, saved_util = package.loaded[preset_module], package.loaded["util"]
+        finally(function()
+            package.loaded[preset_module] = saved_presets
+            package.loaded["util"] = saved_util
+        end)
+        local custom = { name = "My footer", footer = {} }
+        local builtins = { { name = "First preset", footer = {} }, { name = "Second preset", footer = {} } }
+        ZenSpec.replace(preset_module, builtins)
+        ZenSpec.replace("util", { tableDeepCopy = function(value) return value end })
+        local active, loaded = custom.name, nil
+        local store = package.loaded["config/preset_store"]
+        store.list = function() return { custom } end
+        store.getActivePreset = function() return active end
+        store.setActivePreset = function(_kind, name) active = name end
+        store.saveSettings = function() end
+        store.save = function(_kind, name) active = name end
+        ZenSpec.replace("apps/reader/readerui", { instance = { view = { footer = {
+            settings = {},
+            addToMainMenu = function() end,
+            loadPreset = function(_self, preset) loaded = preset end,
+        } } } })
+        local config = { features = {}, reader_footer = {} }
+        local items = ReaderSettings.build{
+            config = config, plugin = { saveConfig = function() end }, save_and_apply = function() end,
+        }
+        local bottom = find_item(items, "Bottom status bar").sub_item_table_func()
+        local options = find_item(bottom, "Zen Presets").sub_item_table_func()
+        assert.are.equal(4, #options)
+        assert.are.same({ "My footer", "First preset", "Second preset" },
+            { options[1].text, options[2].text, options[3].text })
+        for i = 1, 3 do
+            assert.is_true(options[i].radio)
+            assert.are.equal(i == 1, options[i].checked_func())
+        end
+        options[2].callback()
+        assert.are.equal(builtins[1], loaded)
+        assert.is_false(options[1].checked_func())
+        assert.is_true(options[2].checked_func())
+        assert.is_false(options[3].checked_func())
+        options[1].callback()
+        assert.are.equal(custom, loaded)
+        assert.is_true(options[1].checked_func())
+        assert.is_false(options[2].checked_func())
+        local save = options[#options]
+        assert.are.equal("Save current settings as preset", save.text)
+        assert.is_nil(save.radio)
+        assert.is_nil(save.checked_func)
+        save.callback()
+        assert.are.equal("Preset name", shown_dialog.title)
+        dialog_input = "New footer"
+        shown_dialog.buttons[1][2].callback()
+        assert.are.equal("New footer", active)
     end)
 
     it("offers chapter time formats as radio choices", function()
@@ -517,7 +659,7 @@ describe("reader themes settings", function()
         assert.are.equal(3, #themes.sub_item_table)
         assert.is_nil(by_text["Zen page browser"])
         assert.is_true(bottom.checked_func())
-        assert.is_true(bottom.enabled_func())
+        assert.is_nil(bottom.enabled_func)
 
         top.checkmark_callback()
         themes.checkmark_callback()
@@ -540,7 +682,7 @@ describe("reader themes settings", function()
         package.loaded["apps/reader/readerui"].instance = nil
         config.reader_footer.status_bar_enabled = true
         assert.is_true(bottom.checked_func())
-        assert.is_false(bottom.enabled_func())
+        assert.is_nil(bottom.enabled_func)
         config.reader_footer.status_bar_enabled = false
         assert.is_false(bottom.checked_func())
     end)

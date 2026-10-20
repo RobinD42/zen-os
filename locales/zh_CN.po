@@ -1342,6 +1342,12 @@ msgstr "颜色选择器"
 msgid "Colored status icons"
 msgstr "彩色状态图标"
 
+#. Type: setting
+#. Context: 高亮颜色和名称设置。
+#: reader_settings.lua:147
+msgid "Colors"
+msgstr "颜色"
+
 #. Type: label
 #. Context: ZenOS 界面中用于标识项目或信息的文字。
 #: mosaic_layout_dialog.lua:45
@@ -2367,6 +2373,14 @@ msgstr "退出"
 #: context_menu.lua:759
 msgid "Exit select mode"
 msgstr "退出选择模式"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Extend end"
+msgstr "扩展终点"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Extend start"
+msgstr "扩展起点"
 
 #. Type: setting
 #. Context: 书库的显示和操作设置中的设置项名称。
@@ -3435,6 +3449,10 @@ msgstr "最大报价字体大小"
 #: nav_button_model.lua:27 navbar.lua:354 navbar_settings.lua:187
 msgid "Menu"
 msgstr "菜单"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Menu items"
+msgstr "菜单项目"
 
 #. Type: setting
 #. Context: 书籍元数据提供方的设置中的设置项名称。
@@ -4911,6 +4929,12 @@ msgstr "重置强调色"
 #: battery_stats_menu.lua:51 battery_stats_menu.lua:56
 msgid "Reset battery log"
 msgstr "重置电池日志"
+
+#. Type: setting
+#. Context: 恢复默认的高亮颜色和名称。
+#: reader_settings.lua:240
+msgid "Reset colors and names"
+msgstr "重置颜色和名称"
 
 #. Type: dialog
 #. Context: 快捷设置按钮的设置以及首页布局和小组件设置中对话框的正文。
@@ -7314,10 +7338,6 @@ msgstr "同步上/下"
 msgid "Weight"
 msgstr "字重"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "显示翻页箭头"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "纠偏"
@@ -7354,6 +7374,14 @@ msgstr "底部滑动手势"
 #: reader_settings.lua:1313
 msgid "KOReader reader menu"
 msgstr "KOReader 阅读菜单"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Contract end"
+msgstr "收缩终点"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Contract start"
+msgstr "收缩起点"
 
 #. Type: label
 #. Context: Reader control for contrast in fixed-layout documents (PDF/CBZ).
@@ -7409,6 +7437,10 @@ msgstr "跳转到"
 
 msgid "Hide"
 msgstr "隐藏"
+
+#: modules/reader/highlight_menu_items.lua modules/settings/sections/reader_settings.lua
+msgid "Highlight menu"
+msgstr "高亮菜单"
 
 msgid "Highlighted text"
 msgstr "高亮文本"

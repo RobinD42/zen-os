@@ -7098,10 +7098,6 @@ msgstr "Synchronizovat nahoře/dole"
 msgid "Weight"
 msgstr "Tloušťka"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "Zobrazit šipky stránek"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "Narovnání"

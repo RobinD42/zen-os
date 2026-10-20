@@ -1,0 +1,11 @@
+The following highlight menu icons are from the Solar Icon Set by 480 Design,
+licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/):
+
+| File | Original Solar design | Changes |
+| --- | --- | --- |
+| `font.svg` | Text Formatting / Text Square | None |
+| `paint_palette.svg` | Design, Tools / Pallete 2 | None |
+| `edit.svg` | Messages, Conversation / Pen New Square | Added a plus sign |
+
+Sources: [Solar Icon Set](https://github.com/480-Design/Solar-Icon-Set/tree/44017167688b49109d88ae6a98979b23d8950db0/icons/SVG/Linear),
+also available in [SVGRepo's Solar Linear collection](https://www.svgrepo.com/collection/solar-linear-icons/).

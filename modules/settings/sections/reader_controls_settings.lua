@@ -44,16 +44,6 @@ function M.build(ctx)
                     require("modules/settings/sections/app_launcher_settings").build(editor_ctx).callback()
                 end,
             },
-            {
-                text = _("Show page chevrons"),
-                icon_glyph = icons.page_chevrons,
-                checked_func = function() return cfg.show_page_chevrons end,
-                callback = function(menu)
-                    cfg.show_page_chevrons = not cfg.show_page_chevrons
-                    editor_ctx.save_buttons()
-                    if menu then menu:updateItems(1) end
-                end,
-            },
         },
     }
 end

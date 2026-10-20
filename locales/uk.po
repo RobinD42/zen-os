@@ -7098,10 +7098,6 @@ msgstr "Синхронізувати зверху/знизу"
 msgid "Weight"
 msgstr "Насиченість"
 
-#: modules/settings/sections/reader_controls_settings.lua
-msgid "Show page chevrons"
-msgstr "Показувати стрілки сторінок"
-
 #: modules/menu/patches/reader_controls.lua
 msgid "Straighten"
 msgstr "Вирівнювання"
