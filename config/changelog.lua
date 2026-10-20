@@ -418,6 +418,9 @@ return {
     },
     ["4.3.0"] = {
         "Better Rakuyomi settings (Extras > Rakuyomi)",
+        "Add customizable reader controls (bottom tab menu in a book) (Reader > Reader controls)",
+        "Update page browser (Reader > Page browser)",
+        "Update highlight submenu (Reader > Lookup / Highlight)"
     },
 
 }
