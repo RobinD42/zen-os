@@ -32,6 +32,7 @@ Each locale's context descriptions use that locale's language to explain the UI 
 | `cs` | Czech |
 | `hu` | Hungarian |
 | `id` | Indonesian |
+| `pl` | Polish |
 | `pt_BR` | Brazilian Portuguese |
 | `pt_PT` | European Portuguese |
 | `ro` | Romanian |

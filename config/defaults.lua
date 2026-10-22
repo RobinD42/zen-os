@@ -78,6 +78,7 @@ local defaults = {
             "es",
             "fr",
             "nl",
+            "pl",
             "pt_BR",
             "pt_PT",
             "ro",
