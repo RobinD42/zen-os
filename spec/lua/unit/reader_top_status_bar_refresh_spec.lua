@@ -35,6 +35,8 @@ describe("reader top status bar refresh", function()
         "modules/menu/bluetooth/bluetooth",
         "common/inline_icon_map",
         "common/ui/color_text_widget",
+        "common/ui/color_icon_widget",
+        "common/plugin_root",
         "common/reader_status_bar",
         "common/reader_themes",
         "common/utils",
@@ -60,6 +62,7 @@ describe("reader top status bar refresh", function()
         "ui/widget/verticalgroup",
         "ui/widget/verticalspan",
         "modules/reader/patches/reader_top_status_bar",
+        "modules/reader/references",
     }
 
     local function geometry_class()
@@ -113,6 +116,10 @@ describe("reader top status bar refresh", function()
         reset_paint_log()
 
         local screen_bb = {
+            viewport = function(_self, x, y, w, h)
+                assert.is_true(w > 0 and h > 0)
+                return { free = function() end }
+            end,
             paintRect = function(_self, x, y, w, h, color)
                 paint_rects[#paint_rects + 1] = { x = x, y = y, w = w, h = h, color = color }
                 paint_order[#paint_order + 1] = "clear"
@@ -196,11 +203,16 @@ describe("reader top status bar refresh", function()
             getCachedState = function() return bluetooth_enabled end,
         })
         replace("common/inline_icon_map", { bluetooth_on = "BT" })
+        replace("common/plugin_root", ZenSpec.root)
+        replace("modules/reader/references", {
+            enabled = function(ui) return ui and ui.references_enabled end,
+            isPinned = function(ui, page) return ui.pin == page end,
+        })
         replace("common/reader_themes", {
             getBackgroundColor = function() end,
             getTextColor = function() end,
         })
-        replace("common/utils", {})
+        replace("common/utils", { resolveLocalIcon = function(dir, name) return dir .. name .. ".svg" end })
         replace("common/zen_logger", {
             new = function() return { dbg = function() end } end,
         })
@@ -264,7 +276,14 @@ describe("reader top status bar refresh", function()
         local function make_text_widget(values, is_color)
             values = values or {}
             values._is_color = is_color
-            values.getSize = function() return { w = 10, h = 18 } end
+            values.getSize = function(self)
+                return { w = self.text == "" and 0 or math.min(10, self.max_width or 10), h = 18 }
+            end
+            values.setMaxWidth = function(self, width)
+                assert.is_true(width > 0)
+                self.max_width = width
+            end
+            values.setText = function(self, text) self.text = text end
             values.free = function() end
             return values
         end
@@ -274,11 +293,18 @@ describe("reader top status bar refresh", function()
         replace("common/ui/color_text_widget", {
             new = function(_self, values) return make_text_widget(values, true) end,
         })
+        replace("common/ui/color_icon_widget", { new = function(_self, values)
+            values._is_icon = true
+            values.getSize = function(self) return { w = self.width, h = self.height } end
+            values.free = function() end
+            return values
+        end })
 
         G_reader_settings = ZenSpec.memorySettings({ footer = {} })
         ZenSpec.unload("common/reader_status_bar")
         local reader_status_bar = require("common/reader_status_bar")
         replace("common/reader_status_bar", {
+            getHeaderFace = reader_status_bar.getHeaderFace,
             getHorizontalMargins = reader_status_bar.getHorizontalMargins,
             isMarginAlignmentEnabled = reader_status_bar.isMarginAlignmentEnabled,
             disableKoreaderAltStatusBar = function(settings, reader)
@@ -313,7 +339,7 @@ describe("reader top status bar refresh", function()
         ZenSpec.unload("modules/reader/patches/reader_top_status_bar")
         require("modules/reader/patches/reader_top_status_bar")()
 
-        local header = { paintTo = function() end }
+        local header = { paintTo = function() paint_order[#paint_order + 1] = "header" end }
         local slot_regions = {
             left = { x = 0, y = 0, w = 100, h = 20 },
             center = { x = 250, y = 0, w = 100, h = 20 },
@@ -369,6 +395,43 @@ describe("reader top status bar refresh", function()
         assert.same({ "clear", "header", "dogear", "dirty" }, paint_order)
     end
 
+    it("does not repaint the bottom return tab during autonomous header refreshes", function()
+        local view = make_view()
+        view.ui._zen_return_button = { paintTo = function()
+            paint_order[#paint_order + 1] = "return"
+        end }
+        ReaderUI.onNetworkConnected(view.ui)
+        assert.same({ "clear", "header", "dogear", "dirty" }, paint_order)
+    end)
+
+    it("renders a pin in slot order only on a pinned page with references enabled", function()
+        local view = { ui = { references_enabled = true, pin = 5, getCurrentPage = function() return 5 end } }
+        assert.matches("/icons/pin.svg$", item_fetchers.pin(view))
+        local texts = collect_item_texts({ "time", "pin", "battery" }, view)
+        assert.are.same({ "time", "pin", "battery" }, { texts[1].key, texts[2].key, texts[3].key })
+        assert.are.equal("", texts[2].text)
+        assert.matches("/icons/pin.svg$", texts[2].file)
+        for _i, cap in ipairs({ 100, 20, 8 }) do
+            local _group, widgets = build_group_from_texts(texts, {}, " ", cap)
+            local width, icons = 0, 0
+            for _j, widget in ipairs(widgets) do
+                width = width + widget:getSize().w
+                if widget._is_icon then
+                    icons = icons + 1
+                    assert.matches("/icons/pin.svg$", widget.icon)
+                    assert.are.equal(widget.width, widget.height)
+                end
+            end
+            assert.are.equal(1, icons)
+            assert.is_true(width <= cap)
+        end
+        view.ui.pin = 8
+        assert.is_nil(item_fetchers.pin(view))
+        view.ui.pin, view.ui.references_enabled = 5, false
+        assert.is_nil(item_fetchers.pin(view))
+        assert.is_nil(item_fetchers.pin(nil))
+    end)
+
     it("paints and refreshes the header below invisible overlays", function()
         local view = make_view()
         UIManager._window_stack[#UIManager._window_stack + 1] = {
@@ -403,6 +466,16 @@ describe("reader top status bar refresh", function()
         assert.are.equal(0, #dirty_calls)
     end)
 
+    it("keeps the header visible behind a reference popup belonging to the reader", function()
+        local view = make_view()
+        UIManager._window_stack[#UIManager._window_stack + 1] = {
+            widget = { name = "zen_reference_drawer", show_parent = view.ui },
+        }
+        view._zen_header_dimen = nil
+        ReaderView.paintTo(view, require("device").screen.bb, 0, 0)
+        assert.is_not_nil(view._zen_header_dimen)
+    end)
+
     it("keeps the header behind highlight popups and their temporary scrolling", function()
         local view = make_view()
         local popup = {}
@@ -421,8 +494,8 @@ describe("reader top status bar refresh", function()
     end)
 
     it("uses the default header face when the selected or inherited font is unavailable", function()
-        local get_header_face = get_upvalue(build_header, "getHeaderFace")
-        local Font = get_upvalue(get_header_face, "Font")
+        local get_header_face = require("common/reader_status_bar").getHeaderFace
+        local Font = require("ui/font")
         local fallback = {}
         local calls = {}
         Font.getFace = function(_self, name, size)

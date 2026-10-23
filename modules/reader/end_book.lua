@@ -214,7 +214,7 @@ function EndBook:isActionAvailable(action)
     if action.id == "archive" then
         return require("common/archive_actions").canArchive(self.data.file)
     end
-    if action.id == "restart" then return true end
+    if action.id == "restart" or action.id == "delete" then return true end
     local collate = G_reader_settings:readSetting("collate")
     return collate ~= "access" and collate ~= "date"
 end
@@ -225,6 +225,19 @@ function EndBook:onFeaturedAction(action)
         self:leave(action.destination)
     elseif action.id == "archive" then
         require("common/archive_actions").markCompleteAndArchive(self.ui.status, self)
+    elseif action.id == "delete" then
+        local FileManager = require("apps/filemanager/filemanager")
+        self.ui.doc_settings:flush()
+        local owner = setmetatable({
+            deleteFile = function(_self, file, is_file)
+                self:onClose()
+                require("common/library_navigation").showFromReader(self.ui, self.plugin, {
+                    target_tab = "books",
+                    after_close = function() FileManager:deleteFile(file, is_file) end,
+                })
+            end,
+        }, { __index = FileManager })
+        owner:showDeleteFileDialog(self.data.file)
     elseif action.id == "next_file" then
         local ui = self.ui
         ui.doc_settings:flush()

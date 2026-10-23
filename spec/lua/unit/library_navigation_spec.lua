@@ -437,6 +437,17 @@ describe("library navigation", function()
         assert.are.equal("/library/Book.epub", ui.shown)
     end)
 
+    it("returns to the library when a partially initialized Rakuyomi reader fails", function()
+        ZenSpec.replace("MangaReader", {
+            is_showing = true, chapter = {},
+            onReturn = function() error("manga plugin did not initialize") end,
+        })
+        local ui = reader()
+        Navigation.showFromReader(ui, { config = { rakuyomi = { open_on_manga_exit = true } } })
+        assert.is_true(ui.closed)
+        assert.are.equal("/library/Book.epub", ui.shown)
+    end)
+
     it("returns to Rakuyomi instead of closing Reader when available", function()
         local returns = 0
         ZenSpec.replace("MangaReader", {

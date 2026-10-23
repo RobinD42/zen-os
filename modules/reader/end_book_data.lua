@@ -31,6 +31,7 @@ M.actions = {
     { id = "archive", label = _("Archive"), icon = "archive" },
     { id = "next_file", label = _("Next file"), icon = "tab_right" },
     { id = "restart", label = _("Restart Book"), icon = "restart" },
+    { id = "delete", label = _("Delete"), icon = "trash" },
 }
 
 function M.featuredActions(config)

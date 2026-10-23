@@ -125,6 +125,10 @@ describe("home data and book caches", function()
         ZenSpec.replace("modules/filebrowser/patches/rakuyomi", {
             getMetadata = function() end,
         })
+        ZenSpec.replace("modules/filebrowser/patches/kindle_virtual_library", {
+            isBookPath = function() return false end,
+            getBookPaths = function() return {} end,
+        })
         ZenSpec.replace("readhistory", {
             hist = history_items,
             reload = function() history_reload_count = history_reload_count + 1 end,
@@ -788,6 +792,51 @@ describe("home data and book caches", function()
             provider:getBooksForStrip("recently_read", 4, "default", "strip")[1].path)
     end)
 
+    it("keeps local Home books when optional provider calls fail", function()
+        history_items[1] = { file = "/kindle/book.kfx", time = 200 }
+        history_items[2] = { file = "/library/alpha.epub", time = 100 }
+        local function failed() error("provider did not load") end
+        ZenSpec.replace("modules/filebrowser/patches/rakuyomi", {
+            getRecentSeries = failed, isTmpfsChapterFile = failed, getMetadata = failed,
+        })
+        ZenSpec.replace("modules/filebrowser/patches/kindle_virtual_library", {
+            isBookPath = failed, getBookPaths = failed,
+        })
+        local Home = get_home_module(require("modules/filebrowser/patches/home_page"))
+        local provider = Home.newDataProvider({ browser_cover_badges = {} }, {
+            rows = { order = { "strip" }, enabled = { strip = true } }, modules = {},
+        })
+
+        assert.same({ "/library/alpha.epub" }, provider:getContinuePaths())
+        assert.equals("Alpha", provider:getFeaturedBook("recently_read", "default").title)
+        assert.equals("/library/alpha.epub",
+            provider:getBooksForStrip("recently_read", 4, "default", "strip")[1].path)
+        assert.same({}, provider:getStripItemsForPage({ kind = "kindle" }, 4, "default", "strip"))
+    end)
+
+    it("skips a failed manga card when choosing the featured Home book", function()
+        local integration = require("modules/filebrowser/patches/rakuyomi")
+        local temporary = "/data/rakuyomi/tmpfs/chapter.cbz"
+        integration.getRecentSeries = function() return {{ file = temporary, time = 200 }} end
+        integration.getRecentBook = function() error("manga provider did not load") end
+        integration.isTmpfsChapterFile = function(path) return path == temporary end
+        history_items[1].time = 100
+        local Home = get_home_module(require("modules/filebrowser/patches/home_page"))
+        local provider = Home.newDataProvider({ browser_cover_badges = {} }, { modules = {} })
+
+        assert.equals("/library/alpha.epub", provider:getFeaturedBook("recently_read", "default").path)
+        assert.equals("/library/alpha.epub",
+            provider:getBooksForStrip("recently_read", 4, "default", "strip")[1].path)
+    end)
+
+    it("keeps a Home book when a provider's metadata hook fails", function()
+        require("bookinfomanager").getBookInfo = function() error("broken provider metadata hook") end
+        local Home = get_home_module(require("modules/filebrowser/patches/home_page"))
+        local provider = Home.newDataProvider({ browser_cover_badges = {} }, { modules = {} })
+
+        assert.equals("/library/alpha.epub", provider:getFeaturedBook("recently_read", "default").path)
+    end)
+
     it("excludes Rakuyomi chapters from recent Home books when enabled", function()
         history_items[1].file = "/library/chapter.cbz"
         history_items[2] = { file = "/library/alpha.epub" }
@@ -1292,6 +1341,36 @@ describe("home data and book caches", function()
         assert.equals("pending", provider:warmStripCover(book, 200, 300))
         table.remove(scheduled, 1).callback()
         assert.equals(1, extracted)
+        assert.equals(0, #scheduled)
+    end)
+
+    it("contains provider errors during deferred Home cover loading", function()
+        local scheduled = {}
+        local UIManager = require("ui/uimanager")
+        UIManager.scheduleIn = function(_self, _delay, callback) scheduled[#scheduled + 1] = callback end
+        local BookInfoManager = require("bookinfomanager")
+        BookInfoManager.getBookInfo = function() return { title = "Alpha" } end
+        BookInfoManager.isExtractingInBackground = function() return false end
+        BookInfoManager.extractInBackground = function() return true end
+        local Home = get_home_module(require("modules/filebrowser/patches/home_page"))
+        local menu = {}
+        set_home_menu(Home, menu)
+        UIManager._window_stack = {{ widget = menu }}
+        local provider = Home.newDataProvider({ browser_cover_badges = {} }, { modules = {} })
+
+        provider:getFeaturedBook("recently_read", "default")
+        table.remove(scheduled, 1)()
+        assert.equals(1, #scheduled)
+        BookInfoManager.getBookInfo = function() error("provider metadata hook failed") end
+        BookInfoManager.isExtractingInBackground = function() error("provider extraction hook failed") end
+        table.remove(scheduled, 1)()
+        assert.equals(0, #scheduled)
+        assert.is_false(provider:isStripCoverWorkBusy())
+
+        Home.invalidateBookCache("/library/alpha.epub")
+        BookInfoManager.extractInBackground = function() error("provider did not initialize") end
+        provider:getFeaturedBook("recently_read", "default")
+        table.remove(scheduled, 1)()
         assert.equals(0, #scheduled)
     end)
 

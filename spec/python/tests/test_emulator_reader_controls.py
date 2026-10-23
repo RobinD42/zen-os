@@ -14,6 +14,72 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+@pytest.mark.parametrize("custom_icons,night", [(False, False), (True, False), (True, True)])
+def test_standalone_reader_modals_have_no_leading_icon_or_focus_target(custom_icons, night):
+    from PIL import Image
+
+    with tempfile.TemporaryDirectory(prefix="zen-toc-focus-") as temporary:
+        root = Path(temporary)
+        home, library = root / "home", root / "library"
+        home.mkdir()
+        library.mkdir()
+        book = library / "toc.epub"
+        _write_reader_epub(book)
+        pack = home / "icons" / "zen" / "toc"
+        pack.mkdir(parents=True)
+        (pack / "pack.json").write_text('{"schema_version":1,"id":"toc","name":"TOC"}')
+        (pack / "chevron.left.svg").write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">'
+            '<path d="M15 5L8 12l7 7" fill="none" stroke="black" stroke-width="2"/></svg>'
+        )
+        (home / "settings.reader.lua").write_text(
+            'return {home_dir=' + repr(str(library.resolve())) + ',night_mode=' + str(night).lower() + '}')
+        config = home / "settings" / "ZenOS"
+        config.mkdir(parents=True)
+        (config / "config.lua").write_text(
+            'return {updater={update_auto_check=false},features={custom_icons_enabled='
+            + str(custom_icons).lower() + '},custom_icons={active_pack="toc"}}')
+        socket = root / "driver.sock"
+        process = launch(Path(os.environ["KOREADER_DIR"]), home, socket, library, initialize_settings=False)
+        try:
+            wait_for_socket(socket)
+            driver = ZenDriver(socket)
+            assert driver.open_book(book)["ok"]
+            _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("open"))
+            output = Path(__file__).resolve().parents[2] / ".artifacts" / "toc-focus"
+            output.mkdir(parents=True, exist_ok=True)
+            name = f"{'pack' if custom_icons else 'stock'}-{'night' if night else 'day'}"
+            for kind in ("toc", "bookmarks", "book_info"):
+                assert driver.command("reader_controls", action=kind)["ok"]
+                state = _wait_command(driver, "hardware_overlay_state",
+                                      lambda result: result.get("overlay", {}).get("kind") == kind)["overlay"]
+                assert state["show_back"] is False and state["focused"] == "close"
+                bounds = state["leading_bounds"]
+                area = (bounds["x"], bounds["y"], bounds["x"] + bounds["w"], bounds["y"] + bounds["h"])
+                path = output / f"{kind}-{name}-no-leading-icon.png"
+                driver.screenshot(path)
+                low, high = Image.open(path).convert("L").crop(area).getextrema()
+                assert low == high
+                assert driver.command("hardware_overlay_key", key="Return")["handled"]
+                assert not driver.command("hardware_overlay_state").get("overlay")
+                assert driver.command("reader_controls", action=kind)["ok"]
+                for key in ("Left", "Down", "Up", "Left"):
+                    driver.command("hardware_overlay_key", key=key)
+                    assert driver.command("hardware_overlay_state")["overlay"]["focused"] != "back"
+                assert driver.command("hardware_overlay_key", key="Back")["handled"]
+                assert not driver.command("hardware_overlay_state").get("overlay")
+            assert driver.command("activate_reader_control", name="page_browser")["activated"]
+            assert driver.command("annotation_viewer_action", action="seed")["ok"]
+            assert driver.command("annotation_viewer_action", action="tab", tab="bookmarks")["ok"]
+            assert driver.command("annotation_viewer_action", action="details")["ok"]
+            details = driver.command("page_browser_state")["page_browser"]
+            assert details["annotation_left_icon"] is False
+            assert details["annotation_empty_focus_row"] is False
+            assert driver.command("annotation_viewer_action", action="close_details")["ok"]
+        finally:
+            stop(process)
+
+
 def test_reader_controls_bottom_tabs_and_swipe():
     runtime = Path(os.environ["KOREADER_DIR"])
     with tempfile.TemporaryDirectory(prefix="zrc-", dir="/tmp") as temporary:
@@ -846,6 +912,51 @@ def test_reader_menu_keeps_its_default_and_reader_buttons_remain_editable(launch
                 assert "font" not in [entry["id"] for entry in state["header"]]
             state = driver.command("reader_controls", action="choose", id="font")
             assert state["header"][-1]["id"] == "font"
+        finally:
+            stop(process)
+
+
+@pytest.mark.parametrize("embedded", [False, True])
+def test_reader_font_reset_from_more_menu(embedded):
+    with tempfile.TemporaryDirectory(prefix="zrc-", dir="/tmp") as temporary:
+        root = Path(temporary)
+        home, library = root / "home", root / "library"
+        home.mkdir()
+        library.mkdir()
+        book = library / "controls.epub"
+        _write_reader_epub(book)
+        socket_path = root / "driver.sock"
+        process = launch(Path(os.environ["KOREADER_DIR"]), home, socket_path, library,
+                         zen_config_source='return {updater={update_auto_check=false},'
+                                           'page_browser={font_full_page=false}}')
+        try:
+            wait_for_socket(socket_path)
+            driver = ZenDriver(socket_path)
+            assert driver.open_book(book)["ok"]
+            _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("open"))
+            assert driver.command("ensure_reader_status_fonts")["ok"]
+            if embedded:
+                assert driver.command("activate_reader_control", name="page_browser")["activated"]
+                assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
+                driver.command("reader_controls", guard_preview_buffers=True)
+            else:
+                driver.command("reader_controls", action="open")
+            initial = _wait_command(driver, "reader_controls", lambda result: not result.get("locked"))
+            changed = driver.command("reader_controls", action="choose_font", index=1)
+            assert changed["font_face"] != initial["font_face"]
+            driver.command("reader_controls", action="choose", id="font_size_increase")
+            for name in ("font_face", "font_size"):
+                if embedded:
+                    _wait_command(driver, "page_browser_state", lambda result: result["page_browser"]["preview_ready"])
+                _wait_command(driver, "reader_controls", lambda result: not result.get("locked"))
+                driver.command("reader_controls", action="choose", id=name + "_more", tap=True)
+                popup = driver.command("reader_controls", action="setting_menu")
+                assert popup["ok"] and popup["positions"]["Reset"]["enabled"], name
+                driver.command("reader_controls", action="setting_menu", button="Reset", tap=True)
+                assert not driver.command("reader_controls", action="setting_menu")["ok"]
+                state = driver.command("reader_controls", action="paint")
+                assert state["font_face"] == initial["font_face"]
+            assert state["config"]["font_size"] == initial["config"]["font_size"]
         finally:
             stop(process)
 

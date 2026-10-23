@@ -958,6 +958,12 @@ msgstr "Título do livro"
 msgid "Book Title"
 msgstr "Título do livro"
 
+#. Type: label
+#. Context: Prefix identifying bookmarks in the mixed annotation list.
+#: annotation_viewer.lua:243
+msgid "Bookmark"
+msgstr "Marcador"
+
 #. Type: setting
 #. Context: Nome de uma definição nas definições de aparência e funcionamento do ecrã de leitura. Designação na visita guiada ao ecrã de leitura.
 #: reader_tour.lua:80 reader_settings.lua:1364
@@ -3777,6 +3783,12 @@ msgstr "Hora de brilho noturno"
 #: menu_settings.lua:88
 msgid "Night mode"
 msgstr "Modo noturno"
+
+#. Type: setting
+#. Context: Cor de destaque e opacidade independentes para o modo noturno.
+#: interface_settings.lua:152
+msgid "Night mode accent"
+msgstr "Cor de destaque do modo noturno"
 
 #. Type: setting
 #. Context: Nome de uma definição nas definições de ações agendadas do dispositivo e do ecrã de suspensão.
@@ -7502,3 +7514,79 @@ msgstr "Nova nota"
 #. Month name, day, year.
 msgid "%1 %2 %3"
 msgstr "%2 de %1 de %3"
+
+msgid "Return to page %1"
+msgstr "Voltar à página %1"
+
+msgid "Pinned page"
+msgstr "Página afixada"
+
+msgid "Last footnote"
+msgstr "Última nota"
+
+msgid "Pin"
+msgstr "Afixar"
+
+msgid "Pin this page"
+msgstr "Afixar esta página"
+
+msgid "Remove pin"
+msgstr "Desafixar página"
+
+msgid "Footnotes and pinned pages"
+msgstr "Notas de rodapé e páginas afixadas"
+
+msgid "Reference drawer"
+msgstr "Painel de referência"
+
+msgid "Footnote options"
+msgstr "Opções das notas"
+
+msgid "Full"
+msgstr "Preencher"
+
+msgid "Fit"
+msgstr "Ajustar"
+
+msgid "Unable to open reference preview."
+msgstr "Não foi possível abrir a pré-visualização de referência."
+
+msgid "Use book font in popups"
+msgstr "Usar o tipo de letra do livro nas janelas"
+
+
+msgid "Set font size"
+msgstr "Definir tamanho da letra"
+
+msgid "Set a relative font size instead"
+msgstr "Definir um tamanho relativo"
+
+msgid "Set an absolute font size instead"
+msgstr "Definir um tamanho absoluto"
+
+msgid "Justify text in popups"
+msgstr "Justificar texto nas janelas"
+
+msgid "Pinned pages"
+msgstr "Páginas afixadas"
+
+msgid "Pinned page options"
+msgstr "Opções das páginas fixadas"
+
+msgid "Zoom in"
+msgstr "Ampliar"
+
+msgid "Zoom out"
+msgstr "Reduzir"
+
+msgid "View image"
+msgstr "Ver imagem"
+
+msgid "Lookup"
+msgstr "Consulta"
+
+msgid "AI assistant"
+msgstr "Assistente de IA"
+
+msgid "Vocabulary"
+msgstr "Vocabulário"

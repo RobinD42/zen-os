@@ -12,16 +12,23 @@ function M.isSupported()
     return Screen.isColorScreen and Screen:isColorScreen() or false
 end
 
-function M.hex(config)
+local function accent_prefix(config, night_mode)
+    if night_mode == nil then
+        night_mode = config and config.accent_night_enabled == true and require("device").screen.night_mode
+    end
+    return night_mode and "accent_night_" or "accent_"
+end
+
+function M.hex(config, night_mode)
     config = get_config(config)
-    local hex = config and config.accent_color
+    local hex = config and config[accent_prefix(config, night_mode) .. "color"]
     return type(hex) == "string" and hex:match("^#%x%x%x%x%x%x$")
         and hex:upper() or "#000000"
 end
 
-function M.opacity(config)
+function M.opacity(config, night_mode)
     config = get_config(config)
-    local opacity = tonumber(config and config.accent_opacity) or 100
+    local opacity = tonumber(config and config[accent_prefix(config, night_mode) .. "opacity"]) or 100
     return math.max(0, math.min(100, math.floor(opacity + 0.5)))
 end
 
@@ -99,6 +106,24 @@ function M.styleIcon(icon, active)
                 end
             end
         end
+    end
+end
+
+function M.styleButton(button, icon, active)
+    M.styleIcon(icon, active)
+    if not active then return end
+    button.background = M.color()
+    local Screen = require("device").screen
+    local night_mode = Screen.night_mode
+    local paint = button.paintTo
+    function button:paintTo(bb, x, y)
+        if night_mode ~= Screen.night_mode then
+            self.background = M.color()
+            icon:free()
+            M.styleIcon(icon, true)
+            night_mode = Screen.night_mode
+        end
+        return paint(self, bb, x, y)
     end
 end
 

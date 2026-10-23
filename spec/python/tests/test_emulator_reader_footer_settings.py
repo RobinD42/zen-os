@@ -37,6 +37,8 @@ def test_bottom_bar_settings_apply_on_next_reader_open() -> None:
                 result = driver.command("settings_page_select", label=label)
                 assert result["ok"], result
             items = driver.command("settings_page_state")["settings"]["items"]
+            assert items[0]["label"] == "Pinned pages" and items[0]["checked"]
+            assert driver.command("settings_page_select", label="Pinned pages")["ok"]
             clock = next(item for item in items if item["label"].startswith("Current time"))
             title = next(item for item in items if item["label"] == "Book title")
             assert driver.command("settings_page_select", label=clock["label"])["ok"]
@@ -47,5 +49,7 @@ def test_bottom_bar_settings_apply_on_next_reader_open() -> None:
             assert state["open"]
             assert state["footer_time"] == (not clock["checked"])
             assert state["footer_book_title"] == (not title["checked"])
+            references = driver.command("reference_action", action="paint")["references"]
+            assert references["footer_pinned_pages"] is False
         finally:
             stop(process)

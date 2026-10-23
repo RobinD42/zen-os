@@ -53,7 +53,7 @@ do
     end
 end
 
-local flame_icon_path = utils.resolveLocalIcon(_icons_dir, "flame")
+local flame_icon_path = utils.resolveIcon(_icons_dir, "flame")
 
 local function blockTitle(block)
     local titles = {

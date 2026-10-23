@@ -22,7 +22,7 @@ local last_plugin_source
 
 local function supported_plugin(plugin, source)
     local bluetooth = type(plugin) == "table" and plugin.kobo_bluetooth
-    if bluetooth and type(bluetooth.isDeviceSupported) == "function" then
+    if type(bluetooth) == "table" and type(bluetooth.isDeviceSupported) == "function" then
         local ok, supported = pcall(bluetooth.isDeviceSupported, bluetooth)
         if ok and supported then
             if source ~= last_plugin_source then
@@ -543,7 +543,11 @@ end
 
 function M.getState()
     local plugin = plugin_bluetooth()
-    if plugin then return plugin:isBluetoothEnabled() end
+    if plugin and type(plugin.isBluetoothEnabled) == "function" then
+        local ok, state = pcall(plugin.isBluetoothEnabled, plugin)
+        if ok then return state end
+        logger.warn("kobo.koplugin Bluetooth state failed", state)
+    end
     local device_kind = kind()
     if not device_kind then return nil end
     local now = os.time()

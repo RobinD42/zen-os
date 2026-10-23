@@ -399,6 +399,33 @@ describe("ZenOS icon packs", function()
         assert.are.equal(plugin_icons .. "plus.svg", IconPacks.resolve("plus", plugin_icons))
     end)
 
+    it("themes control icons with SVG and PNG fallbacks", function()
+        local plugin_icons = ZenSpec.root .. "/icons/"
+        local names = {
+            "airplane", "app_menu", "book_open", "brightness", "calendar", "flame",
+            "lookup_ai", "lookup_extend", "network", "quick_battery", "warmth", "zen_ui_update",
+        }
+        local selected = make_pack("selected")
+        for _i, name in ipairs(names) do
+            write_file(selected .. "/" .. name .. ".png", "custom PNG")
+            write_file(icons_root .. "/" .. name .. ".svg", "loose SVG")
+        end
+        local utils = require("common/utils")
+        for _i, entry in ipairs({
+            { enabled = true, pack = "selected", dir = selected .. "/", ext = ".png" },
+            { enabled = true, pack = "", dir = icons_root .. "/", ext = ".svg" },
+            { enabled = false, pack = "selected", dir = plugin_icons, ext = ".svg" },
+        }) do
+            IconPacks.initialize({
+                features = { custom_icons_enabled = entry.enabled },
+                custom_icons = { active_pack = entry.pack },
+            })
+            for _j, name in ipairs(names) do
+                assert.are.equal(entry.dir .. name .. entry.ext, utils.resolveIcon(plugin_icons, name))
+            end
+        end
+    end)
+
     it("falls back to KOReader icons when neither the pack nor Zen supplies them", function()
         local plugin_icons = ZenSpec.root .. "/icons/"
         local stock_icons = lfs.currentdir() .. "/resources/icons/"

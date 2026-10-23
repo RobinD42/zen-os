@@ -106,6 +106,7 @@ local ZenTocWidget = InputContainer:extend{
     ui         = nil,   -- ReaderUI instance
     on_goto    = nil,   -- callback(page_num) when entry tapped
     close_all_callback = nil,
+    show_back = false,
     focus_page = 1,     -- current page; used to highlight active chapter
     font_size  = nil,
 }
@@ -493,22 +494,20 @@ function ZenTocWidget:paintTo(bb, x, y)
             height = icon_sz,
         }
         local back_focused = self._zen_focus_enabled and self._zen_focus_area == "back"
-        back_icon.invert = back_focused
-        if back_focused then
-            local focus_pad = Screen:scaleBySize(4)
-            bb:paintRect(
-                TitleStyle.getLeadingIconX(mx) - focus_pad,
-                my + TitleStyle.VERTICAL_PADDING
-                    + math.floor((TitleStyle.ROW_HEIGHT - icon_sz) / 2) - focus_pad,
-                icon_sz + 2 * focus_pad,
-                icon_sz + 2 * focus_pad,
-                Blitbuffer.COLOR_BLACK
-            )
-        end
         back_icon:paintTo(bb,
             TitleStyle.getLeadingIconX(mx),
             my + TitleStyle.VERTICAL_PADDING
                 + math.floor((TitleStyle.ROW_HEIGHT - icon_sz) / 2))
+        if back_focused then
+            local focus_pad = Screen:scaleBySize(4)
+            bb:invertRect(
+                TitleStyle.getLeadingIconX(mx) - focus_pad,
+                my + TitleStyle.VERTICAL_PADDING
+                    + math.floor((TitleStyle.ROW_HEIGHT - icon_sz) / 2) - focus_pad,
+                icon_sz + 2 * focus_pad,
+                icon_sz + 2 * focus_pad
+            )
+        end
         back_icon:free()
     end
 

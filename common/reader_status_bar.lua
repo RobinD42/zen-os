@@ -1,5 +1,16 @@
 local M = {}
 
+function M.getHeaderFace(cfg)
+    local Font = require("ui/font")
+    local footer_settings = G_reader_settings:readSetting("footer")
+    local face_cfg = type(cfg) == "table" and cfg.font_face or "default"
+    local font_name = face_cfg == "default"
+        and ((footer_settings and footer_settings.text_font_face) or "NotoSans-Regular.ttf")
+        or face_cfg
+    local font_size = type(cfg) == "table" and cfg.font_size or 14
+    return Font:getFace(font_name, font_size) or Font:getFace("cfont", font_size)
+end
+
 function M.getFooterForSettings()
     local ReaderUI = require("apps/reader/readerui")
     local reader = ReaderUI.instance

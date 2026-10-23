@@ -5,6 +5,9 @@ local DateFormat = require("common/date_format")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local Geom = require("ui/geometry")
 local GestureRange = require("ui/gesturerange")
+local HorizontalGroup = require("ui/widget/horizontalgroup")
+local HorizontalSpan = require("ui/widget/horizontalspan")
+local IconWidget = require("ui/widget/iconwidget")
 local InputContainer = require("ui/widget/container/inputcontainer")
 local LibraryFont = require("modules/filebrowser/patches/library_font")
 local Menu = require("ui/widget/menu")
@@ -46,6 +49,10 @@ local function page_text(record)
     return record.page_label ~= "" and T(_("Page %1"), record.page_label) or ""
 end
 
+local function highlight(pbw)
+    return pbw.ui and pbw.ui.highlight or require("apps/reader/modules/readerhighlight")
+end
+
 function M.session(pbw)
     if not pbw._zen_annotations then
         pbw._zen_annotations = Annotations.new(pbw.ui)
@@ -57,7 +64,7 @@ end
 local function refresh(pbw, file)
     if pbw._zen_closed then return end
     M.session(pbw):refreshCurrent()
-    if file and file ~= pbw.ui.document.file then M.session(pbw):refreshBook(file) end
+    if file and (not pbw.ui or file ~= pbw.ui.document.file) then M.session(pbw):refreshBook(file) end
     pbw:updateLayout()
     UIManager:setDirty(pbw, "ui")
 end
@@ -94,12 +101,16 @@ local function native_action(pbw, record, action)
             end
         end
     end
-    if record.file ~= pbw.ui.document.file then
+    if not pbw.ui or record.file ~= pbw.ui.document.file then
         if require("libs/libkoreader-lfs").attributes(record.file, "mode") ~= "file" then
             message(_("This book is no longer available.")); return
         end
         pbw:onClose(true)
-        pbw.ui:switchDocument(record.file, nil, function(ui) run(ui) end)
+        if pbw.ui then
+            pbw.ui:switchDocument(record.file, nil, run)
+        else
+            require("apps/reader/readerui"):showReader(record.file, nil, nil, nil, run)
+        end
     else
         if action == "goto" then pbw:onClose(true) end
         run(pbw.ui)
@@ -156,9 +167,16 @@ function M.showDetails(pbw, record)
     for _i, value in ipairs(details) do if value ~= "" then present[#present + 1] = value end end
     viewer = require("ui/widget/textviewer"):new{
         title = record.kind == "note" and _("Book note") or record.title,
+        show_menu = false,
         text = table.concat({ record.title, table.concat(present, " · "), "", record.text, "", record.note }, "\n"),
         buttons_table = rows, close_callback = function() refresh(pbw) end,
     }
+    -- Native TextViewer adds an empty focus row when its menu icon is hidden.
+    local layout = viewer.button_table.layout
+    if layout and layout[1] and #layout[1] == 0 then
+        table.remove(layout, 1)
+        viewer.button_table:refocusWidget()
+    end
     UIManager:show(viewer)
 end
 
@@ -205,8 +223,9 @@ local function make_row(pbw, record, dimen, font_size, quote_lines, note_lines)
     local function add(text, size, lines, options)
         if text == "" or budget < size then return end
         options = options or {}
+        local icon_size = options.bookmark and Screen:scaleBySize(size) or 0
         local box = TextBoxWidget:new{
-            text = text, width = width - (options.inset or 0) * 2,
+            text = text, width = width - (options.inset or 0) * 2 - (options.bookmark and icon_size + padding / 2 or 0),
             face = LibraryFont.getFace(size), height = math.min(budget, math.ceil(Screen:scaleBySize(size) * 1.4) * lines),
             height_adjust = true, height_overflow_show_ellipsis = true,
             fgcolor = options.foreground or Blitbuffer.COLOR_BLACK,
@@ -214,9 +233,16 @@ local function make_row(pbw, record, dimen, font_size, quote_lines, note_lines)
         }
         budget = budget - box:getSize().h - (options.inset or 0) * 2 - padding / 2
         if options.quote then row.quote = box end
+        local content = box
+        if options.bookmark then
+            content = HorizontalGroup:new{
+                IconWidget:new{ file = utils.resolveLocalIcon(icons_dir, "bookmark"), width = icon_size, height = icon_size },
+                HorizontalSpan:new{ width = padding / 2 }, box,
+            }
+        end
         group[#group + 1] = FrameContainer:new{
             padding = options.inset or 0, bordersize = 0,
-            background = options.background or Blitbuffer.COLOR_WHITE, box,
+            background = options.background or Blitbuffer.COLOR_WHITE, content,
         }
         group[#group + 1] = VerticalSpan:new{ width = padding / 2 }
     end
@@ -228,34 +254,42 @@ local function make_row(pbw, record, dimen, font_size, quote_lines, note_lines)
         if field == "book" or field == "author" then
             return mode == "show" or ((mode == nil or mode == "auto") and all_books)
         end
-        if field == "date" or field == "tags" then return mode == true end
+        if field == "tags" then return mode == true end
         return mode ~= false
     end
-    if visible("book") then add(record.title, font_size, 1) end
+    local is_bookmark = record.kind == "bookmark"
+    if not is_bookmark and visible("book") then add(record.title, font_size, 1) end
+    local location = {}
+    if visible("chapter") and record.chapter ~= "" then
+        location[#location + 1] = record.chapter
+    end
+    if visible("page") and record.page_label ~= "" then location[#location + 1] = page_text(record) end
+    if is_bookmark and visible("book") then table.insert(location, 1, record.title) end
+    local text = table.concat(location, " · "):gsub("%s+", " ")
+    if is_bookmark and text == "" then text = _("Bookmark") end
+    add(text, font_size, 1, { bookmark = is_bookmark })
     local details = {}
     if visible("date") and record.datetime ~= "" then
         details[#details + 1] = DateFormat.formatISODate(record.datetime)
     end
     if visible("author") and record.author ~= "" then details[#details + 1] = record.author end
-    if record.kind ~= "bookmark" and visible("chapter") and record.chapter ~= "" then
-        details[#details + 1] = record.chapter
-    end
-    if visible("page") and record.page_label ~= "" then details[#details + 1] = page_text(record) end
     if visible("tags") then
         for _i, tag in ipairs(record.tags) do details[#details + 1] = tag end
     end
     add(table.concat(details, " · "), font_size, 1)
-    local background, foreground = Blitbuffer.COLOR_WHITE, Blitbuffer.COLOR_BLACK
-    if record.style == "invert" then
-        background, foreground = Blitbuffer.COLOR_BLACK, Blitbuffer.COLOR_WHITE
-    elseif record.style == "lighten" then
-        background = pbw.ui.highlight:getHighlightColor(record.color) or Blitbuffer.COLOR_LIGHT_GRAY
+    if not is_bookmark then
+        local background, foreground = Blitbuffer.COLOR_WHITE, Blitbuffer.COLOR_BLACK
+        if record.style == "invert" then
+            background, foreground = Blitbuffer.COLOR_BLACK, Blitbuffer.COLOR_WHITE
+        elseif record.style == "lighten" then
+            background = highlight(pbw):getHighlightColor(record.color) or Blitbuffer.COLOR_LIGHT_GRAY
+        end
+        row.decoration = (record.style == "underscore" or record.style == "strikeout") and record.style or nil
+        add(record.text, font_size, quote_lines,
+            { background = background, foreground = foreground, quote = true, inset = padding / 2 })
+        add(record.note, font_size, note_lines,
+            { foreground = record.kind == "note" and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_DARK_GRAY })
     end
-    row.decoration = (record.style == "underscore" or record.style == "strikeout") and record.style or nil
-    add(record.text, font_size, quote_lines,
-        { background = background, foreground = foreground, quote = true, inset = padding / 2 })
-    add(record.note, font_size, note_lines,
-        { foreground = record.kind == "note" and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_DARK_GRAY })
     row.dimen.h = math.min(dimen.h, math.max(Screen:scaleBySize(48), group:getSize().h + padding * 2))
     row[1] = FrameContainer:new{ width = dimen.w, height = row.dimen.h, padding = padding, bordersize = 0, group }
     return row
@@ -270,8 +304,8 @@ function M.build(pbw, kind, width, height)
     local limits = ({ short = { 2, 1 }, standard = { 4, 2 }, long = { 8, 4 } })[cfg.preview_length or "standard"] or { 4, 2 }
     local font_size = tonumber(pbw._zen_plugin.config.page_browser.bookmarks_font_size) or 18
     font_size = math.max(10, math.min(40, font_size))
-    local props = pbw.ui.doc_props or {}
-    local book_title = props.display_title or props.title or pbw.ui.document.file:match("([^/]+)$")
+    local props = pbw.ui and pbw.ui.doc_props or {}
+    local book_title = props.display_title or props.title or pbw.ui and pbw.ui.document.file:match("([^/]+)$")
     local summary = { session.scope == "all" and _("All books") or book_title }
     if session.query ~= "" then summary[#summary + 1] = session.query end
     for _i, facet in ipairs(facets) do
@@ -284,14 +318,34 @@ function M.build(pbw, kind, width, height)
         width = width, title = titles[kind] .. " (" .. #items .. ")", align = "left",
         subtitle = table.concat(summary, " · "), title_face = TitleStyle.getTitleFace(),
         subtitle_face = LibraryFont.getFace(20),
+        left_icon = pbw._zen_standalone and utils.resolveLocalIcon(icons_dir, "quick_search") or nil,
+        left_icon_tap_callback = function() M.showSearch(pbw) end,
+        right_icon = pbw._zen_standalone and utils.resolveLocalIcon(icons_dir, "close_light") or nil,
+        right_icon_tap_callback = function() pbw:onClose() end,
     }
+    if pbw._zen_standalone then
+        local search, close = title_bar.left_button, title_bar.right_button
+        local more = require("common/ui/zen_icon_button"):new{
+            file = utils.resolveLocalIcon(icons_dir, "more_vertical"),
+            width = close.width, height = close.height, padding = close.padding,
+            padding_bottom = close.padding_bottom, show_parent = pbw,
+            overlap_offset = { width - 2 * (close.width + 2 * close.padding), 0 },
+            callback = function() M.showMenu(pbw) end,
+        }
+        close.padding_left = close.padding
+        close:free(); close:init()
+        table.insert(title_bar, more)
+        title_bar.generateHorizontalLayout = function() return {{ search, more, close }} end
+        title_bar.generateVerticalLayout = function() return {{ search }, { more }, { close }} end
+        pbw._zen_more_button = more
+    end
     title_bar.subtitle_widget.fgcolor = Blitbuffer.COLOR_BLACK
     local StyledMenu = Menu:extend{}
     session.row_heights = session.row_heights or {}
     function StyledMenu:setupItemHeights()
         local pages, page, used = {}, {}, 0
         local key = table.concat({ self.inner_dimen.w, self.available_height, font_size,
-            cfg.preview_length or "standard", session.scope }, ":")
+            cfg.preview_length or "standard", session.scope, kind }, ":")
         for i, item in ipairs(self.item_table) do
             if not item.height then
                 local record = item.record
@@ -381,8 +435,8 @@ local function show_facet(pbw, key, title, mode)
         for _j, value in ipairs(values) do
             if value ~= "" then
                 local label = key == "file" and record.title or value
-                if key == "color" then label = pbw.ui.highlight:getHighlightColorString(value) end
-                if key == "style" then label = pbw.ui.highlight:getHighlightStyleString(value) end
+                if key == "color" then label = highlight(pbw):getHighlightColorString(value) end
+                if key == "style" then label = highlight(pbw):getHighlightStyleString(value) end
                 candidates[value] = label
             end
         end
@@ -460,7 +514,8 @@ function M.showFilters(pbw)
     local session = M.session(pbw)
     local rows, filters = {}, nil
     local function launch(callback) return function() UIManager:close(filters); callback() end end
-    rows[#rows + 1] = {{ text = session.scope == "all" and _("All books") or _("This book"), callback = launch(function()
+    rows[#rows + 1] = {{ text = session.scope == "all" and _("All books") or _("This book"), enabled = pbw.ui ~= nil,
+        callback = launch(function()
         session.scope = session.scope == "all" and "current" or "all"
         session.pages = {}
         if session.scope == "all" then
@@ -514,8 +569,8 @@ end
 function M.showMenu(pbw)
     local menu
     local function launch(callback) return function() UIManager:close(menu); callback() end end
-    menu = dialog(pbw, _("Annotations"), {
-        {{ text = _("New note"), icon = utils.resolveIcon(icons_dir, "plus"),
+    local rows = {
+        {{ text = _("New note"), icon = utils.resolveIcon(icons_dir, "plus"), enabled = pbw.ui ~= nil,
             callback = launch(function() edit_note(pbw) end) }},
         {{ text = _("Filter"), icon = utils.resolveIcon(icons_dir, "filter"),
             callback = launch(function() M.showFilters(pbw) end) }},
@@ -528,7 +583,32 @@ function M.showMenu(pbw)
                     path = { { key = "text", value = _("Reader") }, { key = "text", value = _("Annotation viewer") } },
                 })
             end) }},
-    })
+    }
+    menu = dialog(pbw, _("Annotations"), rows)
+end
+
+function M.show(plugin, ui)
+    local viewer = InputContainer:new{
+        ui = ui, _zen_plugin = plugin, _zen_active_tab = "annotations", _zen_standalone = true,
+        covers_fullscreen = true, dimen = Geom:new{ w = Screen:getWidth(), h = Screen:getHeight() },
+    }
+    function viewer:_zenRebuildFocusLayout() end -- The embedded Menu owns keyboard focus.
+    function viewer:updateLayout()
+        if self[1] then self[1]:free() end
+        self[1] = M.build(self, "annotations", self.dimen.w, self.dimen.h)
+        self._zen_content_panel = self[1]
+    end
+    function viewer:onClose()
+        self._zen_closed = true
+        M.session(self):close()
+        UIManager:close(self)
+        UIManager:setDirty(nil, "ui")
+        return true
+    end
+    viewer:updateLayout()
+    UIManager:show(viewer)
+    if not ui then M.session(viewer):loadAll(function() refresh(viewer) end) end
+    return viewer
 end
 
 return M

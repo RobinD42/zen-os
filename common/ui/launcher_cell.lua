@@ -77,7 +77,6 @@ local function make_cell(opts)
         height = rendered_icon_size,
         alpha = true,
     }
-    Accent.styleIcon(icon, active)
     local border = circle_border
     local icon_circle = FrameContainer:new{
         width = circle_size,
@@ -85,8 +84,7 @@ local function make_cell(opts)
         padding = 0,
         bordersize = border,
         radius = math.floor(circle_size / 2),
-        background = active and Accent.color()
-            or opts.dimmed and Blitbuffer.COLOR_GRAY or Blitbuffer.COLOR_WHITE,
+        background = opts.dimmed and Blitbuffer.COLOR_GRAY or Blitbuffer.COLOR_WHITE,
         CenterContainer:new{
             dimen = Geom:new{
                 w = circle_size - border * 2,
@@ -95,6 +93,7 @@ local function make_cell(opts)
             icon,
         },
     }
+    Accent.styleButton(icon_circle, icon, active)
     local content_items = {
         align = "center",
         icon_circle,

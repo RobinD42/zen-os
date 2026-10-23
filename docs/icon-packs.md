@@ -53,9 +53,9 @@ selecting a pack does not modify those fallback files.
 Download `zen-icon-pack.zip` from [xZenLabs/zen-icon-pack](https://github.com/xZenLabs/zen-icon-pack), then extract it. It contains the replaceable icons for ZenOS's Navbar,
 KOReader's top menu tabs, the bottom reader configuration-bar tabs,
 highlight/dictionary/lookup actions, chevrons, dialogs, bookmarks,
-and shared reader controls. The current sample contains 62 icons from the
-2026.07 baseline; unrelated settings, network, and utility artwork is
-intentionally omitted.
+and shared reader controls. The current sample contains 71 icons, including
+highlight styling, annotation sorting, and reference controls. Packs may include
+additional icon filenames listed below.
 
 1. Rename the `zen-icon-pack` folder to a safe ID such as `my-pack`.
 2. Set the same `id` and your display `name` in `pack.json`.
@@ -96,6 +96,16 @@ Highlight menus use `font.svg` (Style), `paint_palette.svg` (Color), `edit.svg`
 (Note), `trash.svg` (Delete), and `more_vertical.svg`. The settings gear in the More
 menu uses `appbar.settings.svg`. These names also work as loose icon overrides
 under `/koreader/icons` when no pack is selected.
+
+Reader references use `pin.svg`, `pin_remove.svg`, and `return.svg`. Annotation
+lists use `filter.svg` and `sort.svg`.
+Page-preview bookmark actions use `bookmark.svg` and `bookmark_remove.svg`.
+
+Quick Settings and its menus use `airplane.svg`, `app_menu.svg`,
+`brightness.svg`, `network.svg`, `quick_battery.svg`, and `warmth.svg`.
+Statistics use `book_open.svg`, `calendar.svg`, and `flame.svg`.
+Lookup actions use `lookup_ai.svg` and `lookup_extend.svg`. The update badge
+and its quickstart illustration use `zen_ui_update.svg`.
 
 The sample ZIP also includes `ICON-LIST.md`, a human-readable catalog of every
 included icon, its exact replacement filename, and the Navbar, top-menu,

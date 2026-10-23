@@ -22,6 +22,55 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def test_end_book_delete_requires_confirmation_and_returns_to_library():
+    runtime = Path(os.environ["KOREADER_DIR"])
+    with tempfile.TemporaryDirectory(prefix="zen-end-book-delete-") as temporary:
+        root = Path(temporary)
+        home, library, socket = root / "home", root / "books", root / "driver.sock"
+        home.mkdir()
+        book = build_library(library)["epub"]
+        process = launch(runtime, home, socket, library)
+        try:
+            wait_for_socket(socket)
+            driver = ZenDriver(socket)
+            _wait_command(driver, "open_book", lambda result: result.get("ok"), path=str(book))
+            preview = driver.command("end_book", preview=True)
+            assert preview["navigation_enabled"] == [True] * 4
+            preview = driver.command("end_book", navigation_actions=["library", "series", "to_be_read", "home", "delete"])
+            assert preview["navigation_enabled"] == [True, True, True, True, False]
+            driver.command("end_book", tap=5)
+            assert driver.command("end_book")["active"]
+            assert book.exists()
+            driver.command("end_book", close=True)
+
+            driver.command("end_book", collate="date", show=True)
+            assert driver.command("end_book")["navigation_enabled"] == [True] * 5
+            driver.command("end_book", tap=5)
+            assert book.exists()
+            assert driver.command("native_settings_confirm", accept=False)["ok"]
+            assert driver.command("end_book")["active"]
+            assert driver.command("reader_state")["reader"]["open"]
+            assert book.exists()
+            assert book.with_suffix(".sdr").is_dir()
+
+            driver.command("end_book", tap=5)
+            assert driver.command("native_settings_confirm")["ok"]
+            _wait_command(driver, "reader_state", lambda result: not result["reader"].get("open"))
+            assert not driver.command("end_book")["active"]
+            assert not book.exists()
+            assert not book.with_suffix(".sdr").exists()
+            state = driver.command("file_chooser_items")["file_chooser"]
+            assert state["active_tab_label"] == "Library"
+            assert str(book) not in {item["path"] for item in state["items"]}
+        finally:
+            process.send_signal(signal.SIGTERM)
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+
+
 @pytest.mark.parametrize("width,height", [(600, 800), (800, 600)])
 @pytest.mark.parametrize("custom_stars", [False, True])
 def test_end_book_rating_is_optional_saved_and_read_only_in_preview(width, height, custom_stars):
@@ -417,7 +466,8 @@ def test_end_book_renders_and_preserves_changed_default_after_restart(width, hei
                 assert driver.command("arrange_page_select", index=index)["ok"]
                 buttons = driver.command("arrange_page_state")["arrange"]
                 assert buttons["title"] == "Buttons"
-                assert buttons["labels"] == ["Library", "Series", "To Be Read", "Home", "Archive", "Next file", "Restart Book"]
+                assert buttons["labels"] == ["Library", "Series", "To Be Read", "Home", "Archive", "Next file", "Restart Book", "Delete"]
+                assert not buttons["checked"][-1]
                 for label in ("Series", "Archive", "Next file"):
                     assert driver.command("arrange_page_select", index=buttons["labels"].index(label) + 1, toggle=True)["ok"]
                 assert driver.command("arrange_page_back")["ok"]

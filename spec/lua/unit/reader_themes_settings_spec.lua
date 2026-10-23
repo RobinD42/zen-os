@@ -94,7 +94,7 @@ describe("reader themes settings", function()
         local labels = {}
         for _i, item in ipairs(items) do labels[#labels + 1] = item.text end
         assert.are.same({ "Reader controls", "Appearance", "Highlight / Lookup", "Bottom swipe gesture",
-            "Page Browser", "Annotation viewer", "Restore library location on exit", "End of book" }, labels)
+            "Page Browser", "Footnotes and pinned pages", "Annotation viewer", "Restore library location on exit", "End of book" }, labels)
         labels = {}
         for _i, item in ipairs(items[2].sub_item_table) do labels[#labels + 1] = item.text end
         assert.are.same({ "Top status bar", "Bottom status bar", "Align status bars with book margins",
@@ -262,10 +262,12 @@ describe("reader themes settings", function()
         end
         local highlights = lookup.sub_item_table[3].sub_item_table_func()
         assert.is_true(highlights[1]._zen_settings_submenu)
-        assert.are.equal(2, #highlights)
+        assert.are.equal(3, #highlights)
         assert.are.equal("Menu items", highlights[1].text)
-        assert.are.equal("Colors", highlights[2].text)
-        local colors = highlights[2].sub_item_table
+        assert.are.equal("Show labels", highlights[2].text)
+        assert.is_false(highlights[2].checked_func())
+        assert.are.equal("Colors", highlights[3].text)
+        local colors = highlights[3].sub_item_table
         assert.are.equal(10, #colors)
         local reset, red = colors[#colors], colors[1]
         assert.are.equal("Reset colors and names", reset.text)
@@ -315,6 +317,16 @@ describe("reader themes settings", function()
         assert.are.equal("Color: #ff3300", color.text_func())
         assert.are.equal(4, saved)
         assert.are.equal(4, updates)
+
+        local lookup_labels = lookup.sub_item_table[4].sub_item_table[1]
+        assert.is_false(lookup_labels.checked_func())
+        highlights[2].callback()
+        assert.is_true(config.highlight_lookup.show_labels)
+        assert.is_false(lookup_labels.checked_func())
+        lookup_labels.callback()
+        assert.is_true(config.dict_quick_lookup.show_labels)
+        highlights[2].callback()
+        assert.is_false(config.highlight_lookup.show_labels)
     end)
 
     describe("default highlight color", function()
@@ -888,6 +900,7 @@ describe("reader themes settings", function()
         assert.is_not_nil(item_labels["Battery percentage"])
         assert.is_not_nil(item_labels["Current page"])
         assert.is_not_nil(item_labels["Total pages"])
+        assert.is_not_nil(item_labels["Pin"])
         assert.is_function(item_labels["Total pages"].callback)
         local page_settings = item_labels["Current / total pages"].sub_item_table
         assert.are.equal("Separator", page_settings[1].text)

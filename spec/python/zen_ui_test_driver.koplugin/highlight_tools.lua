@@ -122,7 +122,9 @@ function M.command(params)
     local embedded_count = 0
     local menu_icon_files = {}
     for _i, row in ipairs(h.highlight_dialog and h.highlight_dialog.buttontable.buttons_layout or {}) do
-        for _j, button in ipairs(row) do menu_icon_files[#menu_icon_files + 1] = button.label_widget.file or "" end
+        for _j, button in ipairs(row) do
+            menu_icon_files[#menu_icon_files + 1] = (button.label_icon or button.label_widget).file or ""
+        end
     end
     if ui.document.is_pdf then
         for _page, annotations in pairs(ui.document:getEmbeddedAnnotations() or {}) do
@@ -145,6 +147,7 @@ function M.command(params)
     return { ok = true, handles = controller and controller:geometry(), dragging = controller and controller.dragging == true,
         draft_text = item and item.text, stored_text = stored and stored.text, note = stored and stored.note,
         count = #ui.annotation.annotations, menu_ids = ids, menu_icons = menu_icons, menu_icon_files = menu_icon_files,
+        menu_buttons = require("reader_tools").button_state(h.highlight_dialog and h.highlight_dialog.buttontable),
         words = words(ui),
         page = ui.rolling and ui.document:getCurrentPage() or ui.paging.current_page,
         position = ui.rolling and ui.document:getCurrentPos() or ui.paging.current_page,

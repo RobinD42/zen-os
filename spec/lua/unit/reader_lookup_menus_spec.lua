@@ -17,7 +17,7 @@ describe("reader lookup menus", function()
         })
         ZenSpec.replace("common/zen_logger", { new = logger_stub })
         ZenSpec.replace("gettext", function(text) return text end)
-        ZenSpec.replace("device", { screen = {} })
+        ZenSpec.replace("device", { screen = { scaleBySize = function(_self, size) return size end } })
         ZenSpec.replace("ui/widget/iconwidget", {
             init = function(self) self.file = self.file or "resources/icons/icon-not-found.svg" end,
         })

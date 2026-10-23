@@ -17,7 +17,7 @@ local Destination = require("common/library_destination")
 local DispatcherMenu = require("common/dispatcher_menu")
 local NativeMenu = require("modules/menu/app_launcher/native_menu")
 local PluginScan = require("modules/menu/app_launcher/plugin_scan")
-local Kindle = require("modules/filebrowser/patches/kindle_virtual_library")
+local OptionalProvider = require("common/optional_provider")
 
 local M = {}
 local MIN_GOALS_FONT_SIZE = 10
@@ -1604,7 +1604,8 @@ function M.build(ctx)
                         table.insert(sort_item.sub_item_table, 2, tbr_order_item())
                     elseif button_id == "authors" then
                         table.insert(sort_item.sub_item_table, 2, authors_sort_item())
-                    elseif button_id == "kindle" and Kindle.isAvailable() then
+                    elseif button_id == "kindle" and OptionalProvider.call(
+                            "modules/filebrowser/patches/kindle_virtual_library", "isAvailable") then
                         table.insert(sort_item.sub_item_table, 2, kindle_folder_item())
                     end
                     sort_items[#sort_items + 1] = sort_item

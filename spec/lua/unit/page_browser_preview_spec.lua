@@ -3,6 +3,7 @@ describe("full-size page-browser preview", function()
     local module_names = {
         "ffi/blitbuffer", "ui/geometry", "device", "ui/size", "ui/widget/widget",
         "modules/reader/page_browser_preview",
+        "modules/reader/references",
     }
 
     before_each(function()
@@ -16,6 +17,7 @@ describe("full-size page-browser preview", function()
             return instance
         end
         buffers, rendered = {}, {}
+        ZenSpec.replace("modules/reader/references", { paintPin = function() end })
         ZenSpec.replace("ui/widget/widget", Widget)
         ZenSpec.replace("ui/geometry", { new = function(_self, values) return values end })
         ZenSpec.replace("ui/size", { border = { thick = 3 } })
@@ -26,6 +28,13 @@ describe("full-size page-browser preview", function()
                 local bb = { width = width, height = height, kind = kind, frees = 0 }
                 function bb:fill(color) self.background = color end
                 function bb:free() self.frees = self.frees + 1 end
+                function bb:viewport(x, y, w, h)
+                    return { copy = function()
+                        local cropped = require("ffi/blitbuffer").new(w, h, kind)
+                        cropped.source = { x, y, w, h }
+                        return cropped
+                    end }
+                end
                 buffers[#buffers + 1] = bb
                 return bb
             end,
@@ -133,6 +142,42 @@ describe("full-size page-browser preview", function()
         assert.is_nil(preview.bb)
     end)
 
+    it("paints live pin state below the header over a cached page", function()
+        local calls = {}
+        package.loaded["modules/reader/references"].paintPin = function(...)
+            calls[#calls + 1] = { ... }
+        end
+        local preview = Preview:new{ ui = ui, page = 7, width = 600, height = 800, top = 100 }
+        preview:paintTo(target, 20, 30)
+        preview:paintTo(target, 20, 30)
+        assert.equals(1, #buffers)
+        assert.equals(2, #calls)
+        assert.same({ ui, 7, target, 20, 130, 600, 800 }, calls[2])
+    end)
+
+    it("fits an entire pinned PDF page without borrowing the reader's crop or zoom", function()
+        ui.rolling, ui.paging = nil, {}
+        ui.view.highlight_visible, ui.view.page_scroll = false, true
+        for _i, size in ipairs({ { w = 1200, h = 400 }, { w = 300, h = 1600 } }) do
+            document.getPageDimensions = function(_self, page, zoom, rotation)
+                assert.equals(9, page); assert.equals(1, zoom); assert.equals(90, rotation)
+                return size
+            end
+            local preview = Preview:new{ ui = ui, page = 9, width = 600, height = 800, fit_page = true }
+            preview:paintTo(target, 0, 0)
+            local view = rendered[#rendered].view
+            local width, height = size.w / 2, size.h / 2
+            assert.equals(0.5, view.state.zoom)
+            assert.same({ x = 0, y = 0 }, view.state.offset)
+            assert.same({ x = 0, y = 0, w = width, h = height }, view.visible_area)
+            assert.same({ width, height }, { buffers[#buffers].width, buffers[#buffers].height })
+            assert.is_false(view.page_scroll)
+        end
+        assert.equals(1.25, ui.view.state.zoom)
+        assert.same({ x = 11, y = 23 }, ui.view.state.offset)
+        assert.is_true(ui.view.page_scroll)
+    end)
+
     it("draws PDF pages with current contrast and offsets without navigating the document", function()
         ui.rolling = nil
         ui.view.highlight_visible = false
@@ -147,5 +192,62 @@ describe("full-size page-browser preview", function()
         assert.are.same({ 11, 23 }, { rendered[2].x, rendered[2].y })
         assert.are.equal(2, ui.view.state.page)
         assert.are.equal(120, document.position)
+    end)
+
+    it("fits all EPUB image and text bounds while restoring the reading position", function()
+        ui.view.highlight_visible = false
+        document._drawn_images_count = 1
+        document.getTextFromXPointers = function() return "Caption" end
+        document.getPageXPointer = function(_self, page) return "xp:" .. page end
+        document._document = { getWordBoxesFromPositions = function(_self, first, last, segments, images)
+            assert.equals(900, document.position)
+            assert.equals("xp:9", first); assert.equals("xp:10", last)
+            assert.is_true(segments); assert.is_true(images)
+            return { { x0 = 50, y0 = 100, x1 = 550, y1 = 700 },
+                { x0 = 20, y0 = 80, x1 = 100, y1 = 110 } }
+        end }
+        local preview = Preview:new{ ui = ui, page = 9, width = 600, height = 800, fit_page = true }
+        preview:render()
+        assert.same({ 20, 80, 530, 620 }, preview.bb.source)
+        assert.equals(1, buffers[1].frees)
+        assert.equals(120, document.position)
+        document.getPageXPointer = function(_self, page) return page == 9 and "xp:9" or "" end
+        document._document.getTextFromPositions = function(_self, x0, y0, x1, y1, draw, segmented, images)
+            assert.same({ 0, 0, 599, 799 }, { x0, y0, x1, y1 })
+            assert.is_false(draw); assert.is_false(segmented); assert.is_true(images)
+            return { pos0 = "xp:9", pos1 = "xp:10" }
+        end
+        preview:free()
+        preview:render()
+        assert.same({ 20, 80, 530, 620 }, preview.bb.source)
+        assert.equals(120, document.position)
+    end)
+
+    it("uses a lone EPUB image at its original resolution and releases it with the preview", function()
+        ui.view.highlight_visible = false
+        document._drawn_images_count = 1
+        document.getPageXPointer = function(_self, page) return "xp:" .. page end
+        document.getTextFromXPointers = function(_self, first, last, draw)
+            assert.equals("xp:9", first); assert.equals("xp:10", last); assert.is_false(draw)
+            return "\n "
+        end
+        document._document = { getWordBoxesFromPositions = function()
+            return {{ x0 = 50, y0 = 100, x1 = 550, y1 = 700 }}
+        end }
+        local image
+        document.getImageFromPosition = function(_self, pos)
+            assert.same({ x = 300, y = 400 }, pos)
+            image = require("ffi/blitbuffer").new(1000, 1200, "screen type")
+            return image
+        end
+        local preview = Preview:new{ ui = ui, page = 9, width = 600, height = 800, fit_page = true }
+        preview:render()
+        assert.equals(image, preview.bb)
+        assert.is_true(preview.original_image)
+        assert.equals(1, buffers[1].frees)
+        assert.equals(120, document.position)
+        preview:free()
+        assert.equals(1, image.frees)
+        assert.is_nil(preview.original_image)
     end)
 end)

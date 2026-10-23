@@ -9,8 +9,12 @@ local logger = require("common/zen_logger").new("button_feedback")
 local M = {}
 local submitted_marker, submitted_buffer
 
+function M.getRadius()
+    return Screen:scaleBySize(8)
+end
+
 function M.getRefreshMode()
-    return (Accent.isEnabled() or not Screen.night_mode) and "ui" or "fast"
+    return Screen:isColorScreen() and (Accent.isEnabled() or not Screen.night_mode) and "ui" or "fast"
 end
 
 function M.paddedRegion(dimen)
@@ -45,7 +49,7 @@ end
 
 local function each_span(region, radius, paint)
     local x, y, w, h = region.x, region.y, region.w, region.h
-    radius = math.min(radius or Screen:scaleBySize(8), math.floor(math.min(w, h) / 2))
+    radius = math.min(radius or M.getRadius(), math.floor(math.min(w, h) / 2))
     paint(x, y + radius, w, h - 2 * radius)
     for row = 0, radius - 1 do
         local dy = radius - row - 0.5

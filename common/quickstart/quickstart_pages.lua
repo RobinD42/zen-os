@@ -552,10 +552,10 @@ end
 function M.build_accent_page(ctx)
     if not Accent.isSupported() then return nil end
     local config = ctx.config
-    local hex = Accent.hex(config)
+    local hex = Accent.hex(config, false)
     local picker = {
         hex = hex == "#000000" and "#3399FF" or hex,
-        opacity = Accent.opacity(config),
+        opacity = Accent.opacity(config, false),
     }
     picker.callback = function(color, opacity)
         picker.hex, picker.opacity = color, opacity
@@ -830,7 +830,7 @@ function M.build_install_pages(ctx)
         -- 10. Settings & Updates (static)
         {
             title       = _("Settings & Updates"),
-            icon        = "_zen_quickstart_update",
+            icon        = require("common/utils").resolveIcon(_plugin_root .. "/icons/", "zen_ui_update"),
             icon_size   = 120,
             description = _("All settings are in one unified tab. This icon with the dot indicates an update is available.\n\nInstall ZenOS updates directly from your device."),
         },

@@ -189,6 +189,15 @@ describe("reader book details", function()
         assert.are.equal(0, #queried_fields)
     end)
 
+    it("hides Back for reader modals and retains it for nested and library details", function()
+        local BookDetails = require("modules/reader/book_details")
+        local ui = reader_ui()
+        assert.is_true(BookDetails.buildSpec(ui).show_back)
+        ui.link = {}
+        assert.is_false(BookDetails.buildSpec(ui).show_back)
+        assert.is_true(BookDetails.buildSpec(ui, { show_back = true }).show_back)
+    end)
+
     it("applies the description text style without changing other details", function()
         local BookDetails = require("modules/reader/book_details")
         local spec = BookDetails.buildSpec(reader_ui(), {

@@ -88,6 +88,7 @@ local function apply_reader_footer()
     local zen_custom_modes = { "dynamic_filler2", "progress_bar" }
     local orig_set_mode_index = ReaderFooter.set_mode_index
     ReaderFooter.set_mode_index = function(self)
+        if self.settings.pinned_pages == nil then self.settings.pinned_pages = true end
         -- Preserve legacy Zen presets and remove duplicate native/Zen filler entries.
         if self.settings.dynamic_filler_2 ~= nil then
             self.settings.dynamic_filler2 = self.settings.dynamic_filler_2
@@ -187,6 +188,18 @@ local function apply_reader_footer()
         end
         if not footer_items then return end
 
+        local pin_item = {
+            text = _("Pinned pages"),
+            label = "pinned_pages",
+            arrange_pinned_first = true,
+            checked_func = function() return self.settings.pinned_pages ~= false end,
+            callback = function()
+                self.settings.pinned_pages = self.settings.pinned_pages == false
+                self:refreshFooter(true, true)
+            end,
+        }
+        table.insert(footer_items, 1, pin_item)
+
         -- Mirror the getMinibarOption callback pattern used by KOReader.
         local df2_entry = not has_native_filler2 and {
             text_func = function()
@@ -250,7 +263,8 @@ local function apply_reader_footer()
 
         if arrange_item then
             arrange_item.enabled_func = function()
-                local enabled_count = self.settings.disable_progress_bar and 0 or 1
+                local enabled_count = (self.settings.disable_progress_bar and 0 or 1)
+                    + (self.settings.pinned_pages ~= false and 1 or 0)
                 for _i, mode in ipairs(self.mode_index) do
                     if mode ~= "progress_bar" and self.settings[mode] then
                         enabled_count = enabled_count + 1
@@ -260,13 +274,13 @@ local function apply_reader_footer()
                 return false
             end
             arrange_item.callback = function()
-                local item_table = {}
+                local item_table = { pin_item }
                 for i, item in ipairs(self.mode_index) do
                     local enabled = self.settings[item]
                     if item == "progress_bar" then
                         enabled = not self.settings.disable_progress_bar
                     end
-                    item_table[i] = {
+                    item_table[i + 1] = {
                         text = self:textOptionTitles(item),
                         label = item,
                         dim = not enabled,
@@ -277,7 +291,7 @@ local function apply_reader_footer()
                     item_table = item_table,
                     callback = function()
                         for i, item in ipairs(item_table) do
-                            self.mode_index[i] = item.label
+                            if i > 1 then self.mode_index[i - 1] = item.label end
                         end
                         self.settings.order = self.mode_index
                         self:updateFooterTextGenerator()
@@ -350,6 +364,16 @@ local function apply_reader_footer()
         local w = tw:getSize().w
         tw:free()
         return w
+    end
+
+    local function reserve_pin(self, text)
+        local width = self._zen_pin_reserved_width or 0
+        if not self._zen_pin_inline or width == 0 then return text end
+        local gap = text ~= "" and Screen:scaleBySize(8) or 0
+        self._zen_pin_right_inset = measure_text(self, text) + gap
+        width = width + gap - Screen:scaleBySize(4)
+        self.filler_space_width = self.filler_space_width or measure_text(self, " ")
+        return (" "):rep(math.ceil(width / self.filler_space_width)) .. text
     end
 
     -- Patch updateFooterContainer to add a left_text_container when in
@@ -479,6 +503,10 @@ local function apply_reader_footer()
         self.settings.progress_margin_width = margin or width
         local result = update_footer_text(self, force_repaint, full_repaint)
         self.settings.progress_margin_width = width
+        local back = self.ui and self.ui._zen_return_button
+        if back and force_repaint and self.view.footer_visible and not full_repaint then
+            back:paintTo(Screen.bb, 0, 0)
+        end
         return result
     end
 
@@ -550,23 +578,25 @@ local function apply_reader_footer()
                 local right_text = gen_section(self, gens, right_start_gi, #gens)
                 if center_prepend and center_prepend ~= "" then
                     if right_text ~= "" then
-                        return center_prepend .. BD.wrap(self:genSeparator()) .. right_text
+                        right_text = center_prepend .. BD.wrap(self:genSeparator()) .. right_text
+                    else
+                        right_text = center_prepend
                     end
-                    return center_prepend
                 end
-                return right_text
+                return reserve_pin(self, right_text)
             end
             -- No split found; let orig handle alongside layout normally.
-            return orig_genAllFooterText(self, nil)
+            return reserve_pin(self, orig_genAllFooterText(self, nil))
         end
 
-        -- Text-only LCR centering: both fillers required.
         if not filler1_gi or not filler2_gi then
-            return orig_genAllFooterText(self, nil)
+            if not self._zen_pin_inline or not (filler1_gi or filler2_gi) then
+                return orig_genAllFooterText(self, nil)
+            end
         end
 
-        local idx1 = math.min(filler1_gi, filler2_gi)
-        local idx2 = math.max(filler1_gi, filler2_gi)
+        local idx1 = math.min(filler1_gi or filler2_gi, filler2_gi or filler1_gi)
+        local idx2 = math.max(filler1_gi or filler2_gi, filler2_gi or filler1_gi)
 
         if idx2 > #gens then
             return orig_genAllFooterText(self, nil)
@@ -574,7 +604,7 @@ local function apply_reader_footer()
 
         local left_text   = gen_section(self, gens, 1, idx1 - 1)
         local center_text = gen_section(self, gens, idx1 + 1, idx2 - 1)
-        local right_text  = gen_section(self, gens, idx2 + 1, #gens)
+        local right_text  = reserve_pin(self, gen_section(self, gens, idx2 + 1, #gens))
 
         -- max_width: match original dynamic_filler formula.
         local margin = self.horizontal_margin or 0
@@ -582,7 +612,8 @@ local function apply_reader_footer()
                 and self.settings.align == "center" then
             margin = Screen:scaleBySize(self.settings.progress_margin_width or 0)
         end
-        local screen_w  = self._saved_screen_width or Screen:getWidth()
+        local reserved_width = not self._zen_pin_inline and self._zen_pin_reserved_width or 0
+        local screen_w = (self._saved_screen_width or Screen:getWidth()) + reserved_width
         local max_width = math.floor(screen_w - 2 * margin)
 
         local function measure(text)
@@ -609,7 +640,11 @@ local function apply_reader_footer()
         -- True centering: each filler = (max_width - center_w)/2 - its section.
         local half_outer = math.floor((max_width - center_w) / 2)
         local filler1_nb = math.max(0, math.floor((half_outer - left_w)  / space_w))
-        local filler2_nb = math.max(0, math.floor((half_outer - right_w) / space_w))
+        local filler2_nb = math.max(0, math.floor((half_outer - right_w - reserved_width) / space_w))
+        if idx1 == idx2 then
+            filler1_nb = math.max(0, math.floor((max_width - left_w - right_w) / space_w))
+            filler2_nb = 0
+        end
 
         -- Assemble without separators around fillers (matches filler merge behavior).
         local result = {}

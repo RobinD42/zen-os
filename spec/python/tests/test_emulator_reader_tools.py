@@ -266,7 +266,7 @@ def test_reader_page_browser_modes_and_search_render() -> None:
             )["page_browser"]
             assert default_carousel["thumbnail_count"] == 3
             assert default_carousel["controls"] == ["single", "carousel", "grid"]
-            assert default_carousel["header_icons"] == ["info.svg", "coverflow.svg", "appbar.textsize.svg", "book_open.svg", "toc.svg", "more_vertical.svg", "close_light.svg"]
+            assert default_carousel["header_icons"] == ["coverflow.svg", "appbar.textsize.svg", "book_open.svg", "toc.svg", "more_vertical.svg", "close_light.svg"]
             assert default_carousel["focused"] == "header:1"
             assert default_carousel["header_height"] >= (
                 default_carousel["header_tabs"]["y"] + default_carousel["header_tabs"]["h"]
@@ -276,6 +276,7 @@ def test_reader_page_browser_modes_and_search_render() -> None:
             previous, following = default_carousel["previous_bounds"], default_carousel["next_bounds"]
             grid_button, search = default_carousel["grid_bounds"], default_carousel["search_bounds"]
             assert chapter["y"] == grid_button["y"] == search["y"]
+            assert previous["y"] == chapter["y"] + chapter["h"]
             assert grid_button["x"] + grid_button["w"] < chapter["x"]
             assert chapter["x"] + chapter["w"] < search["x"]
             slider = default_carousel["slider_bounds"]
@@ -289,7 +290,8 @@ def test_reader_page_browser_modes_and_search_render() -> None:
             preview = default_carousel["preview_bounds"][1]["bounds"]
             assert preview["y"] - default_carousel["header_height"] > default_carousel["edge_padding"] / 2
             assert preview["y"] + preview["h"] + default_carousel["edge_padding"] < chapter["y"]
-            assert default_carousel["grid_bounds"]["x"] == 0
+            assert grid_button["x"] == previous["x"]
+            assert search["x"] == following["x"]
             assert following["y"] + following["h"] == default_carousel["screen_height"] - (chapter["y"] - panel_top)
             assert driver.command("activate_reader_control", name="page_browser_tab_swipe")["activated"]
             assert driver.command("page_browser_state")["page_browser"]["top_is_browser"] is True
@@ -303,7 +305,7 @@ def test_reader_page_browser_modes_and_search_render() -> None:
                 assert state["browser_buttons_visible"] is False
                 expected_icons = list(default_carousel["header_icons"])
                 if tab == "annotations":
-                    expected_icons[0] = "quick_search.svg"
+                    expected_icons.insert(0, "quick_search.svg")
                 assert state["header_icons"] == expected_icons
                 if tab == "toc":
                     assert state["content_zen_scroll_bar"] is True
@@ -378,8 +380,12 @@ def test_reader_page_browser_modes_and_search_render() -> None:
                             assert driver.command("reader_controls")["page"] == settings_page
                         bookmarked = preview["preview_bookmarked"]
                         assert driver.command("activate_reader_control", name="page_browser_preview_hold")["activated"]
+                        pending = driver.command("page_browser_state")["page_browser"]
+                        assert pending["page_actions_open"] and pending["preview_bookmarked"] is bookmarked
+                        assert driver.command("activate_reader_control", name="page_browser_bookmark_page")["activated"]
                         assert driver.command("page_browser_state")["page_browser"]["preview_bookmarked"] is not bookmarked
                         assert driver.command("activate_reader_control", name="page_browser_preview_hold")["activated"]
+                        assert driver.command("activate_reader_control", name="page_browser_bookmark_page")["activated"]
                         assert driver.command("page_browser_state")["page_browser"]["preview_bookmarked"] is bookmarked
                         assert driver.command("activate_reader_control", name="page_browser_preview_center")["activated"]
                         assert driver.command("page_browser_state").get("page_browser") is None
@@ -551,7 +557,8 @@ def test_reader_page_browser_modes_and_search_render() -> None:
             stop(process)
 
 
-def test_reader_highlight_and_dictionary_menus_open() -> None:
+@pytest.mark.parametrize("show_labels", [False, True])
+def test_reader_highlight_and_dictionary_menus_open(show_labels: bool) -> None:
     runtime = Path(os.environ["KOREADER_DIR"])
     with tempfile.TemporaryDirectory(prefix="zen-reader-lookup-") as temporary:
         root = Path(temporary)
@@ -561,7 +568,9 @@ def test_reader_highlight_and_dictionary_menus_open() -> None:
         book = library / "reader-lookup.epub"
         _write_reader_epub(book)
         socket_path = root / "driver.sock"
-        process = launch(runtime, ko_home, socket_path, library)
+        process = launch(runtime, ko_home, socket_path, library, zen_config_source=(
+            "return { dict_quick_lookup = { show_labels = " + str(show_labels).lower() + " } }"
+        ))
         try:
             wait_for_socket(socket_path)
             driver = ZenDriver(socket_path)
@@ -595,6 +604,18 @@ def test_reader_highlight_and_dictionary_menus_open() -> None:
                 lambda result: result.get("overlays", {}).get("dictionary_menu") is True,
             )["overlays"]
             assert dictionary["highlight_menu"] is False
+            buttons = [button for row in dictionary["lookup_buttons"] for button in row]
+            actions = [button for button in buttons if button["icon"]]
+            assert actions
+            assert all(bool(button["text"]) == show_labels for button in actions)
+            assert all(button["content_width"] <= button["width"] for button in buttons)
+            for icon_suffix in ("vocab_remove.svg", "vocab.svg"):
+                assert driver.command("activate_reader_control", name="lookup_vocabulary")["activated"]
+                changed = driver.command("reader_overlay_state")["overlays"]["lookup_buttons"]
+                vocabulary = next(button for row in changed for button in row if button.get("id") == "vocabulary")
+                assert vocabulary["icon"].endswith(icon_suffix)
+                assert vocabulary["text"] == ("Vocabulary" if show_labels else "")
+                assert vocabulary["content_width"] <= vocabulary["width"]
             dictionary_frame = root / "reader-dictionary.png"
             driver.screenshot(dictionary_frame)
             assert dictionary_frame.stat().st_size > 0
@@ -1028,9 +1049,10 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
         pack = home / "icons" / "zen" / "browser"
         pack.mkdir(parents=True)
         (pack / "pack.json").write_text(json.dumps({"schema_version": 1, "id": "browser", "name": "Browser"}))
-        header_names = ["info", "coverflow", "appbar.textsize", "book_open", "toc", "more_vertical", "close_light"]
+        header_names = ["coverflow", "appbar.textsize", "book_open", "toc", "info", "more_vertical", "close_light"]
         names = header_names + ["grid", "grid_slide", "chevron.left", "chevron.right", "appbar.search",
-                                "quicksettings", "appbar.settings", "plus", "filter", "sort"]
+                                "quicksettings", "appbar.settings", "plus", "filter", "sort", "pin", "pin_remove",
+                                "bookmark", "bookmark_remove"]
         for name in names:
             (pack / (name + ".svg")).write_text(
                 '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">'
@@ -1040,7 +1062,7 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
         _write_reader_epub(book)
         socket_path = root / "driver.sock"
         config = ('return {features={custom_icons_enabled=' + str(custom_icons).lower()
-                  + '},custom_icons={active_pack="browser"}}')
+                  + '},custom_icons={active_pack="browser"},page_browser={tabs={book_details=true}}}')
         process = launch(runtime, home, socket_path, library, zen_config_source=config)
         try:
             wait_for_socket(socket_path)
@@ -1048,6 +1070,66 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
             assert driver.open_book(book)["ok"]
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
             state = driver.command("page_browser_state")["page_browser"]
+            assert state["header_icons"] == [name + ".svg" for name in header_names]
+            assert driver.command("activate_reader_control", name="page_browser_book_details")["activated"]
+            state = driver.command("page_browser_state")["page_browser"]
+            assert state["active_tab"] == "book_details" and state["top_is_browser"] is True
+            details = state["book_info"]
+            assert details["title_bar"] is False
+            assert details["bounds"]["y"] == state["header_height"]
+            assert state["content_bottom"] == state["screen_height"] - state["edge_padding"]
+            frame_dir = Path(__file__).resolve().parents[2] / ".artifacts" / "page-browser"
+            frame_dir.mkdir(parents=True, exist_ok=True)
+            driver.screenshot(frame_dir / ("book-info-custom.png" if custom_icons else "book-info-default.png"))
+            assert driver.command("activate_reader_control", name="page_browser_pages")["activated"]
+            assert driver.command("page_browser_state")["page_browser"]["active_tab"] == "browser"
+            _wait_command(driver, "page_browser_state", lambda result: result["page_browser"]["preview_ready"])
+            assert driver.command("activate_reader_control", name="page_browser_preview_hold")["activated"]
+            actions = driver.command("page_browser_state")["page_browser"]["page_action_buttons"]
+            assert actions[0][0]["icon"].endswith("/bookmark.svg")
+            assert driver.command("activate_reader_control", name="page_browser_bookmark_page")["activated"]
+            _wait_command(driver, "page_browser_state", lambda result: result["page_browser"]["preview_ready"])
+            original = driver.command("reference_action", action="state")["references"]
+            preview = driver.command("page_browser_state")["page_browser"]
+            assert preview["preview_bookmarked"]
+            bounds = next(item["image_bounds"] for item in preview["preview_bounds"]
+                          if item.get("page") == preview["focus_page"])
+            scale = min(preview["screen_width"], preview["screen_height"]) / 600
+            extent = math.ceil(40 * scale)
+            corner = (bounds["x"] + bounds["w"] - extent, bounds["y"],
+                      bounds["x"] + bounds["w"], bounds["y"] + extent)
+            preview_scale = max(bounds["w"] / preview["screen_width"], bounds["h"] / preview["screen_height"])
+            bookmark_size = math.floor(preview["preview_bookmark_icon_width"] * preview_scale + 0.5)
+            bookmark_corner = (bounds["x"] + bounds["w"] - bookmark_size, bounds["y"],
+                               bounds["x"] + bounds["w"], bounds["y"] + bookmark_size)
+            before = frame_dir / f"pin-preview-before-{custom_icons}.png"
+            driver.screenshot(before)
+            for pinned in (True, False):
+                assert driver.command("activate_reader_control", name="page_browser_preview_hold")["activated"]
+                actions = driver.command("page_browser_state")["page_browser"]
+                assert actions["page_actions_open"]
+                assert actions["page_action_buttons"][0][0]["icon"].endswith("/bookmark_remove.svg")
+                button = actions["page_action_buttons"][0][1]
+                assert button["icon"].endswith("/pin.svg" if pinned else "/pin_remove.svg")
+                assert button["icon_width"] == math.ceil(32 * scale)
+                assert button["height"] <= math.ceil(40 * scale) + 1
+                assert driver.command("activate_reader_control", name="page_browser_pin_page")["activated"]
+                _wait_command(driver, "page_browser_state", lambda result: result["page_browser"]["preview_ready"])
+                refs = driver.command("reference_action", action="state")["references"]
+                assert bool(refs["pins"]) is pinned and refs["page"] == original["page"]
+                assert refs["annotations"] == original["annotations"]
+                after = frame_dir / f"pin-preview-{pinned}-{custom_icons}.png"
+                driver.screenshot(after)
+                difference = ImageChops.difference(Image.open(before).convert("RGB").crop(corner),
+                                                  Image.open(after).convert("RGB").crop(corner)).getbbox()
+                assert bool(difference) is pinned
+                assert ImageChops.difference(Image.open(before).convert("RGB").crop(bookmark_corner),
+                                             Image.open(after).convert("RGB").crop(bookmark_corner)).getbbox() is None
+            assert driver.command("activate_reader_control", name="page_browser_preview_hold")["activated"]
+            driver.screenshot(frame_dir / f"bookmark-remove-{custom_icons}.png")
+            assert driver.command("activate_reader_control", name="page_browser_bookmark_page")["activated"]
+            preview = _wait_command(driver, "page_browser_state", lambda result: result["page_browser"]["preview_ready"])
+            assert not preview["page_browser"]["preview_bookmarked"]
             paths = list(zip(header_names, state["header_paths"]))
             for control, name in {"grid": "grid", "search": "appbar.search",
                                   "previous": "chevron.left", "next": "chevron.right"}.items():

@@ -50,7 +50,8 @@ describe("highlight handles", function()
 
     before_each(function()
         originals = {}
-        for _i, name in ipairs({ "device", "ui/bidi", "ui/uimanager", "common/ui/accent", "modules/reader/highlight_handles", "util" }) do
+        for _i, name in ipairs({ "device", "ui/bidi", "ui/uimanager", "common/ui/accent", "common/reader_themes",
+            "modules/reader/highlight_handles", "util" }) do
             originals[name] = package.loaded[name] or false
         end
         tasks, writes, events, dirty, reopened = {}, {}, {}, {}, 0
@@ -90,6 +91,23 @@ describe("highlight handles", function()
         end
         assert.is_nil(controller:hitTest({ x = geometry[0].x - 65, y = geometry[0].y }))
         assert.is_nil(controller:hitTest({ x = 400, y = 400 }))
+    end)
+
+    it("paints handle stems and knobs in the reader text color with a black fallback", function()
+        local controller = loadFixture()
+        local Blitbuffer = require("ffi/blitbuffer")
+        for _i, color in ipairs({ false, Blitbuffer.ColorRGB32(0x3f, 0x35, 0x24, 0xff) }) do
+            ZenSpec.replace("common/reader_themes", { getTextColor = function(plugin)
+                assert.are.equal(rawget(_G, "__ZEN_UI_PLUGIN"), plugin)
+                return color or nil
+            end })
+            local colors = {}
+            local function paint(_bb, _x, _y, _w, _h, value) colors[#colors + 1] = value end
+            controller:paintTo(color and { paintRectRGB32 = paint, paintRoundedRectRGB32 = paint }
+                or { paintRect = paint, paintRoundedRect = paint })
+            assert.are.equal(4, #colors)
+            for _j, actual in ipairs(colors) do assert.are.equal(color or Blitbuffer.COLOR_BLACK, actual) end
+        end
     end)
 
     it("keeps menu buttons tappable where the enlarged targets overlap", function()

@@ -113,8 +113,9 @@ return function(plugin)
             end
         end
         local function changed(name, value)
-            if tm.onReaderSettingChanged then
-                UIManager:nextTick(function() if tm._zen_panel_refs then tm:onReaderSettingChanged(name, value) end end)
+            if tm.onReaderSettingChanged and tm._zen_panel_refs then
+                -- Replace freed thumbnails before a button forces an immediate repaint.
+                tm:onReaderSettingChanged(name, value)
             end
         end
         local function apply(name, value, preview)

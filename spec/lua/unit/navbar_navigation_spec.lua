@@ -30,6 +30,7 @@ describe("file browser navbar navigation", function()
     local original_feedback
     local original_rakuyomi
     local original_manga_reader
+    local original_kindle
 
     local function class(methods)
         methods = methods or {}
@@ -62,6 +63,7 @@ describe("file browser navbar navigation", function()
     before_each(function()
         original_rakuyomi = rawget(_G, "__ZEN_UI_RAKUYOMI")
         original_manga_reader = package.loaded.MangaReader
+        original_kindle = package.loaded["modules/filebrowser/patches/kindle_virtual_library"]
         original_feedback = package.loaded["common/ui/button_feedback"]
         ZenSpec.replace("common/ui/button_feedback", {
             flashButton = function() error("navbar buttons must not flash") end,
@@ -355,6 +357,7 @@ describe("file browser navbar navigation", function()
     after_each(function()
         _G.__ZEN_UI_RAKUYOMI = original_rakuyomi
         package.loaded.MangaReader = original_manga_reader
+        package.loaded["modules/filebrowser/patches/kindle_virtual_library"] = original_kindle
         for _i, name in ipairs({
             "__ZEN_UI_PLUGIN", "__ZEN_UI_NAVBAR_OPEN_DEFAULT_TAB", "__ZEN_UI_NAVBAR_OPEN_TAB",
             "__ZEN_UI_NAVBAR_OPEN_FOLDER", "__ZEN_UI_NAVBAR_OPEN_TAG",
@@ -2553,6 +2556,22 @@ describe("file browser navbar navigation", function()
         assert.are.equal(2, full_repaints)
     end)
 
+    it("keeps navigation working when optional library providers fail", function()
+        _G.__ZEN_UI_RAKUYOMI = { openLibraryView = function() error("manga plugin did not load") end }
+        ZenSpec.replace("modules/filebrowser/patches/kindle_virtual_library", { isAvailable = function()
+            error("kindle plugin did not load")
+        end })
+        local navbar_config = _G.__ZEN_UI_PLUGIN.config.navbar
+        navbar_config.show_tabs.kindle = true
+        navbar_config.show_tabs.manga = true
+        navbar_config.tab_order = { "kindle", "manga", "books" }
+        make_instance()
+
+        _G.__ZEN_UI_NAVBAR_OPEN_TAB("kindle")
+        _G.__ZEN_UI_NAVBAR_OPEN_TAB("manga")
+        assert.is_true(_G.__ZEN_UI_NAVBAR_OPEN_TAB("books"))
+    end)
+
     it("opens Kindle as a standalone tab and resets it to page one", function()
         local navbar_config = _G.__ZEN_UI_PLUGIN.config.navbar
         navbar_config.show_tabs.kindle = true
@@ -3071,6 +3090,61 @@ describe("file browser navbar navigation", function()
             assert.are.equal(0, navbar.filled_background_opacity)
             assert.are.same({ 12, 34, 56 }, navbar.filled_background_color)
         end
+    end)
+
+    it("updates retained navbar colors when the night accent becomes active", function()
+        local mock = package.loaded["ffi/blitbuffer"]
+        ZenSpec.unload("ffi/blitbuffer")
+        local Blitbuffer = require("ffi/blitbuffer")
+        ZenSpec.replace("ffi/blitbuffer", mock)
+        mock.ColorRGB32 = Blitbuffer.ColorRGB32
+        mock.COLOR_BLACK = Blitbuffer.COLOR_BLACK
+        mock.COLOR_WHITE = Blitbuffer.COLOR_WHITE
+        local paints = 0
+        package.loaded["ui/widget/container/inputcontainer"].paintTo = function() paints = paints + 1 end
+        screen_is_color = true
+        local screen = package.loaded["device"].screen
+        screen.night_mode = false
+        local config = _G.__ZEN_UI_PLUGIN.config
+        config.accent_color = "#204080"
+        config.accent_night_enabled = true
+        config.accent_night_color = "#CC8844"
+        config.navbar.active_tab_filled = true
+        config.navbar.active_tab_use_accent = true
+        local fm = make_instance()
+        fm[1] = { fm.file_chooser }
+        built_widgets = {}
+        _G.__ZEN_UI_REINJECT_FM_NAVBAR()
+        local navbar
+        for _i, entry in ipairs(built_widgets) do
+            if entry.widget.getTappedTabId then navbar = entry.widget end
+        end
+        assert.is_not_nil(navbar)
+        local freed = 0
+        navbar[1].free = function() freed = freed + 1 end
+        built_widgets = {}
+        navbar:paintTo({}, 0, 0)
+        assert.are.equal(0, #built_widgets)
+        assert.are.equal(0, freed)
+        screen.night_mode = true
+        navbar:paintTo({}, 0, 0)
+        assert.are.equal(1, freed)
+        local night_frame
+        for _i, entry in ipairs(built_widgets) do
+            if entry.widget.background then night_frame = entry.widget end
+        end
+        assert.are.equal(tostring(Blitbuffer.ColorRGB32(204, 136, 68, 255)), tostring(night_frame.background))
+        navbar[1].free = function() freed = freed + 1 end
+        built_widgets = {}
+        screen.night_mode = false
+        navbar:paintTo({}, 0, 0)
+        assert.are.equal(2, freed)
+        local day_frame
+        for _i, entry in ipairs(built_widgets) do
+            if entry.widget.background then day_frame = entry.widget end
+        end
+        assert.are.equal(tostring(Blitbuffer.ColorRGB32(32, 64, 128, 255)), tostring(day_frame.background))
+        assert.are.equal(3, paints)
     end)
 
     it("preserves icon and underline colors when dark mode changes without rebuilding", function()

@@ -65,7 +65,6 @@ local BatteryStats = require("common/battery_stats")
 local _startup_config = ConfigManager.load()
 local registry = require("modules/registry")
 local zen_settings_page = require("modules/settings/zen_settings_page")
-require("modules/filebrowser/patches/home/components/registry").install()
 local zen_updater   = require("modules/settings/zen_updater")
 local paths         = require("common/paths")
 local library_navigation = require("common/library_navigation")
@@ -80,14 +79,11 @@ if _plugin_root then
     local utils = require("common/utils")
     -- Fixed Zen controls use private aliases that icon packs cannot name.
     local zen_icon = _plugin_root .. "/icons/zen_ui.svg"
-    local zen_update_icon = _plugin_root .. "/icons/zen_ui_update.svg"
     utils.overrideIcons({
         ["notice-info"]      = zen_icon,
         ["notice-question"]  = zen_icon,
         ["_zen_settings_tab"] = zen_icon,
-        ["_zen_update_tab"]   = zen_update_icon,
         ["_zen_quickstart"]   = zen_icon,
-        ["_zen_quickstart_update"] = zen_update_icon,
     }, false)
     -- Register bundled fonts into KOReader's font system so they appear
     -- in all font pickers (FontChooser) across the UI.
@@ -137,6 +133,9 @@ end
 
 -- Custom packs are an additional first-priority layer over the existing loader.
 require("common/icon_packs").initialize(_startup_config)
+require("modules/filebrowser/patches/home/components/registry").install()
+local zen_update_icon = _plugin_root and require("common/utils").resolveIcon(
+    _plugin_root .. "/icons/", "zen_ui_update")
 
 -- Holds the single plugin instance so the FileManagerMenu patch can reach it.
 local _zen_plugin_ref = nil
@@ -212,9 +211,9 @@ function ZenUI:_initModules()
             local started_at = os.clock()
             local ok, module = pcall(require, def.file)
             if ok and module and module.init then
-                local loaded_ok = module.init(logger, self)
-                if not loaded_ok then
-                    logger.warn("Module failed to load", def.id)
+                local init_ok, loaded_ok = pcall(module.init, logger, self)
+                if not init_ok or not loaded_ok then
+                    logger.warn("Module failed to load", def.id, loaded_ok)
                 end
             else
                 logger.warn("Module require failed", def.id)
@@ -638,7 +637,7 @@ function ZenUI:init()
     local function make_zen_settings_tab(m_self)
         local tab = {
             id = "zen_ui",
-            icon = zen_updater.has_update() and "_zen_update_tab" or "_zen_settings_tab",
+            icon = zen_updater.has_update() and zen_update_icon or "_zen_settings_tab",
             remember = false,
         }
         tab.callback = function()
@@ -721,7 +720,7 @@ function ZenUI:init()
                 m_self._zen_tab_item = make_zen_settings_tab(m_self)
             end
             m_self._zen_tab_item.icon = zen_updater.has_update()
-                and "_zen_update_tab" or "_zen_settings_tab"
+                and zen_update_icon or "_zen_settings_tab"
         end
         remove_zen_menu_tabs(m_self)
         insert_zen_menu_tabs(m_self, panel_hidden)
@@ -871,7 +870,7 @@ function ZenUI:init()
     -- also refreshes the icon, so this is just for the case where a menu
     -- instance already exists when the background check finishes.
     local update_icon = function()
-        local icon = zen_updater.has_update() and "_zen_update_tab" or "_zen_settings_tab"
+        local icon = zen_updater.has_update() and zen_update_icon or "_zen_settings_tab"
         for m_instance in pairs(_zen_menu_instances) do
             if m_instance._zen_tab_item then
                 m_instance._zen_tab_item.icon = icon

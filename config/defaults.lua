@@ -7,6 +7,9 @@ local defaults = {
     accent_enabled = true,
     accent_color = "#000000",
     accent_opacity = 100,
+    accent_night_enabled = false,
+    accent_night_color = "#000000",
+    accent_night_opacity = 100,
     _meta = {
         schema_version = 1,
         files_per_page_defaulted = false,
@@ -24,8 +27,15 @@ local defaults = {
         context_menu_allow_delete_default_migrated = false,
         library_font_hyperreadable_default_migrated = false,
         lookup_plugin_items_default_migrated = false,
+        reader_pin_header_migrated = false,
         tbr_collection_migrated = false,
         kindle_launcher_added = false,
+    },
+    reader_pins = {
+        side = "right",
+        use_book_font = true,
+        relative_font_size = 0,
+        justify = true,
     },
     updater = {
         just_updated_version = "",
@@ -115,6 +125,7 @@ local defaults = {
         warmth_schedule     = false,
         brightness_schedule = false,
         page_browser        = true,
+        reader_references   = true,
         restore_library_view = false,
         highlight_lookup     = true,
         dict_quick_lookup    = true,
@@ -359,7 +370,7 @@ local defaults = {
         font_size = 14,
         left_order       = {},
         center_order     = { "time" },
-        right_order      = {},
+        right_order      = { "pin" },
         page_separator   = "slash",
         page_count_scope = "book",
         separator_key    = "small-space",
@@ -383,8 +394,9 @@ local defaults = {
         hide_in_cbz = true,
     },
     page_browser = {
-        tab_order = { "browser", "aa", "bookmarks", "highlights", "annotations", "toc" },
-        tabs = { browser = true, aa = true, bookmarks = false, highlights = false, annotations = true, toc = true },
+        tab_order = { "browser", "aa", "bookmarks", "highlights", "annotations", "toc", "book_details" },
+        tabs = { browser = true, aa = true, bookmarks = false, highlights = false, annotations = true, toc = true,
+            book_details = false },
         show_status_bar = true,
         toc_font_size = 18,
         bookmarks_font_size = 18,
@@ -392,9 +404,10 @@ local defaults = {
     },
     annotation_viewer = {
         preview_length = "standard",
-        details = { book = "auto", author = "auto", chapter = true, page = true, date = false, tags = false },
+        details = { book = "auto", author = "auto", chapter = true, page = true, date = true, tags = false },
     },
     highlight_lookup = {
+        show_labels         = false,
         submenu_order       = { "style", "color", "note", "start_prev", "start_next", "end_prev", "end_next",
             "delete", "more" },
         submenu_enabled     = {},
@@ -406,7 +419,7 @@ local defaults = {
         show_koassistant    = true,
         show_ai_assistant   = true,
     },
-    dict_quick_lookup = {},
+    dict_quick_lookup = { show_labels = false },
 
     night_mode_schedule = {
         night_on_h  = 20,

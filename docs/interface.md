@@ -25,6 +25,8 @@ Interface settings shape how you control, navigate, and personalize ZenOS. They 
 
 On color screens, the Setup Guide includes an accent color page with an embedded color wheel, brightness and opacity controls. It also appears once after the update changelog for existing installations. Continuing saves your selection; leaving the controls untouched keeps your current settings.
 
+Open **Zen Settings > Interface > Accent color > Night mode accent** to choose a separate color and opacity for night mode. Choosing a color enables it. Use the row's switch to return to the regular accent without losing your night settings. It follows KOReader's night mode, including scheduled changes, and is disabled by default.
+
 ## Status bar
 
 Open **Zen Settings > Interface > Status bar** to enable the Library status bar or configure its contents. Use the row's switch to hide or restore it, then open **Left items**, **Center items**, or **Right items** to choose and arrange each slot. Reader status bars are configured separately under **Zen Settings > Reader**.
@@ -57,6 +59,7 @@ Paths below start at **Zen Settings > Interface**.
 | Accent color | Enables or disables the accent using the row's switch and opens its settings. Keeps the saved color and opacity when disabled. Available on color screens. |
 | Accent color > Accent color | Picks a color with the color wheel or hex input and adjusts its opacity. Applies to cover badges without a custom color, sliders, enabled Controls and Launcher button fills, active book-strip and page-switcher tabs, enabled switches, filled buttons, outlined Zen button borders, and button feedback. Outlined Zen button text stays black. Toggle and Controls icon button outlines stay black. Slider rails share the fill color to reduce ghosting when the fill grows. Controls sliders retain the accent while dragging, using local normal refreshes to preserve shades and erase the knob cleanly. Repeated drag values skip redraws. |
 | Accent color > Reset accent color | Restores the default black accent at full opacity. |
+| Accent color > Night mode accent | Enables a separate color and opacity while night mode is active. Switching it off keeps the saved night choice and uses the regular accent. The parent Accent color switch controls both accents. |
 | Status bar | Shows or hides the Library status bar using the row's switch; opens its settings. |
 | Status bar > Custom text | Sets custom status text. Empty text falls back to the device model. |
 | Status bar > Show bottom border | Draws a separator below the status bar. |

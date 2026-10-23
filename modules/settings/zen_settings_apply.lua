@@ -40,6 +40,7 @@ local APPLY_MODE = {
     automatic_series_grouping = "filemanager_refresh",
     reader_top_status_bar = "reader_refresh",
     reader_themes = "reader_themes",
+    reader_references = "reader_refresh",
 }
 
 local RUNTIME_PATCHES = rawget(_G, "__ZEN_UI_RUNTIME_PATCHES")
@@ -281,6 +282,11 @@ end
 
 function M.apply_feature_toggle(plugin, feature, enabled)
     active_plugin = plugin or active_plugin
+    if feature == "reader_references" then
+        local references = require("modules/reader/references")
+        local reader = require("apps/reader/readerui").instance
+        if enabled then references.applyDefaults(reader) else references.clear(reader) end
+    end
     if feature == "reader_top_status_bar" and enabled then
         require("common/reader_status_bar").disableKoreaderAltStatusBar()
     end

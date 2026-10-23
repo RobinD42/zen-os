@@ -1,4 +1,5 @@
 local M = {}
+local OptionalProvider = require("common/optional_provider")
 
 local FileManager
 local Geom
@@ -417,6 +418,7 @@ function M.getRecentSeries(history)
         by_file[recent.file] = recent
     end
     local changed = false
+    local ok_shared, Shared = pcall(require, "RakuyomiShared")
     for _i, entry in ipairs(history or {}) do
         local file = entry.file
         local existing = by_file[file]
@@ -424,7 +426,8 @@ function M.getRecentSeries(history)
             local timestamp = math.max(existing.time, entry.time or 0)
             if timestamp ~= existing.time then changed = true; existing.time = timestamp end
         elseif type(file) == "string" and file:lower():sub(-4) == ".cbz" and M.isChapterFile(file) then
-            local origin = require("RakuyomiShared"):getOrigin(file)
+            local origin = ok_shared and type(Shared) == "table"
+                and type(Shared.getOrigin) == "function" and Shared:getOrigin(file)
             local source = origin and origin.manga_id.source_id
             local previous = source and by_source[source] and by_source[source][origin.manga_id.manga_id]
             local metadata = origin and (not previous or (entry.time or 0) > previous.time)
@@ -722,7 +725,7 @@ function M.installMetadataIntegration()
                 if cover_path then bookinfo.has_cover, bookinfo.cover_fetched = "Y", "Y" end
             end
             if recent then
-                local book = M.getRecentBook(recent, true)
+                local book = OptionalProvider.call(M, "getRecentBook", recent, true) or {}
                 if not bookinfo.ignore_meta then
                     for _i, key in ipairs({ "title", "authors", "series", "series_index", "chapter_label",
                             "keywords", "description", "language" }) do

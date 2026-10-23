@@ -185,6 +185,49 @@ describe("end of book", function()
         assert.equals(3, #calls)
     end)
 
+    it("uses native delete confirmation and closes the reader before deleting and showing the library", function()
+        local EndBook = load_end_book()
+        local delete = require("modules/reader/end_book_data").actions[8]
+        for _i, succeeds in ipairs({ true, false }) do
+            local calls, confirm = {}, nil
+            local page = setmetatable({ plugin = plugin, data = { file = "/library/book.epub" },
+                ui = { doc_settings = { flush = function() calls[#calls + 1] = "flush" end } },
+                onClose = function() calls[#calls + 1] = "close screen" end,
+            }, { __index = EndBook })
+            ZenSpec.replace("apps/filemanager/filemanager", {
+                showDeleteFileDialog = function(owner, file)
+                    assert.equals(page.data.file, file)
+                    confirm = function() owner:deleteFile(file, true) end
+                end,
+                deleteFile = function(_self, file, is_file)
+                    assert.equals(page.data.file, file)
+                    assert.is_true(is_file)
+                    calls[#calls + 1] = "delete"
+                    return succeeds
+                end,
+            })
+            ZenSpec.replace("common/library_navigation", { showFromReader = function(ui, owner, opts)
+                assert.equals(page.ui, ui)
+                assert.equals(plugin, owner)
+                assert.equals("books", opts.target_tab)
+                calls[#calls + 1] = "close reader"
+                opts.after_close()
+                calls[#calls + 1] = "library"
+            end })
+            G_reader_settings:saveSetting("collate", "date")
+            assert.is_true(page:onFeaturedAction(delete))
+            assert.same({ "flush" }, calls)
+            confirm()
+            assert.same({ "flush", "close screen", "close reader", "delete", "library" }, calls)
+            page.preview = true
+            assert.is_false(page:isActionAvailable(delete))
+            page:onFeaturedAction(delete)
+            assert.equals(5, #calls)
+            page.preview, page.ui = false, nil
+            assert.is_false(page:isActionAvailable(delete))
+        end
+    end)
+
     it("renders default and customized action icons from plugin, stock, and active-pack files", function()
         load_end_book()
         local pack_dir
@@ -851,6 +894,7 @@ describe("end of book", function()
     it("caps featured actions at five unique known actions and allows an empty row", function()
         local Data = require("modules/reader/end_book_data")
         assert.are.equal(4, #Data.featuredActions({}))
+        assert.equals("delete", Data.featuredActions({ navigation_actions = { "delete" } })[1].id)
         assert.same({}, Data.featuredActions({ navigation_actions = {} }))
         local actions = Data.featuredActions({ navigation_actions = {
             "unknown", "next_file", "next_file", "home", "archive", "series", "library", "to_be_read",
@@ -1311,9 +1355,11 @@ describe("end of book", function()
         assert.is_true(arrange.item_table[2]._zen_settings_submenu)
         arrange.item_table[2].callback()
         assert.are.equal("Buttons", arrange.title)
-        assert.are.equal(7, #arrange.item_table)
+        assert.are.equal(8, #arrange.item_table)
         assert.are.equal("Next file", arrange.item_table[6].text)
         assert.are.equal("Restart Book", arrange.item_table[7].text)
+        assert.are.equal("Delete", arrange.item_table[8].text)
+        assert.is_false(arrange.item_table[8].checked_func())
         assert.is_true(arrange.item_table[1].checked_func())
         assert.is_false(arrange.item_table[5].checked_func())
         arrange.item_table[5].callback()
@@ -1348,8 +1394,8 @@ describe("end of book", function()
             assert.equals("Icon: " .. icon, icon_item.text_func())
             assert.equals(icon, plugin.config.end_book.modules.featured.navigation_icons[item.orig_item])
         end
-        assert.equals(saves + 7, plugin.saves)
-        assert.equals(7, updates)
+        assert.equals(saves + 8, plugin.saves)
+        assert.equals(8, updates)
         for _i, item in ipairs(arrange.item_table) do
             if item.checked_func() then item.callback() end
         end

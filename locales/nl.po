@@ -958,6 +958,12 @@ msgstr "Boektitel"
 msgid "Book Title"
 msgstr "Boektitel"
 
+#. Type: label
+#. Context: Prefix identifying bookmarks in the mixed annotation list.
+#: annotation_viewer.lua:243
+msgid "Bookmark"
+msgstr "Bladwijzer"
+
 #. Type: setting
 #. Context: Naam van een instelling in de instellingen voor het uiterlijk en gedrag van het leesscherm. Label in de rondleiding door het leesscherm.
 #: reader_tour.lua:80 reader_settings.lua:1364
@@ -3777,6 +3783,12 @@ msgstr "Nachthelderheidstijd"
 #: menu_settings.lua:88
 msgid "Night mode"
 msgstr "Nachtmodus"
+
+#. Type: setting
+#. Context: Afzonderlijke accentkleur en dekking voor de nachtmodus.
+#: interface_settings.lua:152
+msgid "Night mode accent"
+msgstr "Accentkleur voor nachtmodus"
 
 #. Type: setting
 #. Context: Naam van een instelling in de instellingen voor geplande apparaatacties en het slaapscherm.
@@ -7502,3 +7514,79 @@ msgstr "Nieuwe notitie"
 #. Month name, day, year.
 msgid "%1 %2 %3"
 msgstr "%2 %1 %3"
+
+msgid "Return to page %1"
+msgstr "Terug naar pagina %1"
+
+msgid "Pinned page"
+msgstr "Vastgezette pagina"
+
+msgid "Last footnote"
+msgstr "Laatste voetnoot"
+
+msgid "Pin"
+msgstr "Vastzetten"
+
+msgid "Pin this page"
+msgstr "Deze pagina vastzetten"
+
+msgid "Remove pin"
+msgstr "Pagina losmaken"
+
+msgid "Footnotes and pinned pages"
+msgstr "Voetnoten en vastgezette pagina’s"
+
+msgid "Reference drawer"
+msgstr "Referentiepaneel"
+
+msgid "Footnote options"
+msgstr "Voetnootopties"
+
+msgid "Full"
+msgstr "Vullen"
+
+msgid "Fit"
+msgstr "Passend"
+
+msgid "Unable to open reference preview."
+msgstr "Het referentievoorbeeld kan niet worden geopend."
+
+msgid "Use book font in popups"
+msgstr "Boeklettertype gebruiken in pop-ups"
+
+
+msgid "Set font size"
+msgstr "Lettergrootte instellen"
+
+msgid "Set a relative font size instead"
+msgstr "Een relatieve lettergrootte instellen"
+
+msgid "Set an absolute font size instead"
+msgstr "Een absolute lettergrootte instellen"
+
+msgid "Justify text in popups"
+msgstr "Tekst uitvullen in pop-ups"
+
+msgid "Pinned pages"
+msgstr "Vastgezette pagina’s"
+
+msgid "Pinned page options"
+msgstr "Opties voor vastgezette pagina’s"
+
+msgid "Zoom in"
+msgstr "Inzoomen"
+
+msgid "Zoom out"
+msgstr "Uitzoomen"
+
+msgid "View image"
+msgstr "Afbeelding bekijken"
+
+msgid "Lookup"
+msgstr "Opzoeken"
+
+msgid "AI assistant"
+msgstr "AI-assistent"
+
+msgid "Vocabulary"
+msgstr "Woordenschat"

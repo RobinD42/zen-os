@@ -202,9 +202,9 @@ local function build_brightness_slider(touch_menu, opts)
             local colored = Accent.isEnabled()
             button.background = active and colored and Accent.color() or Blitbuffer.COLOR_WHITE
             button.invert = active and not colored
+            local icon = button[1]
+            icon:free()
             if colored then
-                local icon = button[1]
-                icon:free()
                 Accent.styleIcon(icon, active)
             end
         end
@@ -219,13 +219,22 @@ local function build_brightness_slider(touch_menu, opts)
                 background = Blitbuffer.COLOR_WHITE,
                 invert = active,
                 IconWidget:new{
-                    file = utils.resolveLocalIcon(_icons_dir, icon_name),
+                    file = utils.resolveIcon(_icons_dir, icon_name),
                     width = icon_size,
                     height = icon_size,
                     alpha = true,
                 },
             }
             style_mode_button(button, active)
+            local night_mode = Screen.night_mode
+            local paint = button.paintTo
+            function button:paintTo(bb, x, y)
+                if night_mode ~= Screen.night_mode then
+                    style_mode_button(self, mode == icon_name)
+                    night_mode = Screen.night_mode
+                end
+                return paint(self, bb, x, y)
+            end
             return button
         end
 

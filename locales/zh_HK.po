@@ -3739,6 +3739,12 @@ msgid "Night mode"
 msgstr "夜間模式"
 
 #. Type: setting
+#. Context: 為夜間模式設定獨立的介面強調色和不透明度。
+#: interface_settings.lua:152
+msgid "Night mode accent"
+msgstr "夜間模式強調色"
+
+#. Type: setting
 #. Context: 裝置排程及休眠畫面設定中的設定項目名稱。
 #: global_settings.lua:470
 msgid "Night mode off time"

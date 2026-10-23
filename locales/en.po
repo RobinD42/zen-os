@@ -958,6 +958,12 @@ msgstr "Book title"
 msgid "Book Title"
 msgstr "Book Title"
 
+#. Type: label
+#. Context: Prefix identifying bookmarks in the mixed annotation list.
+#: annotation_viewer.lua:243
+msgid "Bookmark"
+msgstr "Bookmark"
+
 #. Type: setting
 #. Context: Settings label in the Reader appearance and behavior settings. Label in the guided reading-screen tour.
 #: reader_tour.lua:80 reader_settings.lua:1364
@@ -3777,6 +3783,12 @@ msgstr "Night brightness time"
 #: menu_settings.lua:88
 msgid "Night mode"
 msgstr "Night mode"
+
+#. Type: setting
+#. Context: Separate interface accent color and opacity for night mode.
+#: interface_settings.lua:152
+msgid "Night mode accent"
+msgstr "Night mode accent"
 
 #. Type: setting
 #. Context: Settings label in the device schedules and sleep-screen settings.
@@ -7508,3 +7520,79 @@ msgstr "New note"
 #. Month name, day, year.
 msgid "%1 %2 %3"
 msgstr "%1 %2 %3"
+
+msgid "Return to page %1"
+msgstr "Return to page %1"
+
+msgid "Pinned page"
+msgstr "Pinned page"
+
+msgid "Last footnote"
+msgstr "Last footnote"
+
+msgid "Pin"
+msgstr "Pin"
+
+msgid "Pin this page"
+msgstr "Pin this page"
+
+msgid "Remove pin"
+msgstr "Remove pin"
+
+msgid "Footnotes and pinned pages"
+msgstr "Footnotes and pinned pages"
+
+msgid "Reference drawer"
+msgstr "Reference drawer"
+
+msgid "Footnote options"
+msgstr "Footnote options"
+
+msgid "Full"
+msgstr "Full"
+
+msgid "Fit"
+msgstr "Fit"
+
+msgid "Unable to open reference preview."
+msgstr "Unable to open reference preview."
+
+msgid "Use book font in popups"
+msgstr "Use book font in popups"
+
+
+msgid "Set font size"
+msgstr "Set font size"
+
+msgid "Set a relative font size instead"
+msgstr "Set a relative font size instead"
+
+msgid "Set an absolute font size instead"
+msgstr "Set an absolute font size instead"
+
+msgid "Justify text in popups"
+msgstr "Justify text in popups"
+
+msgid "Pinned pages"
+msgstr "Pinned pages"
+
+msgid "Pinned page options"
+msgstr "Pinned page options"
+
+msgid "Zoom in"
+msgstr "Zoom in"
+
+msgid "Zoom out"
+msgstr "Zoom out"
+
+msgid "View image"
+msgstr "View image"
+
+msgid "Lookup"
+msgstr "Lookup"
+
+msgid "AI assistant"
+msgstr "AI assistant"
+
+msgid "Vocabulary"
+msgstr "Vocabulary"

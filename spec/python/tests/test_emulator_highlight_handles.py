@@ -90,9 +90,9 @@ def test_resize_highlight_and_preserve_annotation(format: str, saved: bool) -> N
             assert state["handles"], state
             if saved:
                 assert state["menu_ids"] == ["zen_highlight_" + name for name in
-                                              ("style", "color", "note", "delete", "more")]
-                assert state["menu_icons"][-2].endswith("/trash.svg")
-                assert state["menu_icons"][-1].endswith("/more_vertical.svg")
+                                              ("style", "color", "note", "delete", "more")] + ["zen_pin"]
+                assert state["menu_icons"][-3].endswith("/trash.svg")
+                assert state["menu_icons"][-2].endswith("/more_vertical.svg")
             state = driver.command("highlight_tools", action="drag", word=10, release=False)
             assert state["ok"] and state["dragging"], state
             assert state["draft_text"] != original, state
@@ -326,7 +326,7 @@ def test_highlight_menu_arrange_settings_persist() -> None:
             driver = ZenDriver(socket)
             assert driver.open_book(book)["ok"]
             assert driver.command("open_settings_page")["ok"]
-            for label in ("Reader", "Highlight / Lookup", "Highlight", "Menu items"):
+            for label in ("Reader", "Highlight / Lookup", "Highlight", "Show labels", "Menu items"):
                 assert driver.command("settings_page_select", label=label)["ok"]
             arrange = driver.command("arrange_page_state")["arrange"]
             assert arrange["labels"] == ["Style", "Color", "Note", "Extend start", "Contract start",
@@ -337,8 +337,9 @@ def test_highlight_menu_arrange_settings_persist() -> None:
             assert driver.command("arrange_page_drag", **{"from": 3, "to": 1})["ok"]
             assert driver.command("close_arrange_page")["ok"]
             state = driver.command("highlight_tools", action="seed", saved=True)
-            expected = ["zen_highlight_" + name for name in ("note", "color", "start_prev", "delete", "more")]
+            expected = ["zen_highlight_" + name for name in ("note", "color", "start_prev", "delete", "more")] + ["zen_pin"]
             assert state["menu_ids"] == expected
+            assert state["menu_buttons"][0][0]["text"] == "Note"
             driver.command("highlight_tools", action="close")
             stop(process)
             process = launch(runtime, home, socket, library, initialize_settings=False)
@@ -346,16 +347,18 @@ def test_highlight_menu_arrange_settings_persist() -> None:
             assert driver.open_book(book)["ok"]
             state = driver.command("highlight_tools", action="seed", saved=True)
             assert state["menu_ids"] == expected
+            assert state["menu_buttons"][0][0]["text"] == "Note"
             state = driver.command("highlight_tools", action="more")
-            assert len(state["menu_ids"]) == 4
-            assert state["menu_ids"][-1] == "zen_highlight_settings"
+            assert len(state["menu_ids"]) == 5
+            assert state["menu_ids"][-2:] == ["zen_highlight_settings", "zen_pin"]
             assert not any("extend" in Path(icon).name or "highlight" in Path(icon).name for icon in state["menu_icons"])
         finally:
             stop(process)
 
 
 @pytest.mark.parametrize("use_pack", [False, True])
-def test_highlight_menu_icons_and_settings_shortcut(use_pack: bool) -> None:
+@pytest.mark.parametrize("show_labels", [False, True])
+def test_highlight_menu_icons_and_settings_shortcut(use_pack: bool, show_labels: bool) -> None:
     with tempfile.TemporaryDirectory(prefix="zen-highlight-icons-") as temporary:
         root = Path(temporary)
         home, library = root / "home", root / "library"
@@ -378,27 +381,46 @@ def test_highlight_menu_icons_and_settings_shortcut(use_pack: bool) -> None:
         book = library / "icons.epub"
         _write_reader_epub(book)
         socket = root / "driver.sock"
+        dimensions = {"EMULATE_READER_W": "320", "EMULATE_READER_H": "480"} if show_labels and use_pack else {}
         process = launch(Path(os.environ["KOREADER_DIR"]), home, socket, library, zen_config_source=(
             "return { features = { custom_icons_enabled = true }, custom_icons = { active_pack = '"
-            + ("test-highlight" if use_pack else "") + "' }, highlight_lookup = { show_wikipedia = true }, "
+            + ("test-highlight" if use_pack else "") + "' }, highlight_lookup = { show_wikipedia = true, show_labels = "
+            + str(show_labels).lower() + " }, "
             "updater = { update_auto_check = false } }\n"
-        ))
+        ), env_overrides=dimensions)
         try:
             wait_for_socket(socket)
             driver = ZenDriver(socket)
             assert driver.open_book(book)["ok"]
             state = driver.command("highlight_tools", action="seed", saved=True, ai=True)
             assert state["ok"], state
-            assert state["menu_ids"][-2:] == ["zen_highlight_delete", "zen_highlight_more"]
-            assert state["menu_icon_files"] == [str(icons / (name + ".svg")) for name in main_icons]
+            assert state["menu_ids"][-3:] == ["zen_highlight_delete", "zen_highlight_more", "zen_pin"]
+            assert state["menu_icon_files"][:-1] == [str(icons / (name + ".svg")) for name in main_icons]
+            assert state["menu_icon_files"][-1].endswith("/icons/pin.svg")
+            buttons = [button for row in state["menu_buttons"] for button in row]
+            assert [button["text"] for button in buttons[:5]] == (
+                ["Style", "Color", "Note", "Delete", "More"] if show_labels else [""] * 5
+            )
+            assert all(button["content_width"] <= button["width"] for button in buttons)
             state = driver.command("highlight_tools", action="more")
-            assert state["menu_ids"][-1] == "zen_highlight_settings"
-            assert state["menu_icon_files"] == [str(icons / (name + ".svg")) for name in more_icons]
+            assert state["menu_ids"][-2:] == ["zen_highlight_settings", "zen_pin"]
+            assert state["menu_icon_files"][:-1] == [str(icons / (name + ".svg")) for name in more_icons]
+            assert state["menu_icon_files"][-1].endswith("/icons/pin.svg")
+            buttons = [button for row in state["menu_buttons"] for button in row]
+            assert [button["text"] for button in buttons[:6]] == (
+                ["Wikipedia", "Dictionary", "Translate", "AI assistant", "Search", "Settings"] if show_labels else [""] * 6
+            )
+            assert all(button["content_width"] <= button["width"] for button in buttons)
+            if show_labels:
+                assert all(button["icon_width"] < 32 for button in buttons[:6])
+                artifact = Path(__file__).resolve().parents[2] / ".artifacts" / "highlight-handles"
+                artifact.mkdir(parents=True, exist_ok=True)
+                driver.screenshot(artifact / ("menu-labels-narrow.png" if use_pack else "menu-labels.png"))
             state = driver.command("highlight_tools", action="settings")
             assert state["count"] == 1 and state["note"] == "Preserved note"
             settings = _wait_command(driver, "settings_page_state", lambda result:
                                      result.get("settings", {}).get("title") == "Highlight")["settings"]
-            assert settings["labels"][:2] == ["Menu items", "Reset"]
+            assert settings["labels"][:2] == ["Menu items", "Show labels"]
             assert settings["items"][0]["submenu"]
             assert driver.command("settings_page_select", label="Menu items")["ok"]
             assert driver.command("arrange_page_state")["arrange"]["labels"][:3] == ["Style", "Color", "Note"]

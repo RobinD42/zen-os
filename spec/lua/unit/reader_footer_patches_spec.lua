@@ -310,6 +310,7 @@ describe("reader footer patches", function()
             saved_modules[name] = package.loaded[name] or false
         end
         local repaint, repaint_full, received
+        local tab_paints = 0
         local ReaderFooter = {
             textGeneratorMap = {
                 battery = function() return "" end,
@@ -336,24 +337,29 @@ describe("reader footer patches", function()
         local footer = setmetatable({
             settings = { progress_margin_width = 10 },
             view = { footer_visible = true },
+            ui = { _zen_return_button = { paintTo = function() tab_paints = tab_paints + 1 end } },
         }, { __index = ReaderFooter })
 
         repaint = false -- PageBrowser covers the footer.
         footer:_updateFooterText(true)
         assert.is_false(received[1])
+        assert.equals(0, tab_paints)
         repaint, repaint_full = true, true -- A smaller overlay needs the full stack repainted.
         footer:_updateFooterText(true)
         assert.is_true(received[1])
         assert.is_true(received[2])
+        assert.equals(0, tab_paints)
         repaint_full = nil -- Reader is visible again.
         footer:_updateFooterText(true)
         assert.is_true(received[1])
         assert.is_nil(received[2])
+        assert.equals(1, tab_paints)
         repaint = false
         footer.view.footer_visible = false
         footer:_updateFooterText(true, true)
         assert.is_true(received[1])
         assert.is_true(received[2])
+        assert.equals(1, tab_paints)
     end)
 
     it("opts into book margins without changing saved footer spacing and restores it when disabled", function()
@@ -581,6 +587,7 @@ describe("reader footer patches", function()
         local StatusBar = require("common/reader_status_bar")
         local footer = StatusBar.getFooterForSettings()
         assert.are.equal(21, footer.settings.text_font_size)
+        assert.is_true(footer.settings.pinned_pages)
         assert.is_false(ReaderFooter.default_settings.lock_tap)
         local menu = {}
         footer:addToMainMenu(menu)
@@ -592,6 +599,11 @@ describe("reader footer patches", function()
             end
         end
         local items = menu.status_bar.sub_item_table
+        local pins = find(items, "Pinned pages")
+        assert.is_true(pins.checked_func())
+        pins.callback()
+        assert.is_false(StatusBar.getFooterForSettings().settings.pinned_pages)
+        pins.callback()
         find(items, "native:Show status bar separator").callback()
         find(items, "native:Lock status bar").callback()
         find(items, "native:Auto refresh items").callback()
@@ -633,17 +645,23 @@ describe("reader footer patches", function()
         }, { __index = ReaderFooter })
         footer:set_mode_index()
 
-        for _i, left_text in ipairs({ chapter_text, "" }) do
-            chapter_text = left_text
-            footer:updateFooterTextGenerator()
-            assert.are.equal(5, #footer.footerTextGenerators)
-            local text = footer:genFooterText():gsub("\u{200A}", " ")
-            local page_start = assert(text:find("461/608", 1, true))
-            local page_center = (page_start - 1 + #"461/608" / 2) * 8
-            assert.is_true(math.abs(page_center - 632) <= 8)
-            assert.are.equal("76%", text:sub(-3))
-            assert.is_nil(text:find("•", 1, true))
+        for _i, reserved_width in ipairs({ 0, 120 }) do
+            footer._zen_pin_reserved_width = reserved_width
+            footer._saved_screen_width = 1264 - reserved_width
+            for _j, left_text in ipairs({ "19 min left in chapter", "" }) do
+                chapter_text = left_text
+                footer:updateFooterTextGenerator()
+                assert.are.equal(5, #footer.footerTextGenerators)
+                local text = footer:genFooterText():gsub("\u{200A}", " ")
+                local page_start = assert(text:find("461/608", 1, true))
+                local page_center = (page_start - 1 + #"461/608" / 2) * 8
+                assert.is_true(math.abs(page_center - 632) <= 8)
+                assert.are.equal("76%", text:sub(-3))
+                assert.is_nil(text:find("•", 1, true))
+            end
         end
+        footer._zen_pin_reserved_width = nil
+        footer._saved_screen_width = 1264
 
         chapter_text = "19 min left in chapter"
         footer.settings.dynamic_filler2 = false
@@ -652,6 +670,32 @@ describe("reader footer patches", function()
         assert.are.equal(4, #footer.footerTextGenerators)
         assert.matches("461/608 • 76%%$", text)
         assert.is_true((assert(text:find("461/608", 1, true)) - 1) * 8 > 1264 * 0.75)
+    end)
+
+    it("reserves pin space inside the right section without moving LR and LCR anchors", function()
+        local ReaderFooter = load_native_footer()
+        ReaderFooter.textGeneratorMap.chapter_time_to_read = function() return "19 min" end
+        ReaderFooter.textGeneratorMap.page_progress = function() return "461/608" end
+        ReaderFooter.textGeneratorMap.percentage = function() return "76%" end
+        for _i, preset in ipairs({ 2, 5 }) do
+            local footer = setmetatable({
+                settings = require("modules/reader/patches/reader_footer_presets")[preset].footer,
+                horizontal_margin = 0,
+                _saved_screen_width = 1264,
+            }, { __index = ReaderFooter })
+            footer:set_mode_index()
+            footer:updateFooterTextGenerator()
+            local before = footer:genFooterText()
+            footer._zen_pin_inline = true
+            footer._zen_pin_reserved_width = 120
+            local after = footer:genFooterText()
+            assert.are.equal(#before, #after)
+            assert.are.equal(32, footer._zen_pin_right_inset)
+            assert.are.equal("76%", after:sub(-3))
+            if preset == 5 then
+                assert.are.equal(before:find("461/608", 1, true), after:find("461/608", 1, true))
+            end
+        end
     end)
 
     it("shows one working second filler across gettext catalogs and migrates its saved order", function()
@@ -719,8 +763,11 @@ describe("reader footer patches", function()
         local arranged
         ZenSpec.replace(arrange_name, { show = function(options) arranged = options.item_table end })
         arrange_item.callback()
-        assert.are.equal("dynamic_filler2", arranged[4].label)
-        assert.is_false(arranged[4].dim)
+        assert.are.equal("Pinned pages", arranged[1].text)
+        assert.is_true(arranged[1].checked_func())
+        assert.is_true(arranged[1].arrange_pinned_first)
+        assert.are.equal("dynamic_filler2", arranged[5].label)
+        assert.is_false(arranged[5].dim)
 
         footer.settings.dynamic_filler_2 = false
         footer:set_mode_index()
@@ -850,17 +897,18 @@ describe("reader footer patches", function()
         local menu_items = {}
         footer:addToMainMenu(menu_items)
         local arrange_item = menu_items.status_bar.sub_item_table[2].sub_item_table[1]
-        assert.is_false(arrange_item.enabled_func())
+        assert.is_true(arrange_item.enabled_func())
         arrange_item.callback()
 
         assert.is_false(stock_arrange_called)
         assert.are.equal("Arrange items", arrange_options.title)
-        assert.is_true(arrange_options.item_table[2].dim)
+        assert.are.equal("pinned_pages", arrange_options.item_table[1].label)
+        assert.is_true(arrange_options.item_table[3].dim)
 
         footer.settings.disable_progress_bar = false
         assert.is_true(arrange_item.enabled_func())
         arrange_item.callback()
-        assert.is_false(arrange_options.item_table[2].dim)
+        assert.is_false(arrange_options.item_table[3].dim)
         arrange_options.callback()
         assert.is_true(footer.updated)
         assert.is_true(footer.repainted)

@@ -1082,6 +1082,18 @@ local function migrate_changed_defaults(cfg)
         changed = true
     end
 
+    if cfg._meta.reader_pin_header_migrated ~= true then
+        local has_pin = false
+        for _i, slot in ipairs({ "left_order", "center_order", "right_order" }) do
+            for _j, key in ipairs(cfg.reader_top_status_bar[slot]) do
+                if key == "pin" then has_pin = true end
+            end
+        end
+        if not has_pin then table.insert(cfg.reader_top_status_bar.right_order, "pin") end
+        cfg._meta.reader_pin_header_migrated = true
+        changed = true
+    end
+
     if cfg._meta.reader_footer_hide_cbz_default_migrated ~= true then
         if type(cfg.reader_footer) ~= "table" then
             cfg.reader_footer = {}

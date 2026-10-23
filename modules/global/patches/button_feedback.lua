@@ -12,8 +12,8 @@ return function()
     local Screen = Device.screen
     local orig_refresh_ui = Screen.refreshUIImp
     function Screen:refreshUIImp(x, y, w, h, dither)
-        if self.mech_refresh and self.waveform_full and not self.night_mode then
-            -- AUTO can flash the rectangular refresh region around rounded feedback.
+        if self.mech_refresh and self.waveform_full and self:isColorScreen() and not self.night_mode then
+            -- AUTO can flash the rectangular refresh region around color feedback.
             if Device.isSunxi and Device:isSunxi() then
                 return self:mech_refresh(false, false, self.waveform_full, x, y, w, h, false)
             end

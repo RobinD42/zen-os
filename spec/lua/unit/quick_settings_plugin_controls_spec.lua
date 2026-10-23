@@ -446,6 +446,22 @@ describe("quick settings plugin controls", function()
         assert.are.equal(zen_icon, zen.widget[1][1].file)
     end)
 
+    it("resolves airplane, network, and battery controls from the selected pack", function()
+        local utils = require("common/utils")
+        local resolve = utils.resolveIcon
+        local names = { airplane = true, network = true, quick_battery = true }
+        utils.resolveIcon = function(icons_dir, name)
+            if names[name] then return "/icons/zen/selected/" .. name .. ".svg" end
+            return resolve(icons_dir, name)
+        end
+        require("modules/menu/patches/quick_settings")()
+        local controls = {}
+        for _i, item in ipairs(_G.__ZEN_UI_QUICK_SETTINGS.getItems()) do controls[item.id] = item end
+        assert.are.equal("/icons/zen/selected/airplane.svg", controls.airplanemode.icon)
+        assert.are.equal("/icons/zen/selected/network.svg", controls.tailscale.icon)
+        assert.are.equal("/icons/zen/selected/quick_battery.svg", controls.battery_stats.icon)
+    end)
+
     it("offers Battery Stats as a control and opens the Zen page", function()
         _G.__ZEN_UI_PLUGIN.config._meta = { installed_plugins = {} }
         local controls = {}

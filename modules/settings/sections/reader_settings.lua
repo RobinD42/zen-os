@@ -144,6 +144,15 @@ function M.build(ctx)
                 end,
             },
             {
+                text = _("Show labels"),
+                checked_func = function() return highlight_settings().show_labels == true end,
+                callback = function()
+                    local settings = highlight_settings()
+                    settings.show_labels = settings.show_labels ~= true
+                    plugin:saveConfig()
+                end,
+            },
+            {
                 text = _("Colors"),
                 sub_item_table = color_items,
             },
@@ -287,6 +296,7 @@ function M.build(ctx)
         { key = "current_page",     text = _("Current page") },
         { key = "total_pages",      text = _("Total pages") },
         { key = "page_progress",    text = _("Current / total pages") },
+        { key = "pin",              text = _("Pin") },
     }
     do
         local available = {}
@@ -302,7 +312,7 @@ function M.build(ctx)
         right  = {
             "progress_percent", "current_page", "total_pages", "page_progress",
             "custom_text", "frontlight", "incognito", "bluetooth", "wifi", "battery",
-            "battery_icon", "battery_percent",
+            "battery_icon", "battery_percent", "pin",
         },
     }
 
@@ -1259,6 +1269,20 @@ function M.build(ctx)
                 sub_item_table_func = make_highlight_items,
             },
             {
+                text = _("Lookup"),
+                sub_item_table = {{
+                    text = _("Show labels"),
+                    checked_func = function()
+                        return type(config.dict_quick_lookup) == "table" and config.dict_quick_lookup.show_labels == true
+                    end,
+                    callback = function()
+                        config.dict_quick_lookup = config.dict_quick_lookup or {}
+                        config.dict_quick_lookup.show_labels = config.dict_quick_lookup.show_labels ~= true
+                        plugin:saveConfig()
+                    end,
+                }},
+            },
+            {
                 text = _("Show Wikipedia"),
                 checked_func = function()
                     return type(config.highlight_lookup) == "table"
@@ -1421,6 +1445,38 @@ function M.build(ctx)
             end,
         }},
     }, icons.page_browser))
+
+    table.insert(items, {
+        text = _("Footnotes and pinned pages"),
+        sub_item_table = {
+            make_enable_feature_item("reader_references", _("Reference drawer")),
+            {
+                text = _("Pinned page options"),
+                enabled_func = function()
+                    local reader = require("apps/reader/readerui").instance
+                    return reader ~= nil
+                end,
+                sub_item_table_func = function()
+                    local reader = require("apps/reader/readerui").instance
+                    return require("modules/reader/pin_settings").items(reader, plugin, function()
+                        local state = reader._zen_references
+                        if state and state.drawer and not state.drawer.footnote then state.drawer:reload() end
+                    end)
+                end,
+            },
+            {
+                text = _("Footnote options"),
+                enabled_func = function()
+                    local reader = require("apps/reader/readerui").instance
+                    return reader and reader.rolling ~= nil
+                end,
+                sub_item_table_func = function()
+                    local reader = require("apps/reader/readerui").instance
+                    return reader and reader.link:getFootnoteSettingsMenuTable() or {}
+                end,
+            },
+        },
+    })
 
     table.insert(items, require("modules/settings/sections/annotation_settings").build(ctx))
 

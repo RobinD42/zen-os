@@ -417,9 +417,14 @@ return {
         "Bug fixes"
     },
     ["4.3.0"] = {
+        "Add pinned pages",
+        "Add footnote quick view",
+        "Pan and zoom pinned images, including illustrations embedded in EPUBs",
+        "Keep the reader status bar visible behind reference popups",
         "Better Rakuyomi settings (Extras > Rakuyomi)",
         "Add customizable reader controls (bottom tab menu in a book) (Reader > Reader controls)",
         "Update page browser (Reader > Page browser)",
+        "Update highlight function",
         "Update highlight submenu (Reader > Lookup / Highlight)"
     },
 

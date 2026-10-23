@@ -3739,6 +3739,12 @@ msgid "Night mode"
 msgstr "Éjszakai mód"
 
 #. Type: setting
+#. Context: Külön kiemelőszín az éjszakai módhoz.
+#: interface_settings.lua:152
+msgid "Night mode accent"
+msgstr "Éjszakai mód kiemelőszíne"
+
+#. Type: setting
 #. Context: A beállítás neve az eszköz ütemezett műveleteinek és alvóképernyőjének beállításainál.
 #: global_settings.lua:470
 msgid "Night mode off time"

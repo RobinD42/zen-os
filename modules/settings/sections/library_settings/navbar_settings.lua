@@ -18,7 +18,7 @@ local PluginScan = require("modules/menu/app_launcher/plugin_scan")
 local DispatcherMenu = require("common/dispatcher_menu")
 local ButtonModel = require("common/nav_button_model")
 local Destination = require("common/library_destination")
-local Kindle = require("modules/filebrowser/patches/kindle_virtual_library")
+local OptionalProvider = require("common/optional_provider")
 
 local M = {}
 
@@ -250,7 +250,7 @@ function M.build(ctx)
     end
 
     local function is_tab_available(id)
-        return id ~= "kindle" or Kindle.isAvailable()
+        return id ~= "kindle" or OptionalProvider.call("modules/filebrowser/patches/kindle_virtual_library", "isAvailable") == true
     end
 
     local function countEnabledTabs()

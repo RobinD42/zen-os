@@ -98,7 +98,8 @@ function Handles:geometry()
 end
 
 function Handles:paintTo(bb)
-    local color = require("common/ui/accent").color()
+    local color = require("common/reader_themes").getTextColor(rawget(_G, "__ZEN_UI_PLUGIN"))
+        or Blitbuffer.COLOR_BLACK
     local paint = Blitbuffer.isColor8(color) and bb.paintRect or bb.paintRectRGB32
     local circle = Blitbuffer.isColor8(color) and bb.paintRoundedRect or bb.paintRoundedRectRGB32
     for _side, knob in pairs(self:geometry()) do

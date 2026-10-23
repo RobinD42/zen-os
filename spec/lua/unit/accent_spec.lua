@@ -115,6 +115,61 @@ describe("interface accent", function()
         assert.are.equal(Blitbuffer.COLOR_BLACK, Accent.color())
     end)
 
+    it("switches to the optional night accent and restores the regular accent live", function()
+        local config = _G.__ZEN_UI_PLUGIN.config
+        config.accent_night_color = "#cc8844"
+        config.accent_night_opacity = 50
+        local day = tostring(Accent.color())
+        screen.night_mode = true
+        assert.are.equal("#204080", Accent.hex())
+        assert.are.equal(100, Accent.opacity())
+        config.accent_night_enabled = true
+        assert.are.equal("#CC8844", Accent.hex())
+        assert.are.equal(50, Accent.opacity())
+        assert.are.equal(tostring(Blitbuffer.ColorRGB32(153, 187, 221, 255)), tostring(Accent.color()))
+        assert.are.equal(Blitbuffer.COLOR_BLACK, Accent.foreground())
+        assert.are.same({ 102, 68, 34 }, Accent.navbarColor(config, "active_tab_color", { 0, 0, 0 }))
+        assert.are.equal("#204080", Accent.hex(config, false))
+        assert.are.equal(100, Accent.opacity(config, false))
+        screen.night_mode = false
+        assert.are.equal(day, tostring(Accent.color()))
+        assert.are.equal("#CC8844", Accent.hex(config, true))
+        assert.are.equal(50, Accent.opacity(config, true))
+        screen.night_mode = true
+        config.accent_night_enabled = false
+        assert.are.equal(tostring(Blitbuffer.ColorRGB32(223, 191, 127, 255)), tostring(Accent.color()))
+        assert.are.equal("#cc8844", config.accent_night_color)
+        assert.are.equal(50, config.accent_night_opacity)
+    end)
+
+    it("validates the night accent and respects the global switch and screen support", function()
+        local config = _G.__ZEN_UI_PLUGIN.config
+        config.accent_night_enabled = true
+        screen.night_mode = true
+        for _i, value in ipairs({ false, {}, "#123", "CC8844", "#GG0000" }) do
+            config.accent_night_color = value
+            config.accent_night_opacity = "invalid"
+            assert.are.equal("#000000", Accent.hex())
+            assert.are.equal(100, Accent.opacity())
+            assert.is_false(Accent.isEnabled())
+            assert.are.equal(Blitbuffer.COLOR_BLACK, Accent.color())
+        end
+        config.accent_color = "#000000"
+        config.accent_night_color = "#CC8844"
+        config.accent_night_opacity = -10
+        assert.are.equal(0, Accent.opacity())
+        assert.is_true(Accent.isEnabled())
+        config.accent_night_opacity = 150
+        assert.are.equal(100, Accent.opacity())
+        config.accent_enabled = false
+        assert.is_false(Accent.isEnabled())
+        assert.are.equal(Blitbuffer.COLOR_BLACK, Accent.color())
+        config.accent_enabled = true
+        screen.isColorScreen = function() return false end
+        assert.is_false(Accent.isEnabled())
+        assert.are.equal(Blitbuffer.COLOR_BLACK, Accent.color())
+    end)
+
     it("clamps saved opacity and falls back to full opacity for invalid values", function()
         for _i, entry in ipairs({
             { false, 100 }, { {}, 100 }, { "invalid", 100 },
@@ -298,6 +353,36 @@ describe("interface accent", function()
         bb:free()
     end)
 
+    it("updates retained button fills and icon contrast only when night mode changes", function()
+        screen.night_mode = false
+        local config = _G.__ZEN_UI_PLUGIN.config
+        config.accent_night_enabled = true
+        config.accent_night_color = "#CC8844"
+        local paints, frees, styles = 0, 0, {}
+        local style_icon = Accent.styleIcon
+        Accent.styleIcon = function(icon, active)
+            styles[#styles + 1] = Accent.foreground()
+            style_icon(icon, active)
+        end
+        local paint = function() paints = paints + 1 end
+        local button = { paintTo = paint }
+        local icon = { _render = function() end, free = function() frees = frees + 1 end }
+        Accent.styleButton(button, icon, true)
+        for _i, night_mode in ipairs({ false, true, true, false }) do
+            screen.night_mode = night_mode
+            button:paintTo({}, 0, 0)
+            assert.are.equal(tostring(Accent.color()), tostring(button.background))
+            assert.are.equal(Accent.foreground(), styles[#styles])
+        end
+        assert.are.equal(4, paints)
+        assert.are.equal(3, #styles)
+        assert.are.equal(2, frees)
+        local inactive = { background = Blitbuffer.COLOR_GRAY, paintTo = paint }
+        Accent.styleButton(inactive, icon, false)
+        assert.are.equal(Blitbuffer.COLOR_GRAY, inactive.background)
+        assert.are.equal(paint, inactive.paintTo)
+    end)
+
     it("colors the slider rail and fill while keeping toggle outlines black", function()
         local bb = Blitbuffer.new(160, 60, Blitbuffer.TYPE_BBRGB32)
         bb:fill(Blitbuffer.COLOR_WHITE)
@@ -331,6 +416,30 @@ describe("interface accent", function()
         assert.are.equal(Blitbuffer.COLOR_GRAY, slider.fill_color)
         assert.are.equal(Blitbuffer.COLOR_LIGHT_GRAY, slider.track_color)
         assert.are.equal(Blitbuffer.COLOR_BLACK, slider.knob_color)
+    end)
+
+    it("updates retained slider accents when night mode changes and preserves explicit colors", function()
+        local config = _G.__ZEN_UI_PLUGIN.config
+        config.accent_night_enabled = true
+        config.accent_night_color = "#CC8844"
+        local Slider = require("common/ui/zen_slider")
+        local slider = Slider:new{ width = 120, value_min = 0, value_max = 100, value = 50, knob_radius = 8 }
+        local custom = Slider:new{ width = 120, value_min = 0, value_max = 100,
+            fill_color = Blitbuffer.COLOR_GRAY, knob_color = Blitbuffer.COLOR_BLACK }
+        local bb = Blitbuffer.new(160, 60, Blitbuffer.TYPE_BBRGB32)
+        for _i, night_mode in ipairs({ false, true, false }) do
+            screen.night_mode = night_mode
+            slider:paintTo(bb, 0, 0)
+            for _j, x in ipairs({ 20, 60, 100 }) do
+                assert.are.equal(tostring(Accent.color()), tostring(bb:getPixel(x, 11)))
+            end
+            assert.are.equal(tostring(Accent.color()), tostring(slider.knob_color))
+            custom:paintTo(bb, 0, 30)
+            assert.are.equal(Blitbuffer.COLOR_GRAY, custom.fill_color)
+            assert.are.equal(Blitbuffer.COLOR_GRAY, custom.track_color)
+            assert.are.equal(Blitbuffer.COLOR_BLACK, custom.knob_color)
+        end
+        bb:free()
     end)
 
     it("keeps the rail color unchanged when the fill grows over it and retreats", function()

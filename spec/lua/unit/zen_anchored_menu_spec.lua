@@ -1,8 +1,8 @@
 describe("Zen anchored menus", function()
     local Menu, original, native_left, native_top
-    local modules = { "common/ui/zen_anchored_menu", "ui/widget/buttondialog", "ui/geometry",
+    local modules = { "common/ui/zen_anchored_menu", "common/ui/button_labels", "ui/widget/buttondialog", "ui/geometry",
         "device", "ui/widget/container/scrollablecontainer", "ui/size", "ui/font", "ui/widget/textwidget",
-        "ui/widget/iconwidget", "ui/widget/horizontalgroup", "ui/widget/horizontalspan" }
+        "ui/widget/iconwidget", "ui/widget/horizontalgroup", "ui/widget/horizontalspan", "ui/rendertext" }
 
     before_each(function()
         original = {}
@@ -15,16 +15,23 @@ describe("Zen anchored menus", function()
         ZenSpec.replace("ui/widget/container/scrollablecontainer", {
             getScrollbarWidth = function() return 6 end,
         })
-        ZenSpec.replace("ui/size", { padding = { large = 10, button = 6 }, border = { window = 2 } })
+        ZenSpec.replace("ui/size", { padding = { large = 10, button = 6 }, border = { window = 2 }, line = { medium = 1 } })
         ZenSpec.replace("ui/font", { getFace = function() return {} end })
+        ZenSpec.replace("ui/rendertext", { sizeUtf8Text = function() return { y_top = 12, y_bottom = 4 } end })
         ZenSpec.replace("ui/widget/textwidget", { new = function(_self, options)
-            options.getSize = function() return { w = #options.text * 10 } end
+            options.getSize = function() return { w = #options.text * 10, h = 20 } end
+            options.getFittedText = function(self) return self.text end
+            options.getBaseline = function() return 14 end
             options.setMaxWidth = function(self, width) self.max_width = width end
             options.free = function() end
             return options
         end })
         for _i, name in ipairs({ "ui/widget/iconwidget", "ui/widget/horizontalgroup", "ui/widget/horizontalspan" }) do
-            ZenSpec.replace(name, { new = function(_self, options) return options end })
+            ZenSpec.replace(name, { new = function(_self, options)
+                options.file = options.file or options.icon
+                options.free = function() end
+                return options
+            end })
         end
         native_left, native_top = 20, 30
         ZenSpec.replace("ui/widget/buttondialog", { new = function(_self, options)
@@ -121,5 +128,24 @@ describe("Zen anchored menus", function()
         assert.are.equal(12, button.label_container[1][2].width)
         assert.are.equal(button.label_widget, button.label_container[1][3])
         assert.are.equal(button.dimen.w - 32 - 24 - 12, button.label_widget.max_width)
+    end)
+
+    it("wraps labelled action rows to fit while keeping callbacks and smaller icons", function()
+        local Labels = require("common/ui/button_labels")
+        local callback = function() end
+        local buttons = {{
+            { text = "Style", icon = "/style.svg", callback = callback },
+            { text = "Color", icon = "/color.svg" },
+            { text = "Translate", icon = "/translate.svg" },
+        }, { { text = "Pin" } }}
+        local rows = Labels.prepare(buttons, 300)
+        assert.equals(3, #rows)
+        assert.equals(2, #rows[1])
+        assert.equals(1, #rows[2])
+        assert.equals(callback, rows[1][1].callback)
+        assert.equals(20, rows[1][1].icon_width)
+        assert.equals(16, rows[1][1].font_size)
+        assert.equals("Pin", rows[3][1].text)
+        assert.equals(1, #Labels.prepare({ buttons[1] }, 900))
     end)
 end)

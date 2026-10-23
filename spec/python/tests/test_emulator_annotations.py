@@ -33,6 +33,69 @@ def _filters(driver: ZenDriver) -> None:
     _action(driver, "button", text="Filter")
 
 
+def test_annotation_dispatcher_destinations() -> None:
+    runtime = Path(os.environ["KOREADER_DIR"])
+    with tempfile.TemporaryDirectory(prefix="zen-annotation-dispatch-") as temporary:
+        root = Path(temporary)
+        home, library = root / "home", root / "library"
+        home.mkdir()
+        library.mkdir()
+        first, second = library / "first.epub", library / "second.epub"
+        _write_reader_epub(first)
+        _write_reader_epub(second)
+        socket = root / "driver.sock"
+        process = launch(runtime, home, socket, library)
+        try:
+            wait_for_socket(socket)
+            driver = ZenDriver(socket)
+            _action(driver, "dispatch", name="zen_ui_show_annotation_viewer")
+            empty = _wait_command(driver, "annotation_viewer_state", lambda state: state.get("ok") and not state["loading"])
+            assert empty["scope"] == "all" and not empty["items"]
+            _action(driver, "close")
+            assert driver.open_book(second)["ok"]
+            _action(driver, "seed")
+            _action(driver, "open", file=str(first))
+            _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("file") == str(first))
+            _action(driver, "seed")
+            for tab in ("annotations", "bookmarks", "highlights"):
+                _action(driver, "dispatch", name="zen_ui_show_" + tab)
+                state = _state(driver)
+                assert state["active_tab"] == tab
+                assert state["content_items"] == (1 if tab == "bookmarks" else 2 if tab == "highlights" else 3)
+                assert state["annotation_rows"][0][0]["text"] == "First · Page 1"
+                assert state["annotation_rows"][0][1]["text"] == "October 18 2026"
+                _action(driver, "close")
+            _action(driver, "dispatch", name="zen_ui_show_annotation_viewer")
+            current = driver.command("annotation_viewer_state")
+            assert current["ok"] and current["scope"] == "current"
+            assert Path(current["search_icon"]).name == "quick_search.svg"
+            assert {item["file"] for item in current["items"]} == {str(first)}
+            _action(driver, "close")
+            assert driver.command("reference_action", action="pin", page=3)["ok"]
+            _action(driver, "dispatch", name="zen_ui_show_pinned_pages")
+            assert driver.command("reference_action", action="state")["references"]["drawer"]["page"] == 3
+            assert driver.command("reference_action", action="close_book")["ok"]
+            _action(driver, "dispatch", name="zen_ui_show_annotation_viewer")
+            all_books = _wait_command(driver, "annotation_viewer_state", lambda state: state.get("ok") and not state["loading"])
+            assert all_books["scope"] == "all"
+            assert Path(all_books["search_icon"]).name == "quick_search.svg"
+            assert len(all_books["items"]) == 6
+            assert {Path(item["file"]).resolve() for item in all_books["items"]} == {first.resolve(), second.resolve()}
+            frames = Path(__file__).resolve().parents[2] / ".artifacts" / "annotations"
+            frames.mkdir(parents=True, exist_ok=True)
+            driver.screenshot(frames / "standalone-all-books.png")
+            _action(driver, "search")
+            _action(driver, "input", text="quiet")
+            _action(driver, "button", text="Search")
+            assert len(driver.command("annotation_viewer_state")["items"]) == 2
+            _action(driver, "details")
+            _action(driver, "button", text="Go to")
+            _wait_command(driver, "reader_state", lambda result: Path(result["reader"]["file"]).resolve() == first.resolve())
+            assert not driver.command("annotation_viewer_state")["ok"]
+        finally:
+            stop(process)
+
+
 @pytest.mark.parametrize("document_type", ["epub", "pdf"])
 def test_page_browser_tab_order(document_type: str) -> None:
     runtime = Path(os.environ["KOREADER_DIR"])
@@ -128,9 +191,13 @@ def test_annotations_and_floating_book_note(document_type: str) -> None:
                 assert "first" in state["annotation_subtitle"].lower()
             assert state["annotation_subtitle_size"] == 20
             assert state["annotation_subtitle_black"]
-            metadata = state["annotation_rows"][0][0]
-            assert metadata == {"text": "October 18 2026 · Page 1", "size": 18, "black": True}
-            assert state["annotation_rows"][0][1]["text"] == "in First"
+            assert state["annotation_rows"][0] == [
+                {"text": "First · Page 1", "size": 18, "black": True},
+                {"text": "October 18 2026", "size": 18, "black": True},
+            ]
+            bookmark = state["annotation_bookmarks"][0]
+            assert Path(bookmark["icon"]).name == "bookmark.svg"
+            assert min(bookmark["lines"], bookmark["max_lines"]) == 1
             _action(driver, "details")
             state = _state(driver)
             assert "Page 1" in state["annotation_text"]
@@ -138,15 +205,22 @@ def test_annotations_and_floating_book_note(document_type: str) -> None:
             assert state["annotation_buttons"] == [["Go to"], ["Add note"], ["Delete"]]
             driver.screenshot(frames / "bookmark-details.png")
             _action(driver, "close_details")
+            _action(driver, "tab", tab="annotations")
+            state = _state(driver)
+            assert state["annotation_items"][0]["kind"] == "bookmark"
+            assert state["annotation_rows"][0][0]["text"] == "First · Page 1"
+            assert state["annotation_rows"][0][1]["text"] == "October 18 2026"
+            assert len(state["annotation_rows"][0]) == 2
             _action(driver, "tab", tab="highlights")
             state = _state(driver)
             assert len(state["annotation_items"]) == 2
             assert state["annotation_subtitle_size"] == 20
             assert state["annotation_subtitle_black"]
             assert state["annotation_subtitle"] != "This book"
-            assert state["annotation_rows"][0][0] == {
-                "text": "October 18 2026 · First · Page 1", "size": 18, "black": True,
-            }
+            assert state["annotation_rows"][0][:2] == [
+                {"text": "First · Page 1", "size": 18, "black": True},
+                {"text": "October 18 2026", "size": 18, "black": True},
+            ]
             frame = frames / "annotation-borders.png"
             driver.screenshot(frame)
             with Image.open(frame).convert("RGB") as image:

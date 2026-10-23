@@ -959,6 +959,12 @@ msgstr "Название книги"
 msgid "Book Title"
 msgstr "Название книги"
 
+#. Type: label
+#. Context: Prefix identifying bookmarks in the mixed annotation list.
+#: annotation_viewer.lua:243
+msgid "Bookmark"
+msgstr "Закладка"
+
 #. Type: setting
 #. Context: Название настройки в настройках внешнего вида и поведения читалки. Подпись в ознакомительном туре по экрану чтения.
 #: reader_tour.lua:80 reader_settings.lua:1364
@@ -3778,6 +3784,12 @@ msgstr "Время яркости (ночь)"
 #: menu_settings.lua:88
 msgid "Night mode"
 msgstr "Ночной режим"
+
+#. Type: setting
+#. Context: Отдельные акцентный цвет и непрозрачность для ночного режима.
+#: interface_settings.lua:152
+msgid "Night mode accent"
+msgstr "Акцентный цвет ночного режима"
 
 #. Type: setting
 #. Context: Название настройки в настройках действий устройства по расписанию и экрана сна.
@@ -7551,3 +7563,79 @@ msgstr "ноября"
 msgctxt "Date month"
 msgid "December"
 msgstr "декабря"
+
+msgid "Return to page %1"
+msgstr "Назад на страницу %1"
+
+msgid "Pinned page"
+msgstr "Закреплённая страница"
+
+msgid "Last footnote"
+msgstr "Последняя сноска"
+
+msgid "Pin"
+msgstr "Закрепить"
+
+msgid "Pin this page"
+msgstr "Закрепить эту страницу"
+
+msgid "Remove pin"
+msgstr "Открепить страницу"
+
+msgid "Footnotes and pinned pages"
+msgstr "Сноски и закреплённые страницы"
+
+msgid "Reference drawer"
+msgstr "Панель справки"
+
+msgid "Footnote options"
+msgstr "Настройки сносок"
+
+msgid "Full"
+msgstr "Заполнить"
+
+msgid "Fit"
+msgstr "Вписать"
+
+msgid "Unable to open reference preview."
+msgstr "Не удалось открыть предпросмотр."
+
+msgid "Use book font in popups"
+msgstr "Использовать шрифт книги во всплывающих окнах"
+
+
+msgid "Set font size"
+msgstr "Задать размер шрифта"
+
+msgid "Set a relative font size instead"
+msgstr "Задать относительный размер шрифта"
+
+msgid "Set an absolute font size instead"
+msgstr "Задать абсолютный размер шрифта"
+
+msgid "Justify text in popups"
+msgstr "Выравнивать текст во всплывающих окнах по ширине"
+
+msgid "Pinned pages"
+msgstr "Закреплённые страницы"
+
+msgid "Pinned page options"
+msgstr "Настройки закреплённых страниц"
+
+msgid "Zoom in"
+msgstr "Увеличить"
+
+msgid "Zoom out"
+msgstr "Уменьшить"
+
+msgid "View image"
+msgstr "Просмотреть изображение"
+
+msgid "Lookup"
+msgstr "Поиск"
+
+msgid "AI assistant"
+msgstr "ИИ-помощник"
+
+msgid "Vocabulary"
+msgstr "Словарь слов"

@@ -380,6 +380,7 @@ describe("reader interaction patches", function()
                 document = { configurable = { font_size = 23 } },
             },
         }
+        menu._zen_page_browser_parent = {}
         ReaderBookmark.onShowBookmark(bookmark)
 
         assert.are.equal(1, stock_calls)
@@ -521,15 +522,15 @@ describe("reader interaction patches", function()
         apply_patch("modules/reader/patches/bookmarks")
 
         ReaderBookmark.onShowBookmark({})
-        local back_button = title_bar.left_button
-        assert.are.equal(3, #menu.layout[1])
-        assert.are.equal(back_button, menu.layout[1][1])
-        assert.are.equal(title_bar.menu_button, menu.layout[1][2])
-        assert.are.equal(title_bar.right_button, menu.layout[1][3])
-        assert.are.same({ x = 1, y = 1 }, menu.selected)
-        assert.is_true(back_button._zen_keyboard_focused)
+        assert.is_nil(title_bar.left_button)
+        assert.is_false(title_bar.has_left_icon)
+        assert.are.equal(2, #menu.layout[1])
+        assert.are.equal(title_bar.menu_button, menu.layout[1][1])
+        assert.are.equal(title_bar.right_button, menu.layout[1][2])
+        assert.are.same({ x = 2, y = 1 }, menu.selected)
+        assert.is_true(title_bar.right_button._zen_keyboard_focused)
         assert.are.equal("Close", menu.key_events.Close.event)
-        back_button:paintTo({
+        title_bar.right_button:paintTo({
             invertRect = function(_bb, x, y, w, h)
                 focus_rect = { x = x, y = y, w = w, h = h }
             end,

@@ -6,6 +6,7 @@ describe("embedded page-browser lists", function()
         "modules/filebrowser/patches/library_font", "common/ui/zen_title_style",
         "modules/reader/zen_toc_widget", "modules/reader/page_browser_panels", "gettext",
         "modules/reader/annotation_viewer",
+        "modules/reader/book_details", "modules/reader/book_info_widget",
     }
 
     before_each(function()
@@ -113,6 +114,36 @@ describe("embedded page-browser lists", function()
             assert.are.equal(600, panel.width)
             assert.are.equal(700, panel.height)
         end
+    end)
+
+    it("builds book details inside the body without its own title bar", function()
+        ZenSpec.replace("modules/reader/book_details", {
+            buildSpec = function(ui, opts)
+                assert.are.equal(browser.ui, ui)
+                assert.are.equal(browser._zen_plugin.config, opts.config)
+                assert.are.equal(browser._zen_plugin, opts.plugin)
+                return { description = "Book description" }
+            end,
+        })
+        local frees = 0
+        ZenSpec.replace("modules/reader/book_info_widget", {
+            new = function(_self, spec)
+                spec.free = function() frees = frees + 1 end
+                return spec
+            end,
+        })
+        local panel = Panels.build(browser, "book_details", 600, 700)
+        assert.are.equal(600, panel.width)
+        assert.are.equal(700, panel.height)
+        assert.is_false(panel.show_title)
+        assert.are.equal(browser, panel.show_parent)
+        assert.are.equal("Book description", panel.description)
+        assert.are.equal(panel, panel.layout[1][1])
+        panel:onCloseWidget()
+        assert.are.equal(1, frees)
+        assert.are.equal(0, closes)
+        assert.is_true(panel:onClose())
+        assert.are.equal(1, closes)
     end)
 
     it("routes Back to the browser", function()

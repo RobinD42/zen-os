@@ -368,6 +368,12 @@ local function show_zen_toc(plugin)
     return true
 end
 
+local function show_reader_annotations(kind)
+    local reader = get_reader()
+    if not (reader and reader.document and reader.thumbnail) then return false end
+    return reader.thumbnail:onShowPageBrowser(kind)
+end
+
 local _folder_picker_patched = false
 
 -- Render a per-action folder picker for zen_ui_show_folder. The default Dispatcher
@@ -488,6 +494,36 @@ function M.onDispatcherRegisterActions()
         category = "none",
         event = "ShowZenUIToc",
         title = _("ZenOS") .. ": " .. _("Table of contents"),
+        reader = true,
+    })
+    Dispatcher:registerAction("zen_ui_show_annotation_viewer", {
+        category = "none",
+        event = "ShowZenUIAnnotationViewer",
+        title = _("ZenOS") .. ": " .. _("Annotation viewer"),
+        general = true,
+    })
+    Dispatcher:registerAction("zen_ui_show_annotations", {
+        category = "none",
+        event = "ShowZenUIAnnotations",
+        title = _("ZenOS") .. ": " .. _("Annotations"),
+        reader = true,
+    })
+    Dispatcher:registerAction("zen_ui_show_bookmarks", {
+        category = "none",
+        event = "ShowZenUIBookmarks",
+        title = _("ZenOS") .. ": " .. _("Bookmarks"),
+        reader = true,
+    })
+    Dispatcher:registerAction("zen_ui_show_highlights", {
+        category = "none",
+        event = "ShowZenUIHighlights",
+        title = _("ZenOS") .. ": " .. _("Highlights"),
+        reader = true,
+    })
+    Dispatcher:registerAction("zen_ui_show_pinned_pages", {
+        category = "none",
+        event = "ShowZenUIPinnedPages",
+        title = _("ZenOS") .. ": " .. _("Pinned pages"),
         reader = true,
     })
     Dispatcher:registerAction("zen_ui_show_home", {
@@ -711,6 +747,29 @@ function M.onShowZenUIToc(plugin)
     return show_zen_toc(plugin)
 end
 
+function M.onShowZenUIAnnotationViewer(plugin)
+    require("modules/reader/annotation_viewer").show(plugin, get_reader())
+    return true
+end
+
+function M.onShowZenUIAnnotations()
+    return show_reader_annotations("annotations")
+end
+
+function M.onShowZenUIBookmarks()
+    return show_reader_annotations("bookmarks")
+end
+
+function M.onShowZenUIHighlights()
+    return show_reader_annotations("highlights")
+end
+
+function M.onShowZenUIPinnedPages()
+    local reader = get_reader()
+    if not (reader and reader.document) then return false end
+    return require("modules/reader/references").openPinned(reader) == true
+end
+
 function M.install(target)
     _plugin = target
     target.onDispatcherRegisterActions = M.onDispatcherRegisterActions
@@ -732,6 +791,11 @@ function M.install(target)
     target.onShowZenUIFolder = M.onShowZenUIFolder
     target.onZenUIKOSyncSync = M.onZenUIKOSyncSync
     target.onShowZenUIToc = M.onShowZenUIToc
+    target.onShowZenUIAnnotationViewer = M.onShowZenUIAnnotationViewer
+    target.onShowZenUIAnnotations = M.onShowZenUIAnnotations
+    target.onShowZenUIBookmarks = M.onShowZenUIBookmarks
+    target.onShowZenUIHighlights = M.onShowZenUIHighlights
+    target.onShowZenUIPinnedPages = M.onShowZenUIPinnedPages
 end
 
 return M

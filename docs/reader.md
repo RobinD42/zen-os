@@ -32,6 +32,12 @@ order: 50
 
 Reader settings control the reading screen. They cover appearance, reader controls, lookup and highlighting, page navigation, and what happens when you leave a book.
 
+Top-menu taps and downward swipes work while a pinned page preview is open. Tapping the page browser's status bar also opens the top menu. Both follow your menu activation setting.
+
+The compact page button at the top left of a pinned preview navigates to that page. Tap the left or right half of a text preview to scroll back or forward; tap an image preview to enlarge it.
+
+Pinned images have an expand icon to the left of the three-dot menu. Full fills the pinned preview behind its controls, cropping the image as needed without stretching it. Fit shows the whole image; Zoom in and Zoom out adjust its size. Only in Full mode, the icons and page dots have opaque white backgrounds with black outlines and the same rounded corners as button feedback. The three-dot menu contains Remove pin and Settings.
+
 ![Page browser](/images/zen_os/page_browser.webp)
 
 ## Options
@@ -45,6 +51,8 @@ Reader settings control the reading screen. They cover appearance, reader contro
 - Configure Zen quick lookup, Zen highlight menu, Wikipedia, and detected X-Ray, KOAssistant, or AI Assistant integrations.
 - Choose the bottom swipe gesture: KOReader reader menu, Reader controls, Zen page browser, none, or a custom action.
 - Use stable page labels in the page browser and table of contents when a book provides a page map.
+- Enable the optional Book details tab under Zen Settings > Reader > Page browser > Tabs (off by default). It fills the preview area without its own title bar.
+- Hold a page preview to bookmark or pin that page using a compact highlight-style popup. Pinned previews show a small transparent pin to the left of the bookmark marker. Crossed-out bookmark and pin actions remove their respective markers.
 - Restore the previous library location when leaving the reader.
 - Enable or disable the bottom status bar and configure its Zen Presets, font, and CBZ/PDF hiding.
 
@@ -73,6 +81,8 @@ Reader settings control the reading screen. They cover appearance, reader contro
 | Appearance > Reader themes > Custom themes | Creates, edits, and deletes custom themes. A custom theme can set its name, background color, text color, and font. |
 | Highlight / Lookup > Zen quick lookup | Enables ZenOS quick lookup behavior. |
 | Highlight / Lookup > Zen highlight menu | Enables ZenOS's highlight menu. |
+| Highlight / Lookup > Highlight > Show labels | Adds action names beside smaller icons in text and image highlight menus; off by default. |
+| Highlight / Lookup > Lookup > Show labels | Adds action names beside smaller dictionary lookup icons; off by default. |
 | Highlight / Lookup > Show Wikipedia | Shows Wikipedia in lookup options. |
 | Highlight / Lookup > Show X-Ray | Shows X-Ray in lookup and highlight menus when the plugin is installed. |
 | Highlight / Lookup > Show KOAssistant | Shows KOAssistant in lookup and highlight menus when the plugin is installed. |
@@ -100,17 +110,41 @@ Reader settings control the reading screen. They cover appearance, reader contro
 
 Tap and hold a word while reading to open the Zen quick lookup menu. It shows the dictionary definition for the selected word along with ZenOS action buttons. Enable it with **Zen Settings > Reader > Highlight / Lookup > Zen quick lookup**. Wikipedia and installed X-Ray, KOAssistant, and AI Assistant integrations can appear as dedicated buttons; use **Show other items** to retain KOReader's remaining lookup options.
 
+Enable **Highlight / Lookup > Lookup > Show labels** to show dictionary action names to the right of smaller icons. Labels are off by default; rows wrap to fit the available width.
+
 ## Highlight menu
 
 ![Highlight menu](/images/zen_os/reader_highlight.webp)
 
 Tap + hold and drag to highlight a selection of text and open the Zen highlight menu. It collects highlight, lookup, and annotation actions for the selected text in a single Zen-styled menu. When you reopen the menu for an existing highlight, its first action extends or adjusts the selected text. Enable the menu with **Zen Settings > Reader > Highlight / Lookup > Zen highlight menu**.
 
+**Highlight / Lookup > Highlight > Show labels** adds names beside smaller icons in text and image highlight menus. This setting is off by default and independent of lookup labels.
+
+## Footnotes and pinned pages
+
+Footnotes open in an outlined reference popup with rounded top corners by default, using the reader's font, font size, and theme. Saved KOReader popup and font preferences are preserved. The popup sits at the bottom in portrait and on the right in landscape, with a portrait minimum height of about two lines of text plus padding and a narrow inset at both sides to show its borders. The uncovered reader area keeps its top status bar. Tap the content or swipe up from the popup's top edge to expand the reference into the reader. Swipe down from the top edge or tap outside to dismiss it. Long notes scroll by swiping; the last note and scroll position remain available while the book is open.
+
+Tap the inline **Pin** icon in the highlight or dictionary lookup menu to save the page containing the start of your selection immediately. On pinned pages, it becomes a crossed-out **Remove pin** icon. Holding an illustration opens the compact image highlight menu, with **View image** and **Pin** or **Remove pin** actions. Pinning saves its page without creating a text selection or annotation. Hold a page-browser preview to pin or unpin it; pinned previews show a pin at the top right, and the three-dot menu contains no pin actions. Each book retains multiple pins across restarts; text-book pins follow their saved text location when font or layout changes.
+
+After a footnote, pinned-page, page-browser, or table-of-contents jump, a compact rounded **Return to page …** tab with the same return icon appears over the bottom status bar's left items for 30 seconds, extending past the bottom edge of the screen. The existing items keep their layout underneath and reappear when the tab closes. It follows **Align to book margins** and otherwise uses the footer's margin. Tap it to return immediately. Normal page turns and preview browsing do not create or renew it. Returning, closing the book, or suspending dismisses it; the page-browser Return action remains available after the button expires.
+
+When a book has pins, the pin icon and count sit inside a padded rounded outline in the bottom status bar. **Pinned pages** is enabled by default in **Status bar items** and appears first in **Configure items > Arrange items in status bar**. In L/R and L/C/R layouts, it sits toward the center, before the right section's text; the left, center, and right items retain their preset positions. Tap to open your pins, or hold to pin or unpin the current page. The popup remembers the last viewed pin for each book, including after restarting KOReader. If that pin was removed or is unavailable, it opens the first available pin. With no pins, the control is hidden and the status bar uses its full width. When the bottom status bar is disabled, books with more than one pin still show the enabled control in the same position. The page browser's navigation group offers Return; open pinned pages from the bottom pin control.
+
+Pinned pages open at the bottom right in a popup 70% of the screen width and 70% of its height, with a thicker outline covering the bottom status bar. Its outer side extends off-screen, with rounded top and bottom corners facing the reader; choose **Position > Left** in **Footnotes and pinned pages > Pinned page options** to mirror the popup. A pin icon appears within the top status bar on pinned reading pages, at the far right by default. Move or hide **Pin** through the top status bar's item settings; bookmark markers retain their separate corner position. The top-left header shows “Page X”; a compact dot Zen pager with left and right chevrons appears below the preview only when multiple pins are saved. Tap either half of the pager or swipe horizontally to switch between saved pins, wrapping between the first and last. A small gap below the header separates it from the preview and its thin scrollbar near the right edge. Text previews follow the book’s line-spacing setting. The top-right three-dot menu removes the displayed pin and opens **Settings** for position, independent book-font, relative or absolute **Font size**, and justification options. PDF, CBZ, and illustrated EPUB pages use an image preview, centered at the largest size that keeps all content visible. Pinch or spread to zoom and drag to pan up to the preview borders. Tap the image to open the fullscreen viewer, then tap again to return to the pinned preview. Horizontal swipes pan the image while zoomed in; use Zen pager to switch pins. The menu also offers zoom-in, zoom-out, and fit controls.
+
+Swipe down starting in the top 7% of the pinned popup, tap outside, or press hardware Back to dismiss it without moving your reading position. Downward swipes below this strip scroll text or pan images. Tap the page title or content to open the displayed reference in the reader, with return navigation available in the page browser. If that pinned page is already the current reading page, navigation does nothing: the popup stays open, with no redraw or history change.
+
+Configure **Zen Settings > Reader > Footnotes and pinned pages** to enable the drawer or access KOReader's footnote options. Disabling it restores native footnotes and pin behavior.
+
 ## Stable Page Labels
 
 ZenOS uses KOReader page-map labels when a book provides them. The reader page browser shows stable labels on page tiles and during page scrubbing, and the Zen table of contents shows the same labels beside chapter entries. It also handles non-linear book content without breaking page navigation. Home featured widgets use the same page data for current/total progress.
 
 The page browser has Book info at the top left, centered tabs for Pages, Aa, Bookmarks, and TOC, and Close at the top right. Bookmarks and TOC fill the browser below its tabs. On Pages, Grid and Search flank the chapter title, with the slider and navigation chevrons below. A light divider separates the preview from the controls on Pages and Aa. The view chooser, font list, and three-dot menu open as compact anchored menus inset from the screen edge.
+
+Annotations, Bookmarks, and Highlights show localized dates by default. Change **Reader > Annotation viewer > Details > Date** to hide them; saved choices are retained. Bookmark and highlight entries show the chapter followed by the page on the first line, with the date on the second line. Bookmarks retain their leading icon, and highlights retain their text previews. Tap an entry for its full details.
+
+The general dispatcher action **ZenOS: Annotation viewer** opens this book's annotations from the reader, or annotations across books in reading history from the library. Reader dispatcher actions **ZenOS: Annotations**, **ZenOS: Bookmarks**, and **ZenOS: Highlights** open their page-browser tabs directly, including hidden tabs, without changing your saved tab choices. **ZenOS: Pinned pages** opens the pinned-page popup.
 
 **Reader > Page Browser > Top status bar** shows the Interface status bar above the tabs, with top padding and a fixed position across all four tabs. It is enabled by default and stays hidden when **Interface > Status bar** is disabled.
 
@@ -131,6 +165,8 @@ Open **Zen Settings > Reader > Appearance > Bottom status bar > Status bar items
 ## End of book
 
 The Zen end-of-book screen reuses Home's featured book, statistics, quotes, and book strip widgets. Open **Zen Settings > Reader > End of book > Widgets** to reorder or hide widgets and customize their content independently of Home. **Preview** opens the screen for the current book without marking it finished.
+
+The optional **Delete** button is off by default. Enable it under **Widgets > Featured book > Buttons**. It asks for confirmation, then permanently deletes the book and returns to the library. Cancel keeps the end-of-book screen open. The button is disabled in Preview.
 
 Swipe a highlight left or right to browse this book's highlights and notes; each shows its page label. Tap it to return to that passage. The book strip offers books by the same author, the next unfinished volume in this series, and a next book from each other series already started. Recommendations use the library's indexed metadata.
 

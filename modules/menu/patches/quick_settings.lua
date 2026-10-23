@@ -821,7 +821,7 @@ local function apply_quick_settings()
             end,
         },
         airplanemode = {
-            icon = utils.resolveLocalIcon(_icons_dir, "airplane"),
+            icon = utils.resolveIcon(_icons_dir, "airplane"),
             label = _("Airplane mode"),
             visible_func = function() return hasPlugin("airplanemode") end,
             active_func = function()
@@ -896,7 +896,7 @@ local function apply_quick_settings()
             end,
         },
         tailscale = {
-            icon = utils.resolveLocalIcon(_icons_dir, "network"),
+            icon = utils.resolveIcon(_icons_dir, "network"),
             label = _("Tailscale"),
             visible_func = function() return getTailscalePlugin() ~= nil end,
             active_func = function()
@@ -1071,7 +1071,7 @@ local function apply_quick_settings()
             end,
         },
         battery_stats = {
-            icon = utils.resolveLocalIcon(_icons_dir, "quick_battery"),
+            icon = utils.resolveIcon(_icons_dir, "quick_battery"),
             label = _("Battery"),
             callback = function(touch_menu)
                 touch_menu:closeMenu()
@@ -1476,10 +1476,8 @@ local function apply_quick_settings()
                 height = rendered_icon_size,
                 alpha  = true,
             }
-            Accent.styleIcon(icon, active)
             local border = normal_border
-            local bg = active and Accent.color()
-                or disabled and Blitbuffer.COLOR_LIGHT_GRAY
+            local bg = disabled and Blitbuffer.COLOR_LIGHT_GRAY
                 or dimmed and Blitbuffer.COLOR_GRAY
                 or Blitbuffer.COLOR_WHITE
             local circle = FrameContainer:new{
@@ -1497,6 +1495,7 @@ local function apply_quick_settings()
                     icon,
                 },
             }
+            Accent.styleButton(circle, icon, active)
             circle.onFocus = function(self)
                 self.invert = true
                 if self.dimen then

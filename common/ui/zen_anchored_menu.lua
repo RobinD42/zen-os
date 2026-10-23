@@ -47,23 +47,7 @@ function M.new(options)
         anchor = options.anchor and anchor or nil,
         _zen_anchor_source = options.anchor,
     }
-    -- Native buttons choose text or an icon; retain their input handling and show both.
-    for i, row in ipairs(dialog.buttontable.buttons_layout) do
-        for j, button in ipairs(row) do
-            local spec = options.buttons[i][j]
-            if spec.text and spec.icon then
-                local padding = spec.padding_h or button.frame.padding_left
-                local width = button.dimen.w - padding * 2
-                button.frame.padding_left, button.frame.padding_right = padding, padding
-                button.label_widget:setMaxWidth(math.max(1, width - icon_size - gap))
-                button.label_container.dimen.w = width
-                button.label_container[1] = require("ui/widget/horizontalgroup"):new{
-                    require("ui/widget/iconwidget"):new{ file = spec.icon, width = icon_size, height = icon_size },
-                    require("ui/widget/horizontalspan"):new{ width = gap }, button.label_widget,
-                }
-            end
-        end
-    end
+    require("common/ui/button_labels").apply(dialog.buttontable, options.buttons, icon_size, gap)
     local ensure_anchor = dialog.movable.ensureAnchor
     function dialog.movable:ensureAnchor(x, y)
         ensure_anchor(self, x, y)

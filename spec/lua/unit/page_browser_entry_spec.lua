@@ -103,6 +103,7 @@ describe("page browser entry", function()
         ZenSpec.replace("ui/uimanager", {
             show = function(_, widget) shown = widget end,
             scheduleIn = function() end,
+            nextTick = function(_self, callback) callback() end,
             setDirty = function() end,
             unschedule = function() end,
         })
@@ -649,6 +650,28 @@ describe("page browser entry", function()
         expect(#browser.layout == 3)
         expect(browser.layout[2][2]._zen_focus_id == "page:2")
         expect(browser.layout[3][1]._zen_focus_id == "content:1:1")
+
+        local info, scrolls = focus_widget(), 0
+        info.layout = { { info } }
+        info._description_widget = {}
+        info._descriptionAtTop = function() return scrolls == 0 end
+        info.onKeyPress = function() scrolls = scrolls + 1; return true end
+        info.onKeyRepeat = info.onKeyPress
+        info.handleEvent = function(self, event) self._zen_focus_enabled = event.name == "Focus" end
+        browser._zen_active_tab, browser._zen_content_panel = "book_details", info
+        PageBrowserWidget._zenRebuildFocusLayout(browser, "header:1")
+        expect(#browser.layout == 2 and #browser.layout[2] == 1)
+        local function key(name)
+            return { match = function(_self, sequence) return sequence[1] == name end }
+        end
+        browser:onKeyPress(key("Down"))
+        expect(info._zen_focus_enabled and browser.selected.y == 2)
+        browser:onKeyPress(key("Down"))
+        browser:onKeyRepeat(key("Down"))
+        expect(scrolls == 2 and browser.selected.y == 2)
+        scrolls = 0
+        browser:onKeyPress(key("Up"))
+        expect(not info._zen_focus_enabled and browser.selected.y == 1)
     end)
 
     it("centers clipped carousel pages and recenters side taps", function()
@@ -1300,16 +1323,15 @@ describe("page browser entry", function()
         local browser = shell()
         PageBrowserWidget.init(browser)
         expect(browser.title_bar.title == "" and browser.title_bar.left_button == nil)
-        expect(#browser._zen_header_buttons == 7)
+        expect(#browser._zen_header_buttons == 6)
         for _i, button in ipairs(browser._zen_header_buttons) do
             expect(button.file:sub(1, 14) == "/custom-icons/")
         end
-        local info, close = browser._zen_header_buttons[1], browser._zen_header_buttons[7]
-        expect(info.file == "/custom-icons/info.svg" and info.overlap_offset[1] == 0)
+        local close = browser._zen_header_buttons[6]
+        expect(browser._zen_header_buttons[1].file == "/custom-icons/coverflow.svg")
         expect(close.file == "/custom-icons/close_light.svg" and close.overlap_align == "right")
         expect(browser._zen_tab_bar.selected == 1 and browser._zen_tab_bar.overlap_offset[1] == 172)
-        info.callback()
-        expect(details == browser.ui and closes == 0)
+        expect(details == nil and closes == 0)
         browser._zen_post_scrub = true
         browser._zen_placeholders_painted = true
         for _i, tab in ipairs({ { 2, "aa", "carousel" }, { 3, "annotations", "carousel" },
@@ -1390,6 +1412,132 @@ describe("page browser entry", function()
         PageBrowserWidget.init(ordered)
         expect(ordered._zen_active_tab == "aa")
         expect(#ordered._zen_tab_bar.cells == 3)
+        expect(#ordered._zen_header_buttons == 5)
+        cfg.tabs.book_details = true
+        ordered:_zenBuildHeaderTabs()
+        expect(#ordered._zen_tab_bar.cells == 4)
+        expect(ordered._zen_tab_bar.cells[4].file == "/custom-icons/info.svg")
+        local previous_layouts = layouts
+        ordered._zen_tab_bar.cells[4].callback()
+        expect(details == nil and layouts == previous_layouts + 1)
+        expect(ordered._zen_active_tab == "book_details" and ordered._zen_tab_bar.selected == 4)
+
+        local targeted = shell(browser.ui)
+        targeted._zen_initial_tab = "bookmarks"
+        PageBrowserWidget.init(targeted)
+        expect(targeted._zen_active_tab == "bookmarks")
+        expect(targeted._zen_tab_bar.cells[targeted._zen_tab_bar.selected].file == "/custom-icons/bookmark.svg")
+        expect(cfg.tabs.bookmarks == false)
+
+        cfg.tab_order = { "book_details" }
+        for id in pairs(cfg.tabs) do cfg.tabs[id] = id == "book_details" end
+        details = nil
+        local details_first = shell()
+        PageBrowserWidget.init(details_first)
+        expect(#details_first._zen_tab_bar.cells == 1 and details == nil)
+        expect(details_first._zen_active_tab == "book_details" and details_first._zen_tab_bar.selected == 1)
+    end)
+
+    it("offers bookmark and pin actions for the held page without navigating", function()
+        local PageBrowserWidget = { new = function(_self, spec) return spec end }
+        install_widget_dependencies(PageBrowserWidget)
+        ZenSpec.replace("apps/reader/modules/readermenu", {})
+        ZenSpec.replace("apps/reader/modules/readerconfig", {})
+        ZenSpec.replace("common/utils", {
+            resolveIcon = function(_dir, name) return "/custom-icons/" .. name .. ".svg" end,
+        })
+        local menu_size = { w = 120, h = 60 }
+        ZenSpec.replace("ui/widget/buttondialog", { new = function(_self, spec)
+            spec.getContentSize = function() return menu_size end
+            return spec
+        end })
+        ZenSpec.replace("common/ui/button_labels", {
+            prepare = function(buttons) return buttons end, apply = function() end,
+        })
+        local plugin = { config = { features = { page_browser = true, reader_references = false } } }
+        _G.__ZEN_UI_PLUGIN = plugin
+        require("modules/reader/patches/page_browser")()
+        require("apps/reader/modules/readerthumbnail"):onShowPageBrowser()
+        local closed, refreshed, invalidated, bookmarked = 0, 0, 0
+        local bookmarks = {}
+        require("ui/uimanager").close = function(_self, dialog)
+            expect(dialog == shown)
+            closed = closed + 1
+        end
+        local ui = {
+            rolling = {}, doc_settings = ZenSpec.memorySettings(),
+            document = { getPageCount = function() return 20 end,
+                getPageXPointer = function(_self, page) return "xp:" .. page end,
+                getPageFromXPointer = function(_self, xp) return tonumber(xp:match("%d+")) end },
+            bookmark = {
+                isPageBookmarked = function(_self, location)
+                    local page = type(location) == "string" and tonumber(location:match("^xp:(%d+)$")) or location
+                    return bookmarks[page] == true
+                end,
+                toggleBookmark = function(_self, page)
+                    bookmarked, bookmarks[page] = page, not bookmarks[page]
+                end,
+            },
+            getCurrentPage = function() return 2 end,
+        }
+        local browser = setmetatable({ ui = ui, _zen_plugin = plugin,
+            nb_grid_items = 2, _zen_visible_pages = { 7, 9 },
+            grid = {
+                { page_idx = 1, dimen = { x = 20, y = 100, w = 240, h = 360 } },
+                { page_idx = 2, dimen = { x = 300, y = 100, w = 240, h = 360 } },
+            },
+            updateEditableStuff = function(_self, redraw)
+                expect(redraw == true)
+                refreshed = refreshed + 1
+            end,
+        }, { __index = PageBrowserWidget })
+        local gesture = { pos = { x = 200, y = 300 } }
+        browser:onThumbnailHold(7, gesture)
+        expect(bookmarked == nil and refreshed == 0 and invalidated == 0)
+        expect(shown.name == "page_browser_page_actions" and #shown.buttons == 1 and #shown.buttons[1] == 2)
+        local anchor, pop_down = shown.anchor()
+        assert.same({ x = 80, y = 250, w = 120, h = 0 }, anchor)
+        expect(pop_down == true and shown.shrink_unneeded_width == true)
+        expect(shown.buttons[1][1].icon == "/custom-icons/bookmark.svg" and shown.buttons[1][1].text == nil)
+        expect(shown.buttons[1][2].icon == "/custom-icons/pin.svg" and shown.buttons[1][2].text == nil)
+        expect(shown.buttons[1][1].icon_height == 32 and shown.buttons[1][2].icon_height == 32)
+        shown.buttons[1][1].callback()
+        expect(bookmarked == 7 and refreshed == 1 and closed == 1)
+        gesture.pos = { x = 30, y = 110 }
+        browser:onThumbnailHold(7, gesture)
+        assert.same(anchor, shown.anchor())
+        expect(shown.buttons[1][1].icon == "/custom-icons/bookmark_remove.svg")
+        shown.buttons[1][2].callback()
+        assert.same({ "xp:7" }, ui.doc_settings:readSetting("zen_pinned_pages"))
+        expect(ui.doc_settings:readSetting("pinned_page") == "xp:7")
+        plugin.config.highlight_lookup = { show_labels = true }
+        browser:onThumbnailHold(7, gesture)
+        expect(shown.buttons[1][1].text == "Toggle page bookmark" and shown.buttons[1][2].text == "Remove pin")
+        expect(shown.buttons[1][2].icon == "/custom-icons/pin_remove.svg" and shown.buttons[1][2].height == 28)
+        shown.buttons[1][2].callback()
+        assert.same({}, ui.doc_settings:readSetting("zen_pinned_pages"))
+        expect(ui.doc_settings:readSetting("pinned_page") == nil)
+        ui.rolling, ui.paging = nil, {}
+        browser:onThumbnailHold(9, nil)
+        assert.same({ x = 360, y = 250, w = 120, h = 0 }, shown.anchor())
+        expect(shown.buttons[1][1].icon == "/custom-icons/bookmark.svg")
+        expect(shown.buttons[1][2].text == "Pin")
+        shown.buttons[1][2].callback()
+        assert.same({ 9 }, ui.doc_settings:readSetting("zen_pinned_pages"))
+        browser._zen_full_page_preview = { dimen = { x = 0, y = 0, w = 600, h = 800 },
+            invalidate = function() invalidated = invalidated + 1 end }
+        menu_size.w, menu_size.h = 200, 80
+        browser:onThumbnailHold(9, gesture)
+        assert.same({ x = 200, y = 360, w = 200, h = 0 }, shown.anchor())
+        expect(shown.buttons[1][2].icon == "/custom-icons/pin_remove.svg")
+        shown.buttons[1][2].callback()
+        expect(ui:getCurrentPage() == 2 and refreshed == 5 and closed == 5 and invalidated == 1)
+        browser:onThumbnailHold(7, gesture)
+        expect(shown.buttons[1][1].icon == "/custom-icons/bookmark_remove.svg")
+        shown.buttons[1][1].callback()
+        expect(bookmarks[7] == false)
+        browser:onThumbnailHold(7, gesture)
+        expect(shown.buttons[1][1].icon == "/custom-icons/bookmark.svg")
     end)
 
     it("renders Android PDF Aa thumbnails with reading settings and leaves the live reader intact", function()

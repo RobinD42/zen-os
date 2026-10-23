@@ -73,6 +73,10 @@ function ZenSlider:new(o)
     obj.track_height  = obj.track_height  or Screen:scaleBySize(1)   -- very thin rail
     obj.fill_height   = obj.fill_height   or Screen:scaleBySize(6)   -- thicker filled bar
     obj.knob_radius   = obj.knob_radius   or Screen:scaleBySize(16.5)
+    obj._accent_fill  = not obj.fill_color
+    obj._accent_track = not obj.track_color and obj._accent_fill
+    obj._accent_knob  = not obj.knob_color
+    obj._night_mode   = Screen.night_mode
     obj.fill_color    = obj.fill_color    or Accent.color()
     obj.track_color   = obj.track_color   or obj.fill_color -- Avoid black-to-color rail trails on e-ink.
     obj.knob_color    = obj.knob_color    or Accent.color()
@@ -167,6 +171,13 @@ end
 -- ---------------------------------------------------------------------------
 
 function ZenSlider:paintTo(bb, x, y)
+    if self._night_mode ~= Screen.night_mode then
+        local color = Accent.color()
+        if self._accent_fill then self.fill_color = color end
+        if self._accent_track then self.track_color = color end
+        if self._accent_knob then self.knob_color = color end
+        self._night_mode = Screen.night_mode
+    end
     self.dimen.x = x
     self.dimen.y = y
 

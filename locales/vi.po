@@ -3739,6 +3739,12 @@ msgid "Night mode"
 msgstr "Chế độ ban đêm"
 
 #. Type: setting
+#. Context: Màu nhấn riêng cho chế độ ban đêm.
+#: interface_settings.lua:152
+msgid "Night mode accent"
+msgstr "Màu nhấn chế độ ban đêm"
+
+#. Type: setting
 #. Context: Tên mục cài đặt trong phần cài đặt lịch hoạt động của thiết bị và màn hình ngủ.
 #: global_settings.lua:470
 msgid "Night mode off time"

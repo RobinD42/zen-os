@@ -23,6 +23,17 @@ local function toc_items(pbw, focus_page)
 end
 
 function M.build(pbw, kind, width, height, on_navigate)
+    if kind == "book_details" then
+        local spec = require("modules/reader/book_details").buildSpec(pbw.ui, {
+            config = pbw._zen_plugin.config, plugin = pbw._zen_plugin,
+        })
+        spec.width, spec.height, spec.show_title, spec.show_parent = width, height, false, pbw
+        local panel = require("modules/reader/book_info_widget"):new(spec)
+        panel.layout = { { panel } }
+        panel.onClose = function() return pbw:onClose() end
+        panel.onCloseWidget = panel.free
+        return panel
+    end
     if kind ~= "toc" then
         return require("modules/reader/annotation_viewer").build(pbw, kind, width, height)
     end

@@ -23,15 +23,13 @@ do
     end
 end
 
-local calendar_icon_path = utils.resolveLocalIcon(_icons_dir, "calendar")
+local calendar_icon_path = utils.resolveIcon(_icons_dir, "calendar")
 local stat_icon_paths = {
     book_days = calendar_icon_path,
     book_duration = utils.resolveLocalIcon(_icons_dir, "tab_to_be_read"),
-    book_page_minutes = utils.resolveLocalIcon(
-        require("libs/libkoreader-lfs").currentdir() .. "/resources/icons/mdlight/", "book.opened")
-        or utils.resolveLocalIcon(_icons_dir, "book_open"),
+    book_page_minutes = utils.resolveIcon(_icons_dir, "book_open"),
     book_daily_minutes = calendar_icon_path,
-    streak = utils.resolveLocalIcon(_icons_dir, "flame"),
+    streak = utils.resolveIcon(_icons_dir, "flame"),
 }
 local MIN_FONT_SIZE = 8
 local MAX_FONT_SIZE = 64

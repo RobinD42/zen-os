@@ -16,6 +16,7 @@ local PATCH_MODULES = {
     margin_hold_guard = "modules/reader/patches/margin_hold_guard",
     bookmarks = "modules/reader/patches/bookmarks",
     page_browser = "modules/reader/patches/page_browser",
+    reader_references = "modules/reader/patches/reader_references",
     stable_page_statistics = "modules/reader/patches/stable_page_statistics",
     highlight_names = "modules/reader/patches/highlight_names",
     highlight_menu = "modules/reader/patches/highlight_menu",
@@ -57,6 +58,9 @@ function M.init(logger, plugin)
     if initialized then
         return true
     end
+
+    local references_fn = load_patch("reader_references")
+    if references_fn then run_feature(logger, plugin, "reader_references", references_fn) end
 
     -- Route KOReader's File browser gesture through the same transition as ZenOS.
     local library_navigation_fn = load_patch("library_navigation")

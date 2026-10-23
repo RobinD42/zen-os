@@ -48,6 +48,7 @@ describe("frontlight slider", function()
         ZenSpec.replace("ui/widget/container/centercontainer", widget_class({}))
         ZenSpec.replace("ui/widget/container/framecontainer", widget_class({
             getSize = function() return { w = 100, h = 30 } end,
+            paintTo = function() end,
         }))
         ZenSpec.replace("ui/geometry", widget_class({}))
         ZenSpec.replace("ui/widget/horizontalgroup", widget_class({
@@ -55,7 +56,7 @@ describe("frontlight slider", function()
         }))
         ZenSpec.replace("ui/widget/horizontalspan", widget_class({}))
         ZenSpec.replace("ui/widget/container/leftcontainer", widget_class({}))
-        ZenSpec.replace("ui/widget/iconwidget", widget_class({}))
+        ZenSpec.replace("ui/widget/iconwidget", widget_class({ free = function() end }))
         ZenSpec.replace("ui/widget/linewidget", widget_class({}))
         ZenSpec.replace("ui/widget/textwidget", widget_class(text_methods))
         ZenSpec.replace("ui/widget/verticalgroup", widget_class({}))
@@ -81,7 +82,7 @@ describe("frontlight slider", function()
             paintTo = function() end,
         }))
         ZenSpec.replace("common/utils", {
-            resolveLocalIcon = function(_dir, name) return "/tmp/zen-ui/icons/" .. name .. ".svg" end,
+            resolveIcon = function(_dir, name) return "/icons/zen/selected/" .. name .. ".svg" end,
         })
         ZenSpec.replace("common/widget_resources", { paintFrameBorderOnTop = function() end })
         ZenSpec.replace("modules/filebrowser/patches/library_font", {
@@ -260,9 +261,10 @@ describe("frontlight slider", function()
     end)
 
     it("moves the accent background and icon styling between unified slider tabs", function()
+        local screen = package.loaded["device"].screen
         ZenSpec.replace("common/ui/accent", {
             isEnabled = function() return true end,
-            color = function() return "accent" end,
+            color = function() return screen.night_mode and "night accent" or "accent" end,
             styleIcon = function(icon, active) icon.active = active end,
         })
         ZenSpec.replace("ui/widget/iconwidget", widget_class({ free = function() end }))
@@ -270,6 +272,8 @@ describe("frontlight slider", function()
         opts.show_frontlight, opts.show_warmth = true, true
         require("modules/menu/patches/brightness_slider")(touch_menu(), opts)
         local brightness, warmth = opts.refs.toggles[1].toggle, opts.refs.toggles[2].toggle
+        assert.are.equal("/icons/zen/selected/brightness.svg", brightness[1].file)
+        assert.are.equal("/icons/zen/selected/warmth.svg", warmth[1].file)
         assert.are.equal("accent", brightness.background)
         assert.is_true(brightness[1].active)
         assert.is_false(brightness.invert)
@@ -282,6 +286,15 @@ describe("frontlight slider", function()
         opts.refs.toggles[1].callback()
         assert.are.equal("accent", brightness.background)
         assert.is_false(warmth[1].active)
+        for _i, night_mode in ipairs({ true, false }) do
+            screen.night_mode = night_mode
+            brightness:paintTo({}, 0, 0)
+            warmth:paintTo({}, 0, 0)
+            assert.are.equal(night_mode and "night accent" or "accent", brightness.background)
+            assert.is_true(brightness[1].active)
+            assert.are.equal(0, warmth.background)
+            assert.is_false(warmth[1].active)
+        end
     end)
 
     it("uses a local grayscale refresh for accent drags and a fast refresh for black drags", function()

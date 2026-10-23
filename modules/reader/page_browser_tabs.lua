@@ -37,7 +37,7 @@ function M.get(config)
     return cfg
 end
 
-function M.list(config, ui, include_disabled)
+function M.list(config, ui, include_disabled, extra_tab)
     local cfg = M.get(config)
     local _ = require("gettext")
     local paging = ui and ui.paging
@@ -48,10 +48,11 @@ function M.list(config, ui, include_disabled)
         highlights = { "lookup_highlight", _("Highlights") },
         annotations = { "book_open", _("Annotations") },
         toc = { "toc", _("Table of contents") },
+        book_details = { "info", _("Book details") },
     }
     local entries = {}
     for _i, id in ipairs(cfg.tab_order) do
-        if include_disabled or cfg.tabs[id] then
+        if include_disabled or cfg.tabs[id] or id == extra_tab then
             entries[#entries + 1] = { id = id, icon = labels[id][1], text = labels[id][2] }
         end
     end

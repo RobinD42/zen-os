@@ -207,7 +207,7 @@ describe("Zen TOC hardware focus", function()
     end
 
     it("moves from Back through every visible section and footer button", function()
-        local widget = new_widget()
+        local widget = new_widget(nil, nil, true)
         assert.are.equal("back", widget._zen_focus_area)
         assert.are.equal("Back", widget.key_events.Close[1][1])
         assert.are.equal("PgFwd", widget.key_events.TocPageDown[1][1])
@@ -252,8 +252,8 @@ describe("Zen TOC hardware focus", function()
     end)
 
     it("aligns its title, back icon, and close icon with the header", function()
-        local widget = new_widget()
-        widget:paintTo({ paintRect = function() end }, 0, 0)
+        local widget = new_widget(nil, nil, true)
+        widget:paintTo({ paintRect = function() end, invertRect = function() end }, 0, 0)
 
         assert.are.equal("settings_title", title_spec.face.name)
         assert.are.equal(54, title_spec.paint_x)
@@ -278,10 +278,10 @@ describe("Zen TOC hardware focus", function()
         assert.are.same({ x = 540, y = 10, w = 36, h = 36 }, feedback_region)
     end)
 
-    it("hides Back and skips its focus and touch target when opened from Reader controls", function()
-        local widget = new_widget(nil, nil, false)
+    it("hides Back and skips its focus and touch target in a standalone TOC", function()
+        local widget = new_widget()
         assert.are.equal("close", widget._zen_focus_area)
-        widget:paintTo({ paintRect = function() end }, 0, 0)
+        widget:paintTo({ paintRect = function() end, invertRect = function() end }, 0, 0)
         assert.is_nil(back_icon)
         assert.is_not_nil(close_icon)
         widget:_moveFocus(0, 1)
@@ -295,7 +295,7 @@ describe("Zen TOC hardware focus", function()
     it("treats a tap on the title text as Back", function()
         local parent_closes = 0
         local widget = new_widget(nil, function() parent_closes = parent_closes + 1 end)
-        widget:paintTo({ paintRect = function() end }, 0, 0)
+        widget:paintTo({ paintRect = function() end, invertRect = function() end }, 0, 0)
         local hit = widget._title_hit
 
         assert.is_true(widget:_onTap({
@@ -313,7 +313,7 @@ describe("Zen TOC hardware focus", function()
                 document = { configurable = { font_size = 21 } },
             },
         }
-        widget:paintTo({ paintRect = function() end }, 0, 0)
+        widget:paintTo({ paintRect = function() end, invertRect = function() end }, 0, 0)
 
         assert.are.equal("Translated contents", title_spec.text)
         local found_empty
@@ -374,7 +374,7 @@ describe("Zen TOC hardware focus", function()
 
     it("refreshes the whole screen when Back or X dismisses a standalone TOC", function()
         for _i, x in ipairs({ 20, 550 }) do
-            local widget = new_widget(function() error("dismissal must not navigate") end)
+            local widget = new_widget(function() error("dismissal must not navigate") end, nil, true)
 
             assert.is_true(widget:_onTap({ pos = { x = x, y = 10 } }))
             assert.are.equal(widget, close_request.widget)
@@ -386,7 +386,7 @@ describe("Zen TOC hardware focus", function()
 
     it("uses the library face and size for TOC entries", function()
         local widget = new_widget()
-        widget:paintTo({ paintRect = function() end }, 0, 0)
+        widget:paintTo({ paintRect = function() end, invertRect = function() end }, 0, 0)
 
         assert.same({ name = "LibraryFont", size = 21, index = nil }, font_calls[1])
     end)

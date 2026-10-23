@@ -56,16 +56,30 @@ function M.arrange(buttons, settings, handles_available, icons)
     -- Leave unfamiliar upstream layouts intact.
     if index ~= #UPSTREAM_ORDER then return buttons end
     local rows = {}
+    local labels = settings.show_labels and M.labels()
     for _i, id in ipairs(M.getOrder(settings)) do
         if M.isEnabled(settings, id, handles_available) then
             if #rows == 0 or #rows[#rows] == 6 then rows[#rows + 1] = {} end
             if icons and icons[id] then
-                by_id[id].icon, by_id[id].text = icons[id], nil
+                by_id[id].icon = icons[id]
+                by_id[id].text = labels and labels[id] or nil
             end
             table.insert(rows[#rows], by_id[id])
         end
     end
     return rows
+end
+
+function M.compact(buttons)
+    local Screen = require("device").screen
+    for _i, row in ipairs(buttons) do
+        for _j, button in ipairs(row) do
+            if button.icon then
+                button.height = Screen:scaleBySize(button.text and 28 or 32)
+                if not button.text then button.icon_width, button.icon_height = button.height, button.height end
+            end
+        end
+    end
 end
 
 return M

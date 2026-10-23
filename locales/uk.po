@@ -3739,6 +3739,12 @@ msgid "Night mode"
 msgstr "Нічний режим"
 
 #. Type: setting
+#. Context: Окремий акцентний колір для нічного режиму.
+#: interface_settings.lua:152
+msgid "Night mode accent"
+msgstr "Акцентний колір нічного режиму"
+
+#. Type: setting
 #. Context: Назва налаштування у налаштуваннях дій пристрою за розкладом та екрана сну.
 #: global_settings.lua:470
 msgid "Night mode off time"

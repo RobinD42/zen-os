@@ -1,4 +1,4 @@
--- ZenOS: Icon-only DictQuickLookup buttons
+-- ZenOS: Compact DictQuickLookup buttons
 -- Replaces the dictionary popup's text button row with a compact icon row.
 -- Supports both old KOReader (DictButtonsReady event) and new KOReader
 -- (buildButtonLayout override). When "show other items" is enabled,
@@ -12,9 +12,21 @@ local function apply()
     local UIManager = require("ui/uimanager")
     local logger = require("common/zen_logger").new("dict_quick_lookup")
     local LookupPluginItems = require("modules/reader/lookup_plugin_items")
+    local References = require("modules/reader/references")
+    local Labels = require("common/ui/button_labels")
+    local function add_pin_button(widget, buttons)
+        local dictionary = widget.ui and widget.ui.dictionary
+        widget._zen_pin_page = widget._zen_pin_page or dictionary and dictionary._zen_reference_page
+        if not widget._zen_pin_page and widget.highlight and widget.highlight.selected_text then
+            widget._zen_pin_page = References.selectionPage(widget.highlight)
+        end
+        if widget._zen_pin_page then
+            References.addPinButton(buttons, widget.ui, widget._zen_pin_page, function() widget:onClose() end, "dict_quick_lookup")
+        end
+    end
     local utils = require("common/utils")
     local plugin_root = require("common/plugin_root")
-    local ai_icon = utils.resolveLocalIcon(plugin_root and plugin_root .. "/icons/", "lookup_ai")
+    local ai_icon = utils.resolveIcon(plugin_root and plugin_root .. "/icons/", "lookup_ai")
     local _ = require("gettext")
 
     local _plugin_ref = rawget(_G, "__ZEN_UI_PLUGIN")
@@ -24,6 +36,34 @@ local function apply()
             and _plugin_ref.config
             and _plugin_ref.config.features
         return type(features) == "table" and features.dict_quick_lookup == true
+    end
+
+    local function show_labels()
+        local settings = _plugin_ref and _plugin_ref.config.dict_quick_lookup
+        return settings and settings.show_labels == true
+    end
+
+    local function prepare_labels(widget, buttons)
+        if not show_labels() then return buttons end
+        local Size = require("ui/size")
+        return Labels.prepare(buttons, widget.width - 2 * (Size.border.window + Size.padding.default))
+    end
+
+    local init = DictQuickLookup.init
+    DictQuickLookup.init = function(self, ...)
+        local result = init(self, ...)
+        if is_enabled() and show_labels() and not self.is_wiki and not self.is_wiki_fullpage then
+            Labels.apply(self.button_table, self.button_table.buttons)
+        end
+        return result
+    end
+
+    local function update_vocab_icon(widget, in_vocab)
+        local button = widget.button_table and widget.button_table:getButtonById("vocabulary")
+        if not button then return end
+        local icon = in_vocab and "lookup.vocab_remove" or "lookup.vocab"
+        button:setIcon(icon, button.width)
+        if show_labels() then Labels.applyButton(button, { icon = icon }) end
     end
 
     local function show_wikipedia()
@@ -67,6 +107,8 @@ local function apply()
         prev_dict = "prev_dict",
         next_dict = "next_dict",
     }
+    local LABELS = { highlight = _("Highlight"), search = _("Search"), wikipedia = _("Wikipedia"),
+        translate = _("Translate"), vocabulary = _("Vocabulary") }
 
     local function is_vocabulary_button(button, dict_widget)
         if button.id == "vocabulary" then return true end
@@ -93,6 +135,7 @@ local function apply()
         return {
             id = "zen_ai_assistant",
             icon = ai_icon,
+            text = show_labels() and _("AI assistant") or nil,
             callback = function()
                 if not assistant:isConfigured() then return end
                 local NetworkMgr = require("ui/network/manager")
@@ -114,6 +157,7 @@ local function apply()
         return {
             id            = orig.id,
             icon          = icon,
+            text          = show_labels() and (LABELS[orig.id] or orig.text) or nil,
             enabled       = orig.enabled,
             enabled_func  = orig.enabled_func,
             callback      = orig.callback,
@@ -130,6 +174,7 @@ local function apply()
         return {
             id = "translate",
             icon = ICON_MAP.translate,
+            text = show_labels() and _("Translate") or nil,
             enabled = not dict_widget.isDocless or not dict_widget:isDocless(),
             callback = function()
                 Translator:showTranslation(dict_widget.lookupword or dict_widget.word, true)
@@ -248,27 +293,20 @@ local function apply()
 
                 local v = icon_btn(vocab_btn, "lookup.vocab")
                 v.id = "vocabulary"
+                v.text = show_labels() and _("Vocabulary") or nil
                 v.callback = function()
                     if not is_in_vocab then
                         self_dql.ui:handleEvent(
                             Event:new("WordLookedUp", vocab_word, get_book_title(), true)
                         )
                         is_in_vocab = true
-                        local btn_w = self_dql.button_table
-                            and self_dql.button_table:getButtonById("vocabulary")
-                        if btn_w then
-                            btn_w:setIcon("lookup.vocab_remove", btn_w.width)
-                        end
+                        update_vocab_icon(self_dql, true)
                     else
                         if DB and DB.remove then
                             DB:remove({ word = vocab_word })
                         end
                         is_in_vocab = false
-                        local btn_w = self_dql.button_table
-                            and self_dql.button_table:getButtonById("vocabulary")
-                        if btn_w then
-                            btn_w:setIcon("lookup.vocab", btn_w.width)
-                        end
+                        update_vocab_icon(self_dql, false)
                     end
                     UIManager:setDirty(self_dql, "ui")
                 end
@@ -322,8 +360,9 @@ local function apply()
             logger.dbg("new-api icon_row=",
                 #icon_row, "unknown=", #unknown)
             result = #result > 0 and result or buttons
+            add_pin_button(self_dql, result)
             LookupPluginItems.protectButtons(result)
-            return result
+            return prepare_labels(self_dql, result)
         end
 
         logger.dbg("installed new-API buildButtonLayout override")
@@ -451,21 +490,10 @@ local function apply()
                                 or _("Dictionary lookup")
                         end
 
-                        local function update_vocab_icon(in_vocab)
-                            local btn_w = self_dql.button_table
-                                and self_dql.button_table:getButtonById("vocabulary")
-                            if btn_w then
-                                btn_w:setIcon(
-                                    in_vocab and "lookup.vocab_remove" or "lookup.vocab",
-                                    btn_w.width
-                                )
-                            end
-                            UIManager:setDirty(self_dql, "ui")
-                        end
-
                         local v = {
                             id   = "vocabulary",
                             icon = "lookup.vocab",
+                            text = show_labels() and _("Vocabulary") or nil,
                             callback = function()
                                 if not is_in_vocab then
                                     -- Add: fire WordLookedUp so VocabBuilder handles insert.
@@ -473,15 +501,16 @@ local function apply()
                                         Event:new("WordLookedUp", vocab_word, get_book_title(), true)
                                     )
                                     is_in_vocab = true
-                                    update_vocab_icon(true)
+                                    update_vocab_icon(self_dql, true)
                                 else
                                     -- Remove directly (no confirmation, matching icon-toggle UX).
                                     if DB and DB.remove then
                                         DB:remove({ word = vocab_word })
                                     end
                                     is_in_vocab = false
-                                    update_vocab_icon(false)
+                                    update_vocab_icon(self_dql, false)
                                 end
+                                UIManager:setDirty(self_dql, "ui")
                             end,
                         }
                         table.insert(icon_row, 2, v)
@@ -508,7 +537,13 @@ local function apply()
                             end
                         end
                     end
+                    add_pin_button(self_dql, buttons)
                     LookupPluginItems.protectButtons(buttons)
+                    local labelled = prepare_labels(self_dql, buttons)
+                    if labelled ~= buttons then
+                        for i = #buttons, 1, -1 do buttons[i] = nil end
+                        for i, row in ipairs(labelled) do buttons[i] = row end
+                    end
                 end
                 return result
             end

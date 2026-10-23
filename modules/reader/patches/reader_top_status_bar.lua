@@ -4,13 +4,14 @@ local function apply_reader_top_status_bar()
         Left / center / right slots each hold an ordered list of item keys.
         Items: time, battery, battery_icon, battery_percent, wifi, bluetooth, frontlight, ram,
                disk, incognito, custom_text, book_title, author, chapter,
-               progress_percent, current_page, total_pages, page_progress
+               progress_percent, current_page, total_pages, page_progress, pin
         Wraps ReaderView.paintTo. Config via config.reader_top_status_bar.
     --]]
 
     local Blitbuffer    = require("ffi/blitbuffer")
     local TextWidget    = require("ui/widget/textwidget")
     local ColorTextWidget = require("common/ui/color_text_widget")
+    local ColorIconWidget = require("common/ui/color_icon_widget")
     local CenterContainer = require("ui/widget/container/centercontainer")
     local LeftContainer   = require("ui/widget/container/leftcontainer")
     local RightContainer  = require("ui/widget/container/rightcontainer")
@@ -24,11 +25,11 @@ local function apply_reader_top_status_bar()
     local Size     = require("ui/size")
     local Geom     = require("ui/geometry")
     local Device   = require("device")
-    local Font     = require("ui/font")
     local T        = require("ffi/util").template
     local datetime = require("datetime")
     local UIManager = require("ui/uimanager")
     local zen_utils = require("common/utils")
+    local pin_icon = zen_utils.resolveLocalIcon(require("common/plugin_root") .. "/icons/", "pin")
     local inline_icons = require("common/inline_icon_map")
     local _ = require("gettext")
     local ReaderThemes = require("common/reader_themes")
@@ -40,6 +41,7 @@ local function apply_reader_top_status_bar()
     local ReaderView = require("apps/reader/modules/readerview")
     local ReaderUI = require("apps/reader/readerui")
     local ReaderStatusBar = require("common/reader_status_bar")
+    local References = require("modules/reader/references")
     local HighlightViewport = require("modules/reader/highlight_viewport")
     local _ReaderView_paintTo_orig = ReaderView.paintTo
     local zen_plugin = rawget(_G, "__ZEN_UI_PLUGIN")
@@ -390,7 +392,15 @@ local function apply_reader_top_status_bar()
         return ("%." .. digits .. "f%%"):format(percent * 100), nil
     end
 
+    local function getPinItem(doc_ctx)
+        local ui = doc_ctx and doc_ctx.ui
+        if References.enabled(ui) and References.isPinned(ui, ui:getCurrentPage()) then
+            return pin_icon
+        end
+    end
+
     local item_fetchers = {
+        pin         = getPinItem,
         wifi        = getWifiItem,
         bluetooth   = getBluetoothItem,
         incognito   = getIncognitoItem,
@@ -423,13 +433,18 @@ local function apply_reader_top_status_bar()
                 local icon, label, color, force_color = fn(doc_ctx)
                 if icon ~= nil then
                     local text = label and (icon .. label) or icon
-                    table.insert(texts, {
+                    local entry = {
                         key = key,
                         text = text,
                         icon = icon,
                         label = label,
                         color = color and (use_color or force_color) and color or nil,
-                    })
+                    }
+                    if key == "pin" then
+                        entry.file, entry.text = icon, ""
+                        entry.size = Screen:scaleBySize((cfg and cfg.font_size or 14) + 2)
+                    end
+                    table.insert(texts, entry)
                 end
             end
         end
@@ -449,26 +464,28 @@ local function apply_reader_top_status_bar()
                 total = total + sep_w:getSize().w
                 sep_w:free()
             end
-            local tw = TextWidget:new{
-                text = texts[i].text,
-                face = face,
-                fgcolor = header_text_color(),
-                padding = 0,
-            }
-            total = total + tw:getSize().w
-            tw:free()
+            if texts[i].file then
+                total = total + texts[i].size
+            else
+                local tw = TextWidget:new{
+                    text = texts[i].text, face = face, fgcolor = header_text_color(), padding = 0,
+                }
+                total = total + tw:getSize().w
+                tw:free()
+            end
         end
         return total
     end
 
     -- Builds a HorizontalGroup from pre-collected texts.
-    -- If max_width is set and content overflows, rebuilds as a single ellipsis-truncated TextWidget.
+    -- Truncate overflowing text while preserving SVG icons.
     -- Returns (group_or_nil, widgets_list, natural_width).
     local function buildGroupFromTexts(texts, face, sep, max_width)
         if type(texts) ~= "table" or #texts == 0 then return nil, {}, 0 end
         if max_width and max_width <= 0 then return nil, {}, measureTextsWidth(texts, face, sep) end
         local group = HorizontalGroup:new{}
         local widgets = {}
+        local has_image = false
         local natural_w = measureTextsWidth(texts, face, sep)
         for i = 1, #texts do
             if i > 1 and sep ~= "" then
@@ -483,7 +500,15 @@ local function apply_reader_top_status_bar()
                 table.insert(widgets, sep_w)
             end
             local entry = texts[i]
-            if entry.color and entry.icon ~= "" then
+            if entry.file then
+                local size = math.min(entry.size, max_width or entry.size)
+                local icon = ColorIconWidget:new{
+                    icon = entry.file, width = size, height = size, alpha = true, fgcolor = header_text_color(),
+                }
+                table.insert(group, icon)
+                table.insert(widgets, icon)
+                has_image = true
+            elseif entry.color and entry.icon ~= "" then
                 local icon_w = ColorTextWidget:new{
                     text = entry.icon,
                     face = face,
@@ -517,6 +542,22 @@ local function apply_reader_top_status_bar()
         end
 
         if max_width and natural_w > max_width then
+            if has_image then
+                local image_width, text_width = 0, 0
+                for _i, widget in ipairs(widgets) do
+                    if widget.setMaxWidth then text_width = text_width + widget:getSize().w
+                    else image_width = image_width + widget:getSize().w end
+                end
+                local ratio = math.max(0, max_width - image_width) / math.max(1, text_width)
+                for _i, widget in ipairs(widgets) do
+                    if widget.setMaxWidth then
+                        local cap = math.floor(widget:getSize().w * ratio)
+                        widget:setMaxWidth(math.max(1, cap))
+                        if widget:getSize().w > cap then widget:setText("") end
+                    end
+                end
+                return group, widgets, natural_w
+            end
             for _i, w in ipairs(widgets) do if w.free then w:free() end end
             local joined = texts[1] and texts[1].text or ""
             for i = 2, #texts do joined = joined .. sep .. texts[i].text end
@@ -616,16 +657,6 @@ local function apply_reader_top_status_bar()
         return orders
     end
 
-    local function getHeaderFace(cfg)
-        local footer_settings = G_reader_settings:readSetting("footer")
-        local face_cfg = type(cfg) == "table" and cfg.font_face or "default"
-        local font_name = face_cfg == "default"
-            and ((footer_settings and footer_settings.text_font_face) or "NotoSans-Regular.ttf")
-            or face_cfg
-        local font_size = type(cfg) == "table" and cfg.font_size or 14
-        return Font:getFace(font_name, font_size) or Font:getFace("cfont", font_size)
-    end
-
     local function getReservedHeaderHeight(view)
         if not is_enabled() or view.footer.reclaim_height then return 0 end
         local cfg = zen_plugin and zen_plugin.config and zen_plugin.config.reader_top_status_bar
@@ -672,7 +703,7 @@ local function apply_reader_top_status_bar()
     local function buildHeader(doc_ctx)
         local screen_width = Screen:getWidth()
         local cfg = zen_plugin and zen_plugin.config and zen_plugin.config.reader_top_status_bar
-        local face = getHeaderFace(cfg)
+        local face = ReaderStatusBar.getHeaderFace(cfg)
 
         local top_pad = Size.padding.small
         local h_pad   = Size.span.horizontal_default
@@ -992,7 +1023,12 @@ local function apply_reader_top_status_bar()
                 end
             end
         end
-        UIManager:widgetRepaint(header, dimen.x, dimen.y)
+        -- Clip unchanged slots to avoid darkening antialiased text on repeated paints.
+        for _i, region in ipairs(refresh_regions) do
+            local viewport = Screen.bb:viewport(region.x, region.y, region.w, region.h)
+            header:paintTo(viewport, dimen.x - region.x, dimen.y - region.y)
+            viewport:free()
+        end
         if view.dogear_visible and view.dogear and type(view.dogear.paintTo) == "function" then
             view.dogear:paintTo(Screen.bb, dimen.x, dimen.y)
         end

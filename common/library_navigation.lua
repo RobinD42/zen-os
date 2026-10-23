@@ -92,8 +92,11 @@ function M.returnToRakuyomiReader(plugin)
             or type(MangaReader.onReturn) ~= "function" then
         return false
     end
-    MangaReader:onReturn()
-    return true
+    local returned, err = pcall(MangaReader.onReturn, MangaReader)
+    if not returned then
+        require("common/zen_logger").new("library_navigation").warn("Rakuyomi return failed", err)
+    end
+    return returned
 end
 
 function M.showFromReader(ui, plugin, opts)

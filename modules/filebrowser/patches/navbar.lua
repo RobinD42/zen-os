@@ -1,3 +1,5 @@
+local KINDLE_PROVIDER = "modules/filebrowser/patches/kindle_virtual_library"
+
 local function apply_navbar()
     -- Bottom nav bar for the KOReader File Manager.
 
@@ -26,7 +28,7 @@ local function apply_navbar()
     local MemoryPolicy = require("common/memory_policy")
     local SharedState = require("common/shared_state")
     local ButtonModel = require("common/nav_button_model")
-    local Kindle = require("modules/filebrowser/patches/kindle_virtual_library")
+    local OptionalProvider = require("common/optional_provider")
     local StandalonePage = require("modules/filebrowser/patches/standalone_page")
     local NativeMenu = require("modules/menu/app_launcher/native_menu")
     local PluginScan = require("modules/menu/app_launcher/plugin_scan")
@@ -1262,7 +1264,7 @@ local function apply_navbar()
     end
 
     local function onTabKindle()
-        return Kindle.open()
+        return OptionalProvider.call(KINDLE_PROVIDER, "open") or false
     end
 
     local function onTabManga()
@@ -1279,9 +1281,7 @@ local function apply_navbar()
         end
 
         local Rakuyomi = getRakuyomi()
-        if type(Rakuyomi.openLibraryView) == "function" then
-            Rakuyomi.openLibraryView({ hideTopClose = true, forceLibraryView = true })
-        end
+        OptionalProvider.call(Rakuyomi, "openLibraryView", { hideTopClose = true, forceLibraryView = true })
     end
 
     local function onTabFolder()
@@ -1581,7 +1581,7 @@ local function apply_navbar()
     local function onTabMenu()
         local stack = UIManager._window_stack
         local top = type(stack) == "table" and stack[#stack]
-        if Kindle.showContextMenu(top and top.widget) then return end
+        if OptionalProvider.call(KINDLE_PROVIDER, "showContextMenu", top and top.widget) then return end
         local fm = FileManager.instance
         if not fm or not fm.file_chooser then return end
         local fc = fm.file_chooser
@@ -1674,7 +1674,7 @@ local function apply_navbar()
     local function is_tab_enabled(tab_id)
         return config.show_tabs[tab_id] == true
             and (tab_id ~= "archive" or paths.getArchiveDir() ~= nil)
-            and (tab_id ~= "kindle" or Kindle.isAvailable())
+            and (tab_id ~= "kindle" or OptionalProvider.call(KINDLE_PROVIDER, "isAvailable") == true)
     end
 
     local function first_enabled_default_tab()
@@ -2341,6 +2341,19 @@ local function apply_navbar()
         end
 
         navbar[1] = visual
+        if zen_plugin.config.accent_night_enabled == true then
+            local night_mode = Screen.night_mode
+            local paint = navbar.paintTo
+            function navbar:paintTo(bb, x, y)
+                if night_mode ~= Screen.night_mode then
+                    local rebuilt = createNavBar()
+                    self[1]:free()
+                    self[1] = rebuilt[1]
+                    night_mode = Screen.night_mode
+                end
+                return paint(self, bb, x, y)
+            end
+        end
         _G.__ZEN_UI_NAVBAR_HEIGHT = navbar:getSize().h
         return navbar
     end
@@ -2385,14 +2398,13 @@ local function apply_navbar()
 
     local function isRakuyomiView(menu)
         local Rakuyomi = getRakuyomi()
-        return type(Rakuyomi.isLibraryView) == "function" and Rakuyomi.isLibraryView(menu)
+        return OptionalProvider.call(Rakuyomi, "isLibraryView", menu) == true
     end
 
     local function closeStandaloneView(menu)
         if not menu then return end
         local Rakuyomi = getRakuyomi()
-        local closed = type(Rakuyomi.closeLibraryView) == "function"
-            and Rakuyomi.closeLibraryView(menu)
+        local closed = OptionalProvider.call(Rakuyomi, "closeLibraryView", menu)
         if not closed then
             if menu.close_callback then
                 menu.close_callback()
@@ -2415,41 +2427,35 @@ local function apply_navbar()
             return true
         end
         return standalone_view_names[widget.name] == true
-            or Kindle.isLibraryView(widget)
+            or OptionalProvider.call(KINDLE_PROVIDER, "isLibraryView", widget) == true
             or isRakuyomiView(widget)
             or widget._zen_standalone_navbar_injected == true
     end
 
     local function getStandaloneNextTickTabId(menu)
-        if Kindle.isLibraryView(menu) then return "kindle" end
+        if OptionalProvider.call(KINDLE_PROVIDER, "isLibraryView", menu) then return "kindle" end
         local Rakuyomi = getRakuyomi()
-        if type(Rakuyomi.getStandaloneTabId) == "function" then
-            return Rakuyomi.getStandaloneTabId(menu)
-        end
+        return OptionalProvider.call(Rakuyomi, "getStandaloneTabId", menu)
     end
 
     local function shouldCloseStandaloneBeforeAction(menu, tab_id)
         local Rakuyomi = getRakuyomi()
-        return type(Rakuyomi.shouldCloseBeforeActionTab) == "function"
-            and Rakuyomi.shouldCloseBeforeActionTab(menu, tab_id)
+        return OptionalProvider.call(Rakuyomi, "shouldCloseBeforeActionTab", menu, tab_id) == true
     end
 
     local function onStandaloneNavbarInjected(menu)
         local Rakuyomi = getRakuyomi()
-        if type(Rakuyomi.onStandaloneNavbarInjected) == "function" then
-            Rakuyomi.onStandaloneNavbarInjected(menu, isStandaloneExitTarget)
-        end
+        OptionalProvider.call(Rakuyomi, "onStandaloneNavbarInjected", menu, isStandaloneExitTarget)
     end
 
     local function refreshStandaloneAfterResize(menu)
         local Rakuyomi = getRakuyomi()
-        return type(Rakuyomi.refreshAfterResize) == "function"
-            and Rakuyomi.refreshAfterResize(menu)
+        return OptionalProvider.call(Rakuyomi, "refreshAfterResize", menu) or false
     end
 
     local function isStandaloneNavbarView(menu)
         if standalone_view_names[menu.name] then return true end
-        if Kindle.isLibraryView(menu) then return true end
+        if OptionalProvider.call(KINDLE_PROVIDER, "isLibraryView", menu) then return true end
         if isRakuyomiView(menu) then return true end
         -- Collections list has no name but has these flags. PathChooser also
         -- has them, so exclude its explicit selection contract.
@@ -3916,8 +3922,7 @@ local function apply_navbar()
             if state.tab == "manga" and not return_enabled then
                 local MangaReader = package.loaded.MangaReader
                 if MangaReader and MangaReader._zen_rakuyomi_return_pending then return end
-                local opened_library = type(Rakuyomi.openLibraryView) == "function"
-                    and Rakuyomi.openLibraryView({ hideTopClose = true })
+                local opened_library = OptionalProvider.call(Rakuyomi, "openLibraryView", { hideTopClose = true })
                 logger.dbg(
                     "Rakuyomi return: restore library:",
                     "opened_library=", tostring(opened_library),
@@ -3934,7 +3939,7 @@ local function apply_navbar()
             local has_file_opener = return_enabled
                 and type(Rakuyomi.openChapterListingFromFile) == "function"
             local opened_chapters = return_file and has_file_opener
-                and Rakuyomi.openChapterListingFromFile(return_file, true)
+                and OptionalProvider.call(Rakuyomi, "openChapterListingFromFile", return_file, true)
             if opened_chapters then
                 _G.__ZEN_UI_RAKUYOMI_CHAPTER_LIST_RESTORED = true
             end

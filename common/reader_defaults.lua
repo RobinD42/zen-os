@@ -239,7 +239,7 @@ function M.apply(settings, config)
     end
     config.reader_top_status_bar.left_order = {}
     config.reader_top_status_bar.center_order = { "time" }
-    config.reader_top_status_bar.right_order = {}
+    config.reader_top_status_bar.right_order = { "pin" }
     if type(config.reader_footer) ~= "table" then
         config.reader_footer = {}
     end

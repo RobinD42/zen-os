@@ -14,14 +14,15 @@ local function apply_page_browser()
     local PresetStore   = require("config/preset_store")
     local BottomSwipe  = require("common/reader_bottom_swipe")
     local PageBrowserTabs = require("modules/reader/page_browser_tabs")
+    local References = require("modules/reader/references")
     local utils        = require("common/utils")
     local lfs          = require("libs/libkoreader-lfs")
     local _stock_icons_dir = lfs.currentdir() .. "/resources/icons/mdlight/"
-    local panel_height = 140 -- Two navigation rows with equal top and bottom padding.
+    local panel_height = 124 -- Two navigation rows with equal top and bottom padding.
     local settings_panel_height = 226
     local preview_padding = 12
-    local chapter_padding = 12
-    local slider_gap = 8
+    local chapter_padding = 8
+    local slider_gap = 0
     local RESUME_TTL_SECONDS = 6
 
     local function reset_thumbnail_cache(thumbnail)
@@ -268,7 +269,6 @@ local function apply_page_browser()
         local title_y = header_pad + math.floor((title_h - header_pad - btn_sz) / 2)
         canvas:paintRect(0, title_h - 1, slot_w, 1, Blitbuffer.COLOR_LIGHT_GRAY)
         local stock_icons_dir = _stock_icons_dir
-        paint_icon(nil, utils.resolveIcon(_icons_dir, "info"), btn_pad, title_y, btn_sz)
         local close_icon_path = utils.resolveIcon(_icons_dir, "close_light")
         paint_icon(nil, close_icon_path, slot_w - slot_btn_w + btn_pad, title_y, btn_sz)
         paint_icon(nil, utils.resolveIcon(_icons_dir, "more_vertical"), slot_w - slot_btn_w * 2 + btn_pad, title_y, btn_sz)
@@ -421,8 +421,7 @@ local function apply_page_browser()
             },
         }
         for i, button in ipairs(buttons) do
-            local x = i == 1 and 0 or i == 4 and slot_w - button_size.w
-                or math.floor(slot_w * (i == 2 and 0.12 or 0.88) - button_size.w / 2)
+            local x = math.floor(slot_w * (i <= 2 and 0.12 or 0.88) - button_size.w / 2)
             local y = (i == 1 or i == 4) and panel_pad_top or slider_y
             button.overlap_offset = { x, y }
             contents[#contents + 1] = button
@@ -472,6 +471,10 @@ local function apply_page_browser()
 
         local function is_annotation_tab(tab)
             return tab == "bookmarks" or tab == "highlights" or tab == "annotations"
+        end
+
+        local function is_content_tab(tab)
+            return tab == "toc" or tab == "book_details" or is_annotation_tab(tab)
         end
 
         local function is_full_page(pbw)
@@ -562,6 +565,9 @@ local function apply_page_browser()
                 end
             end
 
+            if pbw._zen_page_actions then
+                table.insert(layout, pbw._zen_page_actions.buttons)
+            end
             local content = pbw._zen_content_panel or (pbw._zen_active_tab == "aa" and pbw._zen_row_panel)
             for y, row in ipairs(content and content.layout or {}) do
                 local focus_row = {}
@@ -1060,17 +1066,7 @@ local function apply_page_browser()
                 table.insert(self.title_bar, self.title_bar.right_button)
             end
 
-            local info_button = make_header_btn(utils.resolveIcon(_icons_dir, "info"), 0, function()
-                if is_annotation_tab(self._zen_active_tab) then
-                    require("modules/reader/annotation_viewer").showSearch(self)
-                    return
-                end
-                require("modules/reader/book_details").show(self.ui, {
-                    config = _plugin_ref and _plugin_ref.config, plugin = _plugin_ref,
-                })
-            end)
-            table.insert(self.title_bar, info_button)
-            self._zen_info_button = info_button
+            local search_button
             local more_button
             more_button = make_header_btn(utils.resolveIcon(_icons_dir, "more_vertical"),
                 self.dimen.w - (btn_sz + btn_pad * 2) * 2, function()
@@ -1134,19 +1130,19 @@ local function apply_page_browser()
                     pbw._zen_tab_bar:free()
                 end
                 local items, selected = {}, 1
-                local entries = PageBrowserTabs.list(pbw._zen_plugin.config, pbw.ui)
-                local leading_name = is_annotation_tab(pbw._zen_active_tab) and "quick_search" or "info"
-                local leading_icon = utils.resolveIcon(_icons_dir, leading_name)
-                    or utils.resolveLocalIcon(_icons_dir, leading_name)
-                if leading_icon ~= info_button.file then
-                    local old = info_button
-                    for i = #pbw.title_bar, 1, -1 do
-                        if pbw.title_bar[i] == old then table.remove(pbw.title_bar, i); break end
-                    end
-                    info_button = make_header_btn(leading_icon, 0, old.callback)
-                    pbw._zen_info_button = info_button
-                    table.insert(pbw.title_bar, info_button)
-                    if old.free then old:free() end
+                local entries = PageBrowserTabs.list(pbw._zen_plugin.config, pbw.ui, false, pbw._zen_initial_tab)
+                for i = #pbw.title_bar, 1, -1 do
+                    if pbw.title_bar[i] == search_button then table.remove(pbw.title_bar, i); break end
+                end
+                if search_button and search_button.free then search_button:free() end
+                search_button = nil
+                local show_search = is_annotation_tab(pbw._zen_active_tab)
+                if show_search then
+                    search_button = make_header_btn(utils.resolveIcon(_icons_dir, "quick_search")
+                        or utils.resolveLocalIcon(_icons_dir, "quick_search"), 0, function()
+                        require("modules/reader/annotation_viewer").showSearch(pbw)
+                    end)
+                    table.insert(pbw.title_bar, search_button)
                 end
                 for i, entry in ipairs(entries) do
                     local tab = entry.id
@@ -1164,7 +1160,7 @@ local function apply_page_browser()
                     math.floor((pbw.title_bar_h - pbw._zen_header_offset - size.h) / 2) }
                 pbw._zen_tab_bar = tabs
                 table.insert(pbw.title_bar, tabs)
-                pbw._zen_header_buttons = { info_button }
+                pbw._zen_header_buttons = show_search and { search_button } or {}
                 for i, cell in ipairs(tabs.cells) do
                     cell.file = items[i].icon
                     table.insert(pbw._zen_header_buttons, cell)
@@ -1185,9 +1181,9 @@ local function apply_page_browser()
             -- Rebuild only the panel: the initial layout already used the
             -- selected fixed grid dimensions.
             local tabs = PageBrowserTabs.list(self._zen_plugin.config, self.ui)
-            local initial_tab = tabs[1].id
+            local initial_tab = self._zen_initial_tab or tabs[1].id
             for _i, tab in ipairs(tabs) do
-                if tab.id == resume_tab then initial_tab = tab.id; break end
+                if not self._zen_initial_tab and tab.id == resume_tab then initial_tab = tab.id; break end
             end
             if initial_tab ~= "browser" then
                 self:_zenSelectTab(initial_tab)
@@ -1252,6 +1248,7 @@ local function apply_page_browser()
 
         PageBrowserWidget.updateLayout = function(self)
             pad_header(self)
+            self._zen_page_actions = nil
             self._zen_controls_state = self._zen_row_panel and self._zen_row_panel._reader_controls_state
                 or self._zen_controls_state
             if self._zen_full_page_preview then
@@ -1262,7 +1259,7 @@ local function apply_page_browser()
                 self._zen_content_panel:free()
                 self._zen_content_panel = nil
             end
-            if self._zen_active_tab == "toc" or is_annotation_tab(self._zen_active_tab) then
+            if is_content_tab(self._zen_active_tab) then
                 if self._zen_row_panel then self._zen_row_panel:free(); self._zen_row_panel = nil end
                 if self.requests_batch_id then self.ui.thumbnail:cancelPageThumbnailRequests(self.requests_batch_id) end
                 self._zen_slider = nil
@@ -1324,8 +1321,13 @@ local function apply_page_browser()
             -- The native code rebuilds self.grid from scratch inside
             -- _orig_updateLayout, so we just need to redo that part.
             local is_aa = self._zen_active_tab == "aa"
-            local zen_panel_h = math.min(Screen:scaleBySize(is_aa and settings_panel_height or panel_height),
+            local controls_h = math.min(Screen:scaleBySize(is_aa and settings_panel_height or panel_height),
                 math.floor(self.dimen.h * 0.45))
+            local actions = not is_aa and References.actions(self.ui, function() self:onClose(true) end) or {}
+            self._zen_page_actions = #actions > 0
+                and require("modules/reader/page_actions").new(actions, self.dimen.w) or nil
+            local actions_h = self._zen_page_actions and self._zen_page_actions:getSize().h or 0
+            local zen_panel_h = controls_h + actions_h
 
             -- When _zen_panel_only_rebuild is set (second call during init, no
             -- layout change needed), skip _orig_updateLayout entirely so the
@@ -1454,14 +1456,14 @@ local function apply_page_browser()
                     require("modules/menu/patches/reader_controls")(_plugin_ref)
                 end
                 local panel = self.ui.menu:createZenReaderControlsPanel{
-                    ui = self.ui, width = self.dimen.w, height = zen_panel_h,
+                    ui = self.ui, width = self.dimen.w, height = controls_h,
                     state = self._zen_controls_state,
                     padding_bottom = self._zen_header_top_padding,
                     show_parent = self, close_callback = function() self:onClose() end,
                     on_change = function() self:_zenRefreshPreview() end,
                     on_layout_changed = function() rebuild_focus_layout(self) end,
                 }
-                panel.overlap_offset = { 0, self.dimen.h - zen_panel_h }
+                panel.overlap_offset = { 0, self.dimen.h - controls_h }
                 self._zen_row_panel = panel
                 self._zen_controls_state = panel._reader_controls_state
                 self._zen_panel_h = zen_panel_h
@@ -1487,11 +1489,11 @@ local function apply_page_browser()
                                     VerticalSpan:new{ width = top_pad } },
                             },
                             FrameContainer:new{
-                                width = self.dimen.w, height = zen_panel_h, bordersize = 0, padding = 0,
+                                width = self.dimen.w, height = controls_h, bordersize = 0, padding = 0,
                                 background = Blitbuffer.COLOR_WHITE,
-                                overlap_offset = { 0, self.dimen.h - zen_panel_h }, panel,
+                                overlap_offset = { 0, self.dimen.h - controls_h }, panel,
                             },
-                            preview_divider(self, self.dimen.h - zen_panel_h),
+                            preview_divider(self, self.dimen.h - controls_h),
                         },
                     }
                     self._zen_rebuilding_focus_layout = nil
@@ -1505,7 +1507,7 @@ local function apply_page_browser()
                         dimen = Geom:new{ w = self.dimen.w, h = self.dimen.h },
                         VerticalGroup:new{ align = "center", header(self),
                             VerticalSpan:new{ width = top_pad }, self.grid }, panel,
-                        preview_divider(self, self.dimen.h - zen_panel_h),
+                        preview_divider(self, self.dimen.h - controls_h),
                     },
                 }
                 self._zen_rebuilding_focus_layout = nil
@@ -1855,12 +1857,16 @@ local function apply_page_browser()
             local button_size = layout_button:getSize()
             local row_h = button_size.h
             local panel_y = self.dimen.h - zen_panel_h
-            local chapter_y = zen_panel_pad_top
+            local chapter_y = zen_panel_pad_top + actions_h
             local slider_y = chapter_y + row_h + Screen:scaleBySize(slider_gap)
             local contents = OverlapGroup:new{
                 dimen = Geom:new{ w = grid_w, h = zen_panel_h }, allow_mirroring = false,
-                preview_divider(self, 0),
+                preview_divider(self, actions_h),
             }
+            if self._zen_page_actions then
+                self._zen_page_actions.overlap_offset = { 0, 0 }
+                contents[#contents + 1] = self._zen_page_actions
+            end
             local chapter_w = math.floor(grid_w * 0.6)
             local chapter_row = CenterContainer:new{
                 dimen = Geom:new{ w = chapter_w, h = row_h }, chap_label,
@@ -1872,8 +1878,7 @@ local function apply_page_browser()
                 y = (self.dimen.y or 0) + panel_y + chapter_y, w = chapter_w, h = row_h,
             }
             for i, button in ipairs({ layout_button, skip_left_btn, skip_right_btn, search_button }) do
-                local x = i == 1 and 0 or i == 4 and grid_w - button_size.w
-                    or math.floor(grid_w * (i == 2 and 0.12 or 0.88) - button_size.w / 2)
+                local x = math.floor(grid_w * (i <= 2 and 0.12 or 0.88) - button_size.w / 2)
                 local y = (i == 1 or i == 4) and chapter_y or slider_y
                 button.overlap_offset = { x, y }
                 contents[#contents + 1] = button
@@ -2118,7 +2123,7 @@ local function apply_page_browser()
             -- viewfinder border and row-lines intentionally omitted
 
             if is_full_page(self) then return end
-            if self._zen_active_tab == "toc" or is_annotation_tab(self._zen_active_tab) then return end
+            if is_content_tab(self._zen_active_tab) then return end
             if not (self.grid and self.focus_page) then return end
 
             local fp    = self.focus_page
@@ -2184,6 +2189,15 @@ local function apply_page_browser()
                                            bs, Blitbuffer.COLOR_BLACK, 0)
                         end
 
+                        if not self._zen_scrubbing then
+                            local thumb = item[1] and item[1][1]
+                            local image = thumb and thumb.is_page_thumbnail and thumb[1]
+                            local dimen = image and image.dimen
+                            if dimen then
+                                References.paintPin(self.ui, visible_page_raw(self, page_num), bb,
+                                    dimen.x, dimen.y, dimen.w, dimen.h)
+                            end
+                        end
                         local badge_bottom = get_badge_bottom(
                             self, item, sz.h, page_num == fp)
                         if badge_bottom then
@@ -2274,10 +2288,17 @@ local function apply_page_browser()
         local _orig_onTap = PageBrowserWidget.onTap
         PageBrowserWidget.onTap = function(self, arg, ges)
             logger.dbg("onTap at "..ges.pos.x..","..ges.pos.y)
+            if self._zen_status_row and self._zen_status_row.dimen:contains(ges.pos) then
+                require("modules/global/patches/menu_top_swipe").handleTap(nil, ges)
+                return true
+            end
+            for _i, button in ipairs(self._zen_page_actions and self._zen_page_actions.buttons or {}) do
+                if button.dimen:contains(ges.pos) then button.callback(); return true end
+            end
             for _i, cell in ipairs(self._zen_tab_bar and self._zen_tab_bar.cells or {}) do
                 if cell.dimen and cell.dimen:contains(ges.pos) then cell.callback(); return true end
             end
-            if self._zen_active_tab == "toc" or is_annotation_tab(self._zen_active_tab) then return true end
+            if is_content_tab(self._zen_active_tab) then return true end
             if self._zen_active_tab == "aa" and outside_preview(self, ges) then return true end
             if is_full_page(self) then self:_zenOpenFocusedPage(); return true end
             -- 1. Slider tap → navigate to that page.
@@ -2423,6 +2444,66 @@ local function apply_page_browser()
             return true  -- swallow remaining north/south and anything else
         end
 
+        PageBrowserWidget.onThumbnailHold = function(self, page)
+            local Labels = require("common/ui/button_labels")
+            local settings = self._zen_plugin.config.highlight_lookup or {}
+            local labels = settings.show_labels == true
+            local pinned = References.isPinned(self.ui, page)
+            local pin_icon = pinned and "pin_remove" or "pin"
+            local bookmarked = self.ui.bookmark:isPageBookmarked(
+                self.ui.rolling and self.ui.document:getPageXPointer(page) or page)
+            local bookmark_icon = bookmarked and "bookmark_remove" or "bookmark"
+            local page_dimen = self._zen_full_page_preview and self._zen_full_page_preview.dimen
+            if not page_dimen then
+                for idx = 1, self.nb_grid_items or 0 do
+                    local item = self.grid[idx]
+                    if item.page_idx and visible_page_raw(self, item.page_idx) == page then
+                        page_dimen = item.dimen
+                        break
+                    end
+                end
+            end
+            local dialog
+            local function refresh()
+                UIManager:close(dialog)
+                if self._zen_full_page_preview then self._zen_full_page_preview:invalidate() end
+                self:updateEditableStuff(true)
+                UIManager:setDirty(self, "ui")
+            end
+            local buttons = {{
+                { id = "bookmark", icon = utils.resolveIcon(_icons_dir, bookmark_icon)
+                        or utils.resolveLocalIcon(_icons_dir, bookmark_icon),
+                    text = labels and _("Toggle page bookmark") or nil,
+                    callback = function()
+                        self.ui.bookmark:toggleBookmark(page)
+                        refresh()
+                    end },
+                { id = "pin", icon = utils.resolveIcon(_icons_dir, pin_icon)
+                        or utils.resolveLocalIcon(_icons_dir, pin_icon),
+                    text = labels and (pinned and _("Remove pin") or _("Pin")) or nil,
+                    callback = function()
+                        References.setPin(self.ui, page, pinned)
+                        refresh()
+                    end },
+            }}
+            if labels then buttons = Labels.prepare(buttons) end
+            require("modules/reader/highlight_menu_items").compact(buttons)
+            dialog = require("ui/widget/buttondialog"):new{
+                name = "page_browser_page_actions", buttons = buttons,
+                shrink_unneeded_width = not labels,
+                anchor = page_dimen and function()
+                    local size = dialog:getContentSize()
+                    return {
+                        x = page_dimen.x + math.floor((page_dimen.w - size.w) / 2),
+                        y = page_dimen.y + math.floor((page_dimen.h - size.h) / 2),
+                        w = size.w, h = 0,
+                    }, true
+                end or nil,
+            }
+            if labels then Labels.apply(dialog.buttontable, buttons) end
+            UIManager:show(dialog)
+        end
+
         -- Holds on the navigation chevrons skip chapters. Other holds in the
         -- bottom panel stay suppressed to avoid the native book-map-row popup.
         local _orig_onHold = PageBrowserWidget.onHold
@@ -2431,7 +2512,6 @@ local function apply_page_browser()
                 and (self._zen_active_tab ~= "aa" or outside_preview(self, ges)) then return true end
             if is_full_page(self) then
                 self:onThumbnailHold(self:_zenFocusedDocumentPage(), ges)
-                self._zen_full_page_preview:invalidate()
                 return true
             end
             if ges.pos and self._zen_btn_skip_left_zone
@@ -2540,6 +2620,16 @@ local function apply_page_browser()
             elseif key:match({ "Left" }) then
                 direction = { -1, 0 }
             end
+            local info = pbw._zen_active_tab == "book_details" and pbw._zen_content_panel
+            if info and info._zen_focus_enabled then
+                local leave_content = direction and direction[2] == -1
+                    and (info._zen_focus_area == "tags" or not info._tag_buttons
+                        and (not info._description_widget or info:_descriptionAtTop()))
+                if not leave_content then
+                    if allow_confirm then return info:onKeyPress(key) end
+                    return info:onKeyRepeat(key)
+                end
+            end
             if direction then
                 pbw:onFocusMove(direction)
                 return true
@@ -2643,12 +2733,12 @@ local function apply_page_browser()
     -- -----------------------------------------------------------------------
     -- Open KOReader's native PageBrowserWidget (with ZenOS tweaks)
     -- -----------------------------------------------------------------------
-    local function open_page_browser(ui, from_menu_hold, layout)
+    local function open_page_browser(ui, from_menu_hold, layout, tab)
         local PageBrowserWidget = require("ui/widget/pagebrowserwidget")
         local previous_layout = layout and get_page_browser_layout()
         if layout then set_page_browser_layout(layout) end
         zen_patch_page_browser_widget()
-        local browser = PageBrowserWidget:new{ ui = ui }
+        local browser = PageBrowserWidget:new{ ui = ui, _zen_initial_tab = tab }
         browser._zen_ignore_opening_menu_key = from_menu_hold or nil
         UIManager:show(browser)
         if layout then
@@ -2660,8 +2750,8 @@ local function apply_page_browser()
         return browser
     end
 
-    ReaderThumbnail.onShowPageBrowser = function(self_rt)
-        open_page_browser(self_rt.ui)
+    ReaderThumbnail.onShowPageBrowser = function(self_rt, tab)
+        open_page_browser(self_rt.ui, nil, nil, tab)
         return true
     end
 

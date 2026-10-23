@@ -518,6 +518,7 @@ function M.buildSpec(ui, opts)
         text_faces = text_faces,
         edit_callback = opts.edit_callback,
         close_all_callback = opts.close_all_callback,
+        show_back = opts.show_back == true or (opts.show_back == nil and ui.link == nil),
     }
 end
 

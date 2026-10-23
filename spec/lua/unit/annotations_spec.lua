@@ -152,4 +152,24 @@ describe("annotation viewer model", function()
         queued()
         assert.are.same({}, session.books)
     end)
+
+    it("loads every history book when opened without a reader", function()
+        ZenSpec.replace("docsettings", {
+            findSidecarFile = function(_self, file) return file end,
+            findCustomMetadataFile = function() end,
+            openSettingsFile = function() return { data = { annotations = { { page = 1 } } } } end,
+        })
+        ZenSpec.replace("libs/libkoreader-lfs", { attributes = function() return "file" end })
+        ZenSpec.replace("readhistory", { reload = function() end, hist = { { file = "first" }, { file = "second" } } })
+        ZenSpec.replace("ffi/util", { realpath = function(file) return file end })
+        ZenSpec.replace("ui/uimanager", { nextTick = function(_self, callback) callback() end })
+        ZenSpec.unload("modules/reader/annotations")
+        Model = require("modules/reader/annotations")
+        local session = Model.new()
+        session:refreshCurrent()
+        session:loadAll(function() end)
+        assert.are.equal("all", session.scope)
+        assert.is_true(session.loaded)
+        assert.are.equal(2, #session:items("annotations"))
+    end)
 end)

@@ -958,6 +958,12 @@ msgstr "书名"
 msgid "Book Title"
 msgstr "图书标题"
 
+#. Type: label
+#. Context: Prefix identifying bookmarks in the mixed annotation list.
+#: annotation_viewer.lua:243
+msgid "Bookmark"
+msgstr "书签"
+
 #. Type: setting
 #. Context: 阅读界面的显示和操作设置中的设置项名称。阅读界面使用引导中用于标识项目或信息的文字。
 #: reader_tour.lua:80 reader_settings.lua:1364
@@ -3777,6 +3783,12 @@ msgstr "夜间亮度时间"
 #: menu_settings.lua:88
 msgid "Night mode"
 msgstr "夜间模式"
+
+#. Type: setting
+#. Context: 为夜间模式设置独立的界面强调色和不透明度。
+#: interface_settings.lua:152
+msgid "Night mode accent"
+msgstr "夜间模式强调色"
 
 #. Type: setting
 #. Context: 设备定时任务及休眠屏幕设置中的设置项名称。
@@ -7502,3 +7514,79 @@ msgstr "新建笔记"
 #. Month name, day, year.
 msgid "%1 %2 %3"
 msgstr "%3年%1%2日"
+
+msgid "Return to page %1"
+msgstr "返回第 %1 页"
+
+msgid "Pinned page"
+msgstr "固定页面"
+
+msgid "Last footnote"
+msgstr "上一条脚注"
+
+msgid "Pin"
+msgstr "固定"
+
+msgid "Pin this page"
+msgstr "固定此页"
+
+msgid "Remove pin"
+msgstr "取消固定"
+
+msgid "Footnotes and pinned pages"
+msgstr "脚注与固定页面"
+
+msgid "Reference drawer"
+msgstr "参考面板"
+
+msgid "Footnote options"
+msgstr "脚注选项"
+
+msgid "Full"
+msgstr "填满"
+
+msgid "Fit"
+msgstr "适应宽度"
+
+msgid "Unable to open reference preview."
+msgstr "无法打开参考预览。"
+
+msgid "Use book font in popups"
+msgstr "弹窗中使用书籍字体"
+
+
+msgid "Set font size"
+msgstr "设置字号"
+
+msgid "Set a relative font size instead"
+msgstr "改用相对字号"
+
+msgid "Set an absolute font size instead"
+msgstr "改用绝对字号"
+
+msgid "Justify text in popups"
+msgstr "弹窗文本两端对齐"
+
+msgid "Pinned pages"
+msgstr "固定页面"
+
+msgid "Pinned page options"
+msgstr "固定页面选项"
+
+msgid "Zoom in"
+msgstr "放大"
+
+msgid "Zoom out"
+msgstr "缩小"
+
+msgid "View image"
+msgstr "查看图片"
+
+msgid "Lookup"
+msgstr "查询"
+
+msgid "AI assistant"
+msgstr "AI 助手"
+
+msgid "Vocabulary"
+msgstr "生词本"

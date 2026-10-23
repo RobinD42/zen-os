@@ -3739,6 +3739,12 @@ msgid "Night mode"
 msgstr "Mode malam"
 
 #. Type: setting
+#. Context: Warna aksen terpisah untuk mode malam.
+#: interface_settings.lua:152
+msgid "Night mode accent"
+msgstr "Warna aksen mode malam"
+
+#. Type: setting
 #. Context: Nama pengaturan pada pengaturan jadwal perangkat dan layar tidur.
 #: global_settings.lua:470
 msgid "Night mode off time"

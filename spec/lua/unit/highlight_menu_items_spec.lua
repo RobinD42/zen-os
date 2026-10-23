@@ -68,4 +68,27 @@ describe("highlight submenu items", function()
             Items.getOrder(settings))
         assert.is_false(Items.isEnabled(settings, "color", true))
     end)
+
+    it("keeps action names beside icons when labels are enabled", function()
+        local buttons = { {}, {} }
+        for i = 1, 10 do table.insert(buttons[i <= 6 and 1 or 2], { text = tostring(i) }) end
+        local rows = Items.arrange(buttons, { show_labels = true }, true, { style = "/style.svg", color = "/color.svg" })
+        assert.equals("Style", rows[1][1].text)
+        assert.equals("Color", rows[1][2].text)
+        assert.equals("/style.svg", rows[1][1].icon)
+    end)
+
+    it("shrinks icon rows while retaining label sizes and text-only plugin actions", function()
+        local device = package.loaded["device"]
+        ZenSpec.replace("device", { screen = { scaleBySize = function(_self, size) return size * 2 end } })
+        local buttons = {{ { icon = "/pin.svg" },
+            { text = "Remove pin", icon = "/pin_remove.svg", icon_width = 40, icon_height = 40, font_size = 16 },
+            { text = "Plugin", height = 60 } }}
+        Items.compact(buttons)
+        assert.same({ 64, 64, 64 }, { buttons[1][1].height, buttons[1][1].icon_width, buttons[1][1].icon_height })
+        assert.same({ 56, 40, 40, 16 }, { buttons[1][2].height, buttons[1][2].icon_width,
+            buttons[1][2].icon_height, buttons[1][2].font_size })
+        assert.equals(60, buttons[1][3].height)
+        package.loaded["device"] = device
+    end)
 end)

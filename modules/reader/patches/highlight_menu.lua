@@ -18,6 +18,10 @@ local function apply()
     end
     local logger = require("common/zen_logger").new("highlight_menu")
     local LookupPluginItems = require("modules/reader/lookup_plugin_items")
+    local References = require("modules/reader/references")
+    local Labels = require("common/ui/button_labels")
+    local MenuItems = require("modules/reader/highlight_menu_items")
+    local _ = require("gettext")
     local utils = require("common/utils")
     local plugin_root = require("common/plugin_root")
     local _icons_dir = plugin_root and plugin_root .. "/icons/"
@@ -30,7 +34,7 @@ local function apply()
         more = utils.resolveLocalIcon(_icons_dir, "more_vertical"),
     }
     local settings_icon = utils.resolveLocalIcon(_stock_icons_dir, "appbar.settings")
-    local ai_icon = utils.resolveLocalIcon(_icons_dir, "lookup_ai")
+    local ai_icon = utils.resolveIcon(_icons_dir, "lookup_ai")
 
     local _plugin_ref = rawget(_G, "__ZEN_UI_PLUGIN")
 
@@ -86,6 +90,11 @@ local function apply()
             and _plugin_ref.config
             and _plugin_ref.config.highlight_lookup
         return type(cfg) == "table" and cfg.show_ai_assistant ~= false
+    end
+
+    local function show_labels()
+        local settings = _plugin_ref and _plugin_ref.config.highlight_lookup
+        return settings and settings.show_labels == true
     end
 
     local function find_highlight_button(self, index, name)
@@ -159,9 +168,11 @@ local function apply()
         end
 
         local buttons = {{}}
+        local labels = show_labels()
         if not index then
             buttons[1][1] = {
                 icon = "lookup.highlight",
+                text = labels and _("Highlight") or nil,
                 enabled = self.hold_pos ~= nil,
                 callback = function()
                     self:saveHighlight(not self.selected_text._zen_resized)
@@ -173,6 +184,7 @@ local function apply()
         if show_wikipedia() then
             table.insert(buttons[1], {
                 icon = "lookup.wikipedia",
+                text = labels and _("Wikipedia") or nil,
                 callback = function()
                     UIManager:scheduleIn(0.1, LookupPluginItems.safeCallback(function()
                         self:lookupWikipedia()
@@ -183,6 +195,7 @@ local function apply()
 
         table.insert(buttons[1], {
             icon = "lookup.dictionary",
+            text = labels and _("Dictionary") or nil,
             callback = function()
                 self.ui:handleEvent(Event:new("LookupWord", self.selected_text.text, true))
                 self:onClose()
@@ -190,6 +203,7 @@ local function apply()
         })
         table.insert(buttons[1], {
             icon = "lookup.translate",
+            text = labels and _("Translate") or nil,
             callback = function()
                 self:translate(index)
             end,
@@ -200,6 +214,7 @@ local function apply()
             if ai_btn then
                 table.insert(buttons[1], {
                     icon = ai_icon,
+                    text = labels and _("AI assistant") or nil,
                     enabled = ai_btn.enabled ~= false,
                     callback = ai_btn.callback,
                 })
@@ -208,6 +223,7 @@ local function apply()
 
         table.insert(buttons[1], {
             icon = "lookup.search",
+            text = labels and _("Search") or nil,
             callback = function()
                 self:onHighlightSearch()
             end,
@@ -216,8 +232,8 @@ local function apply()
         if index then
             table.insert(buttons[1], {
                 id = "zen_highlight_settings", icon = settings_icon,
+                text = labels and _("Settings") or nil,
                 callback = function()
-                    local _ = require("gettext")
                     self:onClose()
                     require("modules/settings/zen_settings_page").show(_plugin_ref, {
                         path = { { key = "text", value = _("Reader") },
@@ -258,7 +274,10 @@ local function apply()
             end
         end
 
+        References.addPinButton(buttons, self.ui, References.selectionPage(self, index), function() self:onClose() end)
         LookupPluginItems.protectButtons(buttons)
+        if labels then buttons = Labels.prepare(buttons) end
+        MenuItems.compact(buttons)
         self.highlight_dialog = ButtonDialog:new{
             buttons = buttons,
             anchor = function()
@@ -270,6 +289,7 @@ local function apply()
                 end
             end,
         }
+        if labels then Labels.apply(self.highlight_dialog.buttontable, buttons) end
         Handles.attach(self, self.highlight_dialog, index, function()
             self:onShowHighlightMenu(index)
         end)
@@ -280,7 +300,6 @@ local function apply()
     local orig_showHighlightDialog = ReaderHighlight.showHighlightDialog
     ReaderHighlight.showHighlightDialog = function(self, index)
         if not is_enabled() then return orig_showHighlightDialog(self, index) end
-        local MenuItems = require("modules/reader/highlight_menu_items")
         local original_new = ButtonDialog.new
         -- Intercept only this synchronous factory call to preserve upstream actions and bindings.
         ButtonDialog.new = function(class, spec, ...)
@@ -289,16 +308,24 @@ local function apply()
             local available = Handles.available(self, index)
             local original_buttons = spec.buttons
             spec.buttons = MenuItems.arrange(spec.buttons, settings, available, menu_icons)
+            References.addPinButton(spec.buttons, self.ui, References.selectionPage(self, index), function() self:onClose() end)
+            if settings.show_labels then spec.buttons = Labels.prepare(spec.buttons) end
+            MenuItems.compact(spec.buttons)
             local empty = #spec.buttons == 0
             if empty then spec.buttons = {{ { text = "", enabled = false } }} end
             local dialog = original_new(class, spec, ...)
+            if settings.show_labels then Labels.apply(dialog.buttontable, spec.buttons) end
             if empty then dialog.buttons = {} end
             local controller = Handles.attach(self, dialog, index, function()
                 self:showHighlightDialog(index)
             end)
             if available and not controller then
                 dialog.buttons = MenuItems.arrange(original_buttons, settings, false, menu_icons)
+                References.addPinButton(dialog.buttons, self.ui, References.selectionPage(self, index), function() self:onClose() end)
+                if settings.show_labels then dialog.buttons = Labels.prepare(dialog.buttons) end
+                MenuItems.compact(dialog.buttons)
                 dialog:reinit()
+                if settings.show_labels then Labels.apply(dialog.buttontable, dialog.buttons) end
             end
             self.highlight_dialog = dialog
             return dialog
@@ -318,7 +345,6 @@ local function apply()
         local InputDialog = require("ui/widget/inputdialog")
         local original_new = InputDialog.new
         InputDialog.new = function(class, spec, ...)
-            local _ = require("gettext")
             local T = require("ffi/util").template
             spec.description = "   " .. require("common/date_format").formatISODate(annotation.datetime)
                 .. " · " .. T(_("Page %1"), annotation.mandatory or self:getBookmarkPageString(annotation.page))

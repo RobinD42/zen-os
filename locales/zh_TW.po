@@ -958,6 +958,12 @@ msgstr "書名"
 msgid "Book Title"
 msgstr "書籍標題"
 
+#. Type: label
+#. Context: Prefix identifying bookmarks in the mixed annotation list.
+#: annotation_viewer.lua:243
+msgid "Bookmark"
+msgstr "書籤"
+
 #. Type: setting
 #. Context: 閱讀畫面的顯示與操作設定中的設定項目名稱。閱讀畫面操作導覽中用來標示項目或資訊的文字。
 #: reader_tour.lua:80 reader_settings.lua:1364
@@ -3777,6 +3783,12 @@ msgstr "夜間亮度時間"
 #: menu_settings.lua:88
 msgid "Night mode"
 msgstr "夜間模式"
+
+#. Type: setting
+#. Context: 為夜間模式設定獨立的介面強調色和不透明度。
+#: interface_settings.lua:152
+msgid "Night mode accent"
+msgstr "夜間模式強調色"
 
 #. Type: setting
 #. Context: 裝置排程與休眠畫面設定中的設定項目名稱。
@@ -7502,3 +7514,79 @@ msgstr "新增筆記"
 #. Month name, day, year.
 msgid "%1 %2 %3"
 msgstr "%3年%1%2日"
+
+msgid "Return to page %1"
+msgstr "返回第 %1 頁"
+
+msgid "Pinned page"
+msgstr "固定頁面"
+
+msgid "Last footnote"
+msgstr "上一則註腳"
+
+msgid "Pin"
+msgstr "固定"
+
+msgid "Pin this page"
+msgstr "固定此頁"
+
+msgid "Remove pin"
+msgstr "取消固定"
+
+msgid "Footnotes and pinned pages"
+msgstr "註腳與固定頁面"
+
+msgid "Reference drawer"
+msgstr "參考面板"
+
+msgid "Footnote options"
+msgstr "註腳選項"
+
+msgid "Full"
+msgstr "填滿"
+
+msgid "Fit"
+msgstr "符合寬度"
+
+msgid "Unable to open reference preview."
+msgstr "無法開啟參考預覽。"
+
+msgid "Use book font in popups"
+msgstr "在彈出視窗中使用書籍字型"
+
+
+msgid "Set font size"
+msgstr "設定字型大小"
+
+msgid "Set a relative font size instead"
+msgstr "改用相對字型大小"
+
+msgid "Set an absolute font size instead"
+msgstr "改用絕對字型大小"
+
+msgid "Justify text in popups"
+msgstr "彈出視窗文字左右對齊"
+
+msgid "Pinned pages"
+msgstr "釘選頁面"
+
+msgid "Pinned page options"
+msgstr "釘選頁面選項"
+
+msgid "Zoom in"
+msgstr "放大"
+
+msgid "Zoom out"
+msgstr "縮小"
+
+msgid "View image"
+msgstr "檢視圖片"
+
+msgid "Lookup"
+msgstr "查詢"
+
+msgid "AI assistant"
+msgstr "AI 助理"
+
+msgid "Vocabulary"
+msgstr "生詞本"

@@ -108,12 +108,13 @@ local Session = {}
 Session.__index = Session
 
 function M.new(ui)
-    return setmetatable({ ui = ui, scope = "current", query = "", filters = {}, text_filters = {},
+    return setmetatable({ ui = ui, scope = ui and "current" or "all", query = "", filters = {}, text_filters = {},
         books = {}, pages = {}, sort = "page", reverse = false }, Session)
 end
 
 function Session:refreshCurrent()
     local ui = self.ui
+    if not ui then return end
     local records = M.normalize(ui.document.file, ui.annotation and ui.annotation.annotations, ui.doc_props)
     for _i, record in ipairs(records) do
         if record.annotation and ui.bookmark then
@@ -173,8 +174,9 @@ function Session:loadAll(on_update)
     local history = require("readhistory")
     history:reload(false)
     local realpath = require("ffi/util").realpath
-    local current_file = self.ui.document.file
-    local paths, seen = {}, { [current_file] = true, [realpath(current_file) or current_file] = true }
+    local current_file = self.ui and self.ui.document.file
+    local paths, seen = {}, {}
+    if current_file then seen[current_file], seen[realpath(current_file) or current_file] = true, true end
     for _i, entry in ipairs(history.hist or {}) do
         local path = entry.file and (realpath(entry.file) or entry.file)
         if path and not seen[path] and lfs.attributes(path, "mode") == "file" then

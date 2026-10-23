@@ -78,7 +78,10 @@ describe("home basic widgets", function()
         }) do
             ZenSpec.replace(name, widget_class(name))
         end
-        ZenSpec.replace("common/utils", { resolveLocalIcon = function() return nil end })
+        ZenSpec.replace("common/utils", {
+            resolveLocalIcon = function() return nil end,
+            resolveIcon = function() return nil end,
+        })
         ZenSpec.replace("modules/filebrowser/patches/library_font", {
             getFontName = function() return "smallinfofont" end,
         })
@@ -349,8 +352,7 @@ describe("home basic widgets", function()
         assert.are.same({
             utils.resolveLocalIcon(ZenSpec.root .. "/icons/", "calendar"),
             utils.resolveLocalIcon(ZenSpec.root .. "/icons/", "tab_to_be_read"),
-            utils.resolveLocalIcon(require("libs/libkoreader-lfs").currentdir()
-                .. "/resources/icons/mdlight/", "book.opened"),
+            utils.resolveLocalIcon(ZenSpec.root .. "/icons/", "book_open"),
         }, icons)
 
         created = {}
@@ -362,6 +364,26 @@ describe("home basic widgets", function()
             if child.text == "12345h 45m" then value_size = child.face.size end
         end
         assert.are.equal(18, value_size)
+    end)
+
+    it("uses pack icons for calendar, reading, and streak metrics", function()
+        require("common/utils").resolveIcon = function(_dir, name)
+            return "/icons/zen/selected/" .. name .. ".svg"
+        end
+        ZenSpec.unload("modules/filebrowser/patches/home/widgets/stats_triplet")
+        require("modules/filebrowser/patches/home/widgets/stats_triplet").build({
+            width = 300, height = 120,
+            config = { middle_stats_triplet = { "book_days", "book_page_minutes", "streak" } },
+            data = { stats = { book_days = "3", book_page_minutes = "1.5", streak = 2 } },
+        })
+        local paths = {}
+        for _i, child in ipairs(created) do
+            if child.kind == "ui/widget/iconwidget" then paths[#paths + 1] = child.file end
+        end
+        assert.are.same({
+            "/icons/zen/selected/calendar.svg", "/icons/zen/selected/book_open.svg",
+            "/icons/zen/selected/flame.svg",
+        }, paths)
     end)
 
     it("auto-sizes stats text while preserving an exact manual size", function()

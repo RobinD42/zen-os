@@ -958,6 +958,12 @@ msgstr "Titolo libro"
 msgid "Book Title"
 msgstr "Titolo libro"
 
+#. Type: label
+#. Context: Prefix identifying bookmarks in the mixed annotation list.
+#: annotation_viewer.lua:243
+msgid "Bookmark"
+msgstr "Segnalibro"
+
 #. Type: setting
 #. Context: Nome di un’impostazione nelle impostazioni dell’aspetto e del comportamento della schermata di lettura. Etichetta nella visita guidata della schermata di lettura.
 #: reader_tour.lua:80 reader_settings.lua:1364
@@ -3777,6 +3783,12 @@ msgstr "Orario luminosità notturna"
 #: menu_settings.lua:88
 msgid "Night mode"
 msgstr "Modalità notte"
+
+#. Type: setting
+#. Context: Colore di accento e opacità separati per la modalità notte.
+#: interface_settings.lua:152
+msgid "Night mode accent"
+msgstr "Colore di accento in modalità notte"
 
 #. Type: setting
 #. Context: Nome di un’impostazione nelle impostazioni delle azioni programmate del dispositivo e della schermata di sospensione.
@@ -7502,3 +7514,79 @@ msgstr "Nuova nota"
 #. Month name, day, year.
 msgid "%1 %2 %3"
 msgstr "%2 %1 %3"
+
+msgid "Return to page %1"
+msgstr "Torna a pagina %1"
+
+msgid "Pinned page"
+msgstr "Pagina fissata"
+
+msgid "Last footnote"
+msgstr "Ultima nota"
+
+msgid "Pin"
+msgstr "Fissa"
+
+msgid "Pin this page"
+msgstr "Fissa questa pagina"
+
+msgid "Remove pin"
+msgstr "Rimuovi pagina fissata"
+
+msgid "Footnotes and pinned pages"
+msgstr "Note e pagine fissate"
+
+msgid "Reference drawer"
+msgstr "Pannello di riferimento"
+
+msgid "Footnote options"
+msgstr "Opzioni delle note"
+
+msgid "Full"
+msgstr "Riempi"
+
+msgid "Fit"
+msgstr "Adatta"
+
+msgid "Unable to open reference preview."
+msgstr "Impossibile aprire l’anteprima di riferimento."
+
+msgid "Use book font in popups"
+msgstr "Usa il carattere del libro nei popup"
+
+
+msgid "Set font size"
+msgstr "Imposta dimensione carattere"
+
+msgid "Set a relative font size instead"
+msgstr "Imposta una dimensione relativa"
+
+msgid "Set an absolute font size instead"
+msgstr "Imposta una dimensione assoluta"
+
+msgid "Justify text in popups"
+msgstr "Giustifica il testo nei popup"
+
+msgid "Pinned pages"
+msgstr "Pagine fissate"
+
+msgid "Pinned page options"
+msgstr "Opzioni delle pagine fissate"
+
+msgid "Zoom in"
+msgstr "Ingrandisci"
+
+msgid "Zoom out"
+msgstr "Riduci"
+
+msgid "View image"
+msgstr "Visualizza immagine"
+
+msgid "Lookup"
+msgstr "Ricerca"
+
+msgid "AI assistant"
+msgstr "Assistente IA"
+
+msgid "Vocabulary"
+msgstr "Vocabolario"

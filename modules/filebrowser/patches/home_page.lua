@@ -11,6 +11,7 @@ local HomeQuotes = require("modules/filebrowser/patches/home/home_quotes")
 local HomePresets = require("modules/filebrowser/patches/home/home_presets")
 local LanguageName = require("common/language_name")
 local MemoryPolicy = require("common/memory_policy")
+local OptionalProvider = require("common/optional_provider")
 local ReadingGoals = require("common/reading_goals")
 local PresetStore = require("config/preset_store")
 local Registry = require("modules/filebrowser/patches/home/components/registry")
@@ -22,6 +23,8 @@ local WidgetResources = require("common/widget_resources")
 local UIManager = require("ui/uimanager")
 local _ = require("gettext")
 local now = require("common/zen_logger").now
+local RAKUYOMI_PROVIDER = "modules/filebrowser/patches/rakuyomi"
+local KINDLE_PROVIDER = "modules/filebrowser/patches/kindle_virtual_library"
 
 local M = {}
 local DEFAULT_GOALS_FONT_SIZE = 11
@@ -497,7 +500,7 @@ local function flush_cover_upgrade_queue()
         mark_home_rebuild_needed(false, false)
         return
     end
-    if BookInfoManager:isExtractingInBackground() then
+    if OptionalProvider.call(BookInfoManager, "isExtractingInBackground", BookInfoManager) then
         for _i, path in ipairs(paths) do
             _pending_cover_upgrade_paths[path] = pending[path]
         end
@@ -512,7 +515,7 @@ local function flush_cover_upgrade_queue()
         _inflight_cover_upgrade_paths[path] = true
     end
 
-    local launched = BookInfoManager:extractInBackground(files)
+    local launched = OptionalProvider.call(BookInfoManager, "extractInBackground", BookInfoManager, files)
     if not launched then
         for _i, path in ipairs(paths) do
             _inflight_cover_upgrade_paths[path] = nil
@@ -533,9 +536,9 @@ local function flush_cover_upgrade_queue()
     -- books already extracted before the crash must still get picked up
     -- instead of being stuck waiting on the ones that never finished.
     local function poll()
-        local is_still_extracting = BookInfoManager:isExtractingInBackground()
+        local is_still_extracting = OptionalProvider.call(BookInfoManager, "isExtractingInBackground", BookInfoManager)
         for path in pairs(waiting) do
-            local bi = BookInfoManager:getBookInfo(path, false)
+            local bi = OptionalProvider.call(BookInfoManager, "getBookInfo", BookInfoManager, path, false)
             if bi and bi.cover_fetched then
                 waiting[path] = nil
                 _inflight_cover_upgrade_paths[path] = nil
@@ -963,8 +966,7 @@ local function build_data_provider(cfg, dcfg, strip_page_state)
     local provider = {}
     local dataset = get_home_dataset(cfg)
     local function is_tmpfs_chapter(path)
-        local Rakuyomi = require("modules/filebrowser/patches/rakuyomi")
-        return type(Rakuyomi.isTmpfsChapterFile) == "function" and Rakuyomi.isTmpfsChapterFile(path)
+        return OptionalProvider.call(RAKUYOMI_PROVIDER, "isTmpfsChapterFile", path) == true
     end
     local rakuyomi_cfg = type(cfg) == "table" and cfg.rakuyomi or nil
     local exclude_rakuyomi = type(rakuyomi_cfg) == "table"
@@ -1079,15 +1081,13 @@ local function build_data_provider(cfg, dcfg, strip_page_state)
         end
 
         local hist = ReadHistory.hist or {}
-        local Rakuyomi = require("modules/filebrowser/patches/rakuyomi")
-        local recent = not exclude_rakuyomi and type(Rakuyomi.getRecentSeries) == "function"
-            and Rakuyomi.getRecentSeries(hist) or {}
+        local recent = not exclude_rakuyomi
+            and OptionalProvider.call(RAKUYOMI_PROVIDER, "getRecentSeries", hist)
+        recent = type(recent) == "table" and recent or {}
         dataset.rakuyomi_recent = {}
         for _i, series in ipairs(recent) do dataset.rakuyomi_recent[series.file] = series end
         local recent_index = 1
         local lfs = require("libs/libkoreader-lfs")
-        local ok_kindle, Kindle = pcall(
-            require, "modules/filebrowser/patches/kindle_virtual_library")
         local function is_rakuyomi_history_path(path)
             if path:lower():sub(-4) ~= ".cbz" then return false end
             local integration = rawget(_G, "__ZEN_UI_RAKUYOMI")
@@ -1109,9 +1109,8 @@ local function build_data_provider(cfg, dcfg, strip_page_state)
             end
             if #dataset.history >= HOME_STRIP_MAX_BOOKS then break end
             local in_library = path ~= nil and LibraryPaths.isInHomeDir(path)
-            local is_kindle = path ~= nil and not in_library and ok_kindle
-                and type(Kindle.isBookPath) == "function"
-                and Kindle.isBookPath(path)
+            local is_kindle = path ~= nil and not in_library
+                and OptionalProvider.call(KINDLE_PROVIDER, "isBookPath", path) == true
             local is_rakuyomi = path ~= nil and not is_kindle
                 and (#recent > 0 or exclude_rakuyomi or not in_library)
                 and is_rakuyomi_history_path(path)
@@ -1210,8 +1209,9 @@ local function build_data_provider(cfg, dcfg, strip_page_state)
 
     local function get_book(path, need_time_left, metadata_only)
         if dataset.rakuyomi_recent and dataset.rakuyomi_recent[path] then
-            return require("modules/filebrowser/patches/rakuyomi")
-                .getRecentBook(dataset.rakuyomi_recent[path], metadata_only)
+            local book = OptionalProvider.call(RAKUYOMI_PROVIDER,
+                "getRecentBook", dataset.rakuyomi_recent[path], metadata_only)
+            if type(book) == "table" then return book end
         end
         if not path or is_tmpfs_chapter(path) then return nil end
         local started_at = os.clock()
@@ -1242,7 +1242,7 @@ local function build_data_provider(cfg, dcfg, strip_page_state)
             if metadata_only and type(DecodeCache.getFreshMetadata) == "function" then
                 bi = DecodeCache:getFreshMetadata(path, now(), 30)
             end
-            bi = bi or BookInfoManager:getBookInfo(path, not metadata_only)
+            bi = bi or OptionalProvider.call(BookInfoManager, "getBookInfo", BookInfoManager, path, not metadata_only)
             book_info = bi
             if bi then
                 title = bi.title
@@ -1252,9 +1252,7 @@ local function build_data_provider(cfg, dcfg, strip_page_state)
                 pages = bi.pages
                 description = bi.description
             end
-            local ok_rakuyomi, Rakuyomi = pcall(require, "modules/filebrowser/patches/rakuyomi")
-            local metadata = ok_rakuyomi and type(Rakuyomi.getMetadata) == "function"
-                and Rakuyomi.getMetadata(path) or nil
+            local metadata = OptionalProvider.call(RAKUYOMI_PROVIDER, "getMetadata", path)
             if metadata then
                 title = metadata.title or title
                 authors = metadata.authors or authors
@@ -1724,27 +1722,28 @@ local function build_data_provider(cfg, dcfg, strip_page_state)
     end
 
     function provider:getFeaturedBook(source_key, order_key, metadata_only)
-        local path
+        local paths
         local used_index = false
         if source_key == "to_be_read" then
             local index = get_tbr_index()
             if index then
                 used_index = true
-                local indexed_paths = index.getPage(0, 1,
+                paths = index.getPage(0, 1,
                     tbr_sort_options(order_key, false))
-                path = indexed_paths[1]
             end
         end
         if not used_index then
-            local ordered_paths = get_ordered_paths(source_key, 1, order_key)
-            path = ordered_paths[1]
+            paths = get_ordered_paths(source_key, nil, order_key)
         end
         local featured_cfg = dcfg and dcfg.modules and dcfg.modules.featured or {}
         local progress_meta = featured_cfg.progress_meta or {}
         metadata_only = metadata_only == true
         local need_time_left = not metadata_only
             and (progress_meta.left == "time_left" or progress_meta.right == "time_left")
-        return get_book(path, need_time_left, metadata_only)
+        for _i, path in ipairs(paths) do
+            local book = get_book(path, need_time_left, metadata_only)
+            if book then return book end
+        end
     end
 
     local function strip_page_offset(total, count, offset, page_delta)
@@ -2080,8 +2079,8 @@ local function build_data_provider(cfg, dcfg, strip_page_state)
         if request.kind == "continue" then return provider:getContinuePaths() end
         if request.kind == "kindle" then
             if not dataset.kindle_paths then
-                dataset.kindle_paths = require(
-                    "modules/filebrowser/patches/kindle_virtual_library").getBookPaths()
+                local paths = OptionalProvider.call(KINDLE_PROVIDER, "getBookPaths")
+                dataset.kindle_paths = type(paths) == "table" and paths or {}
             end
             return copy_paths(dataset.kindle_paths)
         end
@@ -2291,9 +2290,8 @@ local function build_data_provider(cfg, dcfg, strip_page_state)
 
     function provider:isStripCoverWorkBusy()
         local ok_bim, BookInfoManager = pcall(require, "bookinfomanager")
-        return ok_bim and BookInfoManager
-            and type(BookInfoManager.isExtractingInBackground) == "function"
-            and BookInfoManager:isExtractingInBackground() or false
+        return ok_bim and OptionalProvider.call(BookInfoManager,
+            "isExtractingInBackground", BookInfoManager) or false
     end
 
     function provider:warmStripCover(book, width, height)
@@ -2312,7 +2310,7 @@ local function build_data_provider(cfg, dcfg, strip_page_state)
         if not ok_bim or not BookInfoManager then return "failed" end
         local metadata = type(DecodeCache.getFreshMetadata) == "function"
             and DecodeCache:getFreshMetadata(path, now(), 30) or nil
-        metadata = metadata or BookInfoManager:getBookInfo(path, false)
+        metadata = metadata or OptionalProvider.call(BookInfoManager, "getBookInfo", BookInfoManager, path, false)
         local specs = { max_cover_w = width, max_cover_h = height }
         if not metadata or not metadata.cover_fetched then
             queue_cover_upgrade(path, "strip", specs)
@@ -2328,7 +2326,7 @@ local function build_data_provider(cfg, dcfg, strip_page_state)
             return "pending"
         end
 
-        local info = BookInfoManager:getBookInfo(path, true)
+        local info = OptionalProvider.call(BookInfoManager, "getBookInfo", BookInfoManager, path, true)
         if not info then return "failed" end
         local source = info.cover_bb
         info.cover_bb = nil
@@ -3125,8 +3123,7 @@ local function build_home_content(menu, zen_config, dcfg, rows, data_provider)
     local function open_book(path)
         if not path then return end
         _G.__ZEN_UI_LIBRARY_SOURCE_TAB = "home"
-        local Rakuyomi = require("modules/filebrowser/patches/rakuyomi")
-        if type(Rakuyomi.resumeRecentSeries) == "function" and Rakuyomi.resumeRecentSeries(path) then return end
+        if OptionalProvider.call(RAKUYOMI_PROVIDER, "resumeRecentSeries", path) then return end
         local fm = FileManager.instance
         if filemanagerutil.openFile then
             filemanagerutil.openFile(fm, path)
@@ -3138,14 +3135,13 @@ local function build_home_content(menu, zen_config, dcfg, rows, data_provider)
     local function show_book_context_menu(path, source, component_id)
         if type(path) ~= "string" or path == "" then return false end
         if source == "kindle" then
-            return require("modules/filebrowser/patches/kindle_virtual_library")
-                .showBookContextMenu(nil, { file = path, path = path }, M.rebuildActive)
+            return OptionalProvider.call(KINDLE_PROVIDER,
+                "showBookContextMenu", nil, { file = path, path = path }, M.rebuildActive) or false
         end
         local fm = FileManager.instance
         local fc = fm and fm.file_chooser
         if not (fc and type(fc.showFileDialog) == "function") then return false end
-        local Rakuyomi = require("modules/filebrowser/patches/rakuyomi")
-        local is_rakuyomi = type(Rakuyomi.loadRecentDetails) == "function" and Rakuyomi.loadRecentDetails(path)
+        local is_rakuyomi = OptionalProvider.call(RAKUYOMI_PROVIDER, "loadRecentDetails", path) == true
         local explicit_collection
         local ok_index, index = pcall(require, "common/tbr_index")
         if source ~= "to_be_read" or not ok_index then index = nil end
