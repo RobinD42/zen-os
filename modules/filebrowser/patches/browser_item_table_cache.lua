@@ -568,7 +568,11 @@ local function apply_browser_item_table_cache()
             local signatures = value.child_directory_signatures
             if type(signatures) ~= "table" or next(signatures) == nil then return false end
             for path, signature in pairs(signatures) do
-                if type(path) ~= "string" or directory_signature(path) ~= signature then
+                if type(path) ~= "string" then return false end
+                local attributes = lfs.attributes(path)
+                -- Second-resolution timestamps can hide changes made during the scan.
+                if not attributes or attr_signature(attributes) ~= signature
+                        or (attributes.modification or 0) >= (value.scanned_at or 0) then
                     return false
                 end
             end
@@ -705,6 +709,7 @@ local function apply_browser_item_table_cache()
             table = restored,
             child_directory_signatures = value.child_directory_signatures,
             recursive = value.recursive,
+            scanned_at = value.scanned_at,
             tree_signature_mode = value.tree_signature_mode or "legacy",
         }, "disk_hit"
     end
@@ -721,6 +726,7 @@ local function apply_browser_item_table_cache()
             table = snapshot,
             child_directory_signatures = value.child_directory_signatures,
             recursive = value.recursive,
+            scanned_at = value.scanned_at,
             tree_signature_mode = value.recursive and "full" or nil,
             needs_tree_signature = not value.recursive,
             requires_full_tree = value.recursive or self.show_flat_view == true
@@ -906,6 +912,7 @@ local function apply_browser_item_table_cache()
         end
 
         self._zen_flat_view_directories = nil
+        local scanned_at = os.time()
         local result = original_genItemTableFromPath(self, path)
         if collate_mode == "access" then
             result = apply_history_order(self, result, collate, reverse)
@@ -915,6 +922,7 @@ local function apply_browser_item_table_cache()
         self._zen_flat_view_directories = nil
         if directories and directories[path] then
             value.recursive = true
+            value.scanned_at = scanned_at
             value.child_directory_signatures = {}
             for dir, attributes in pairs(directories) do
                 value.child_directory_signatures[dir] = attr_signature(attributes)

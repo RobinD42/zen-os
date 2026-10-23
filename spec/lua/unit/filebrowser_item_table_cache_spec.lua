@@ -346,6 +346,27 @@ describe("file browser item-table cache", function()
         assert.are.equal(3, generated["/library"])
     end)
 
+    it("rescans flat listings built in a directory's timestamp second", function()
+        local scan_time = os.time()
+        stub(os, "time", function() return scan_time end)
+        directory_mtime = scan_time
+        flat_directories = { "/library", "/library/Nested" }
+        local book = { path = "/library/Nested/Book.epub", is_file = true }
+        source_items["/library"] = { book }
+        local chooser = setmetatable({ name = "filemanager" }, { __index = FileChooser })
+        chooser:genItemTableFromPath("/library")
+        source_items["/library"] = {}
+        assert.are.same({}, chooser:genItemTableFromPath("/library"))
+        run_scheduled()
+        source_items["/library"] = { book }
+        scan_time = scan_time + 1
+
+        chooser = apply_new_filechooser()
+        assert.are.same({ book }, chooser:genItemTableFromPath("/library"))
+        chooser:genItemTableFromPath("/library")
+        assert.are.equal(3, generated["/library"])
+    end)
+
     it("validates all scanned flat directories after restoring a snapshot", function()
         flat_directories = { "/library", "/library/Author", "/library/Author/Series/Title" }
         directory_mtimes["/library/Author/Series/Title"] = 1

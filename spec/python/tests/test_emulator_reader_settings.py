@@ -91,7 +91,7 @@ def test_reader_settings_hierarchy_icons_and_bottom_swipe(configured):
             features = { reader_controls = false },
             reader_bottom_swipe = { entries = {{ id = 'swipe_1', type = 'quick_setting',
                 label = 'Settings', quick_setting_id = 'zen_settings' }}, next_id = 1 },
-        }""" if configured else "return {}"
+        }""" if configured else None
         process = launch(runtime, home, socket, library, zen_config_source=config)
         try:
             wait_for_socket(socket)
