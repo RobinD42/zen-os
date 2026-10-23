@@ -906,12 +906,12 @@ def test_clean_emulator_renders_fixture_library_and_reader_goldens() -> None:
             assert driver.command("close_settings_page")["ok"] is True
 
             assert driver.command("open_settings_page")["ok"] is True
-            assert driver.command("settings_page_search", query="tabs")["ok"] is True
+            assert driver.command("settings_page_search", query="tabs interface")["ok"] is True
             assert driver.command("settings_page_select", label="Tabs")["ok"] is True
             time.sleep(0.2)
             arrange = driver.command("arrange_page_state")["arrange"]
             initial_labels = arrange.get("labels", [])
-            assert len(initial_labels) > 1
+            assert {"Home", "Library"}.issubset(initial_labels)
             dragged = driver.command("arrange_page_drag", **{"from": 1, "to": 2})
             assert dragged.get("ok") is True, dragged
             assert dragged.get("marked") == 0

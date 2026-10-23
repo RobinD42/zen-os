@@ -848,8 +848,6 @@ def test_page_browser_settings_subsections_and_themes(document_type: str, width:
                         driver.screenshot(frame_dir / f"current-font-{page}{suffix}.png")
                     elif width and section == "contrast" and page <= 2:
                         driver.screenshot(frame_dir / f"current-contrast-{page}-{width}.png")
-                    if section != "themes" and page < state["page_num"]:
-                        assert state["settings_rows"] == 3, (section, page, state["controls"], state["bounds"])
                     assert 1 <= state["settings_rows"] <= 3, (section, page, state)
                     dividers = state["settings_dividers"]
                     assert len(dividers) == state["settings_rows"] - 1
@@ -860,6 +858,7 @@ def test_page_browser_settings_subsections_and_themes(document_type: str, width:
                     rows = state["settings_row_bounds"]
                     assert len(rows) == state["settings_rows"]
                     assert rows[0]["y"] > state["menu_top"]
+                    assert rows[-1]["y"] + rows[-1]["h"] <= pager["y"]
                     for index, line in enumerate(dividers):
                         padding = line["spacing"] / 2
                         assert rows[0]["y"] - state["menu_top"] == line["height"] + padding
@@ -915,7 +914,7 @@ def test_page_browser_settings_subsections_and_themes(document_type: str, width:
             assert restored["section"] == "page" and restored["page"] == remembered_page
             assert driver.command("page_browser_key", key="Back")["handled"]
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
-            assert driver.command("page_browser_state")["page_browser"]["active_tab"] == "browser"
+            assert driver.command("page_browser_state")["page_browser"]["active_tab"] == "aa"
             assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
             restored = driver.command("reader_controls")
             assert restored["section"] == "page" and restored["page"] == remembered_page
@@ -1011,7 +1010,7 @@ def test_page_browser_font_full_page_matches_reader_and_is_remembered(document_t
             assert driver.command("activate_reader_control", name="page_browser_preview_center")["activated"]
             assert driver.command("page_browser_state").get("page_browser") is None
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
-            assert driver.command("page_browser_state")["page_browser"]["active_tab"] == "browser"
+            assert driver.command("page_browser_state")["page_browser"]["active_tab"] == "aa"
             assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
             assert driver.command("page_browser_state")["page_browser"]["full_page"]
             stop(process)

@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from fixtures import build_library
+from test_emulator_smoke import _wait_command
 from zen_driver import (
     ZenDriver,
     launch,
@@ -86,14 +87,19 @@ def test_flat_view_pulls_books_out_of_subfolders() -> None:
             received_book = nested / "Received.epub"
             shutil.copyfile(fixture["epub"], received_book)
             assert driver.command("tap_navbar_tab", label="Library", id="books")["ok"] is True
-            items = driver.command("file_chooser_items")["file_chooser"]["items"]
+            items = _wait_command(driver, "file_chooser_items", lambda result:
+                                  str(received_book.resolve()) in {
+                                      item["path"] for item in result["file_chooser"]["items"]
+                                  })["file_chooser"]["items"]
             assert str(received_book.resolve()) in {item["path"] for item in items}
 
             assert driver.command("tap_navbar_tab", label="Home", id="home")["ok"] is True
             received_book.unlink()
             deep_book.unlink()
             assert driver.command("tap_navbar_tab", label="Library", id="books")["ok"] is True
-            items = driver.command("file_chooser_items")["file_chooser"]["items"]
+            removed = {str(received_book.resolve()), expected}
+            items = _wait_command(driver, "file_chooser_items", lambda result:
+                                  removed.isdisjoint(item["path"] for item in result["file_chooser"]["items"]))["file_chooser"]["items"]
             refreshed_paths = {item["path"] for item in items}
             assert str(received_book.resolve()) not in refreshed_paths
             assert expected not in refreshed_paths

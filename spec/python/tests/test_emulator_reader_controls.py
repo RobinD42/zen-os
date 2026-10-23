@@ -543,8 +543,11 @@ def test_reader_optional_menu_buttons_work_without_changing_the_swipe_gesture(co
             if control == "page_browser":
                 browser = _wait_command(driver, "page_browser_state",
                                         lambda result: result.get("page_browser", {}).get("layout") == "carousel")
-                assert browser["page_browser"]["header_icons"] == ["quick_search.svg", "font.svg", "toc.svg", "bookmark.svg", "close.svg"]
+                assert browser["page_browser"]["header_icons"] == ["coverflow.svg", "font.svg", "book_open.svg", "toc.svg", "more_vertical.svg", "close.svg"]
                 assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
+                assert driver.command("page_browser_state")["page_browser"]["active_tab"] == "aa"
+                assert driver.command("activate_reader_control", name="page_browser_more")["activated"]
+                assert driver.command("activate_reader_control", name="page_browser_reader_controls")["activated"]
                 controls = _wait_command(driver, "reader_controls", lambda result: result.get("menu_open"))
                 assert controls["active_tab"] == "reader_controls"
                 assert controls["menu_bottom"] == controls["screen_height"]

@@ -121,7 +121,7 @@ def test_page_browser_tab_order(document_type: str) -> None:
                 assert driver.command("settings_page_select", label=label)["ok"]
             arrange = driver.command("arrange_page_state")["arrange"]
             controls = "Contrast" if document_type == "pdf" else "Font"
-            assert arrange["labels"] == ["Page browser", controls, "Bookmarks", "Highlights", "Annotations", "Table of contents"]
+            assert arrange["labels"] == ["Page browser", controls, "Bookmarks", "Highlights", "Annotations", "Table of contents", "Book details"]
             assert driver.command("arrange_page_select", index=3, toggle=True)["ok"]
             assert driver.command("arrange_page_drag", **{"from": 5, "to": 1})["ok"]
             assert driver.command("arrange_page_state")["arrange"]["labels"][0] == "Annotations"
@@ -138,7 +138,8 @@ def test_page_browser_tab_order(document_type: str) -> None:
             assert _state(driver)["active_tab"] == "aa"
             assert driver.command("page_browser_key", key="Back")["handled"]
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
-            assert _state(driver)["active_tab"] == "annotations"
+            assert _state(driver)["active_tab"] == "aa"
+            assert driver.command("activate_reader_control", name="page_browser_annotations")["activated"]
             stop(process)
             process = launch(runtime, home, socket, library, initialize_settings=False)
             wait_for_socket(socket)

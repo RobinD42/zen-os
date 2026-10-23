@@ -131,14 +131,14 @@ def _assert_pin_alignment(driver, state, name):
     assert abs(centers["pin_icon_bounds"] - centers["footer_text"]) <= 2
 
 
-def _assert_pin_header_padding(state):
+def _assert_pin_header_padding(state, page_label="Page {}"):
     drawer = state["drawer"]
     assert not drawer.get("control_radius") and not drawer.get("dots_background")
     bounds, menu = (drawer[key] for key in ("bounds", "menu"))
     right = min(state["screen"]["w"], bounds["x"] + bounds["w"])
     assert not drawer.get("close") and not drawer.get("close_icon")
     label = drawer["page_label"]
-    assert drawer["page_label_text"] == f"Page {drawer['page']}"
+    assert drawer["page_label_text"] == page_label.format(drawer["page"])
     assert drawer["page_icon"].endswith("/pin.svg")
     assert drawer["page_icon_first"]
     scale = min(state["screen"].values()) / 600
@@ -481,7 +481,11 @@ def test_return_tab_overlays_footer_without_changing_items(format):
         book = library / f"footer.{format}"
         _write_book(book)
         socket = root / "driver.sock"
-        config = "return {updater={update_auto_check=false},reader_footer={hide_in_cbz=false}}"
+        config = """return {
+            updater = { update_auto_check = false },
+            _meta = { reader_footer_hide_cbz_default_migrated = true },
+            reader_footer = { hide_in_cbz = false },
+        }"""
         process = launch(Path(os.environ["KOREADER_DIR"]), root / "home", socket, library,
                          zen_config_source=config)
         try:
@@ -494,6 +498,7 @@ def test_return_tab_overlays_footer_without_changing_items(format):
                 _ref(driver, "pin_preset", index=preset)
                 _ref(driver, "jump", page=1)
                 baseline = _ref(driver, "paint")
+                assert baseline["footer_visible"]
                 bounds = baseline["footer_bounds"]
                 area = (0, bounds["y"], baseline["screen"]["w"], baseline["screen"]["h"])
                 expected = Image.open(_capture(driver, f"footer-{format}-{preset}-before.png")).convert("RGB").crop(area)
@@ -561,7 +566,7 @@ def test_pin_drawer_preserves_reading_and_page_actions(format, use_pack):
             assert not single["drawer"].get("pager_right")
             scale = min(single["screen"].values()) / 600
             label, content = (single["drawer"][key] for key in ("page_label", "content"))
-            assert content["y"] == label["y"] + label["h"]
+            assert content["y"] == label["y"] + label["h"] + math.ceil(8 * scale)
             assert single["screen"]["h"] - content["y"] - content["h"] == math.ceil(4 * scale)
             _capture(driver, f"{format}-single-pin.png")
             assert _ref(driver, "previous")["drawer"]["page"] == pin
@@ -784,7 +789,8 @@ def test_reference_controls_fit_compact_screens_and_hardware(language, landscape
             if landscape:
                 _ref(driver, "resize", mode=1)
             state = _ref(driver, "open_pin")
-            _assert_pin_header_padding(state)
+            page_label = "頁碼：{}" if language == "zh_TW" else "Page {}"
+            _assert_pin_header_padding(state, page_label)
             assert not state["drawer"].get("pager")
             screen, bounds = state["screen"], state["drawer"]["bounds"]
             assert screen["w"] - bounds["x"] == math.floor(screen["w"] * 0.7)
@@ -794,7 +800,7 @@ def test_reference_controls_fit_compact_screens_and_hardware(language, landscape
             assert bounds["y"] + state["drawer"]["paint_height"] == screen["h"]
             _ref(driver, "resize", mode=0 if landscape else 1)
             rotated = _ref(driver)
-            _assert_pin_header_padding(rotated)
+            _assert_pin_header_padding(rotated, page_label)
             assert not rotated["drawer"].get("pager")
             assert rotated["drawer"]["bounds"]["x"] == rotated["screen"]["w"] - math.floor(rotated["screen"]["w"] * 0.7)
             _ref(driver, "resize", mode=1 if landscape else 0)
@@ -1093,7 +1099,8 @@ def test_multiple_pins_footer_pager_and_independent_text_settings():
             image = Image.open(_capture(driver, "multiple-pins.png")).convert("RGB")
             edge = opened["screen"]["w"] - 1
             assert image.getpixel((edge, bounds["y"])) == (0, 0, 0)
-            assert image.getpixel((bounds["x"], opened["screen"]["h"] - 1)) == (255, 255, 255)
+            # The rounded corner exposes the drawer's 30% shadow.
+            assert image.getpixel((bounds["x"], opened["screen"]["h"] - 1)) == (179, 179, 179)
             assert image.getpixel((bounds["x"], opened["screen"]["h"] - opened["drawer"]["radius"] * 2)) == (0, 0, 0)
             assert all(image.getpixel((x, opened["screen"]["h"] - 1)) == (0, 0, 0)
                        for x in range(bounds["x"] + opened["drawer"]["radius"] * 2, edge + 1))
@@ -1147,7 +1154,7 @@ def test_multiple_pins_footer_pager_and_independent_text_settings():
             assert left["drawer"]["content"]["x"] >= 0
             image = Image.open(_capture(driver, "multiple-pins-left.png")).convert("RGB")
             assert image.getpixel((0, bounds["y"])) == (0, 0, 0)
-            assert image.getpixel((bounds["x"] + bounds["w"] - 1, left["screen"]["h"] - 1)) == (255, 255, 255)
+            assert image.getpixel((bounds["x"] + bounds["w"] - 1, left["screen"]["h"] - 1)) == (179, 179, 179)
             assert all(image.getpixel((x, left["screen"]["h"] - 1)) == (0, 0, 0)
                        for x in range(bounds["x"] + bounds["w"] - left["drawer"]["radius"] * 2))
             assert image.getpixel((0, bounds["y"] + bounds["h"] // 2)) == (255, 255, 255)

@@ -115,10 +115,11 @@ def test_reader_settings_hierarchy_icons_and_bottom_swipe(configured):
             open_reader()
             assert state()["labels"] == ["Reader controls", "Appearance", "Highlight / Lookup",
                                           "Bottom swipe gesture", "Page Browser",
+                                          "Footnotes and pinned pages", "Annotation viewer",
                                           "Restore library location on exit", "End of book"]
             assert [item.get("icon_glyph") for item in state()["items"]] == [
                 "\U000f14f7", "\U000f03d8", "\U000f0349", "\U000f0740",
-                "\U000f0570", "\U000f006f", "\U000f14f3",
+                "\U000f0570", None, None, "\U000f006f", "\U000f14f3",
             ]
             enabled = state()["items"][0]["checked"]
             select("Reader controls", control=True)
@@ -195,6 +196,6 @@ def test_reader_settings_hierarchy_icons_and_bottom_swipe(configured):
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
             browser = _wait_command(driver, "page_browser_state",
                                     lambda result: result.get("page_browser", {}).get("layout") == "carousel")
-            assert browser["page_browser"]["header_icons"] == ["quick_search.svg", "font.svg", "toc.svg", "bookmark.svg", "close.svg"]
+            assert browser["page_browser"]["header_icons"] == ["coverflow.svg", "font.svg", "book_open.svg", "toc.svg", "more_vertical.svg", "close.svg"]
         finally:
             stop(process)
