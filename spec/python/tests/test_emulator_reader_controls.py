@@ -743,8 +743,10 @@ def test_fixed_layout_reader_controls(extension):
             assert state["config"]["zen_test_color"] == 8
             assert state["selections"]["zen_test_color_3"]
             tabs = [state["bounds"][f"zen_test_color_{index}"] for index in range(1, 4)]
-            assert tabs[0]["x"] - 2 == start["glyph_x"]
-            assert tabs[-1]["x"] + tabs[-1]["w"] + 2 == end["glyph_x"] + end["glyph_w"]
+            scale = min(state["screen_width"], state["screen_height"]) / 600
+            inset = math.ceil(2 * scale)
+            assert tabs[0]["x"] - inset == start["glyph_x"]
+            assert tabs[-1]["x"] + tabs[-1]["w"] + inset == end["glyph_x"] + end["glyph_w"]
             for name in ["hw_dithering", "sw_dithering"]:
                 driver.command("reader_controls", action="dithering_option", name=name)
                 for index, enabled in [(2, True), (1, False)]:
@@ -765,8 +767,8 @@ def test_fixed_layout_reader_controls(extension):
             driver.command("reader_controls", action="choose", id="zoom_mode_type_3")
             assert driver.command("reader_controls")["config"]["zoom_mode_type"] == 0
             state = driver.command("reader_controls", action="paint")
-            assert state["bounds"]["zoom_mode_genus_1"]["h"] == 48
-            assert state["icons"]["zoom_mode_genus_1_height"] == 32
+            assert state["bounds"]["zoom_mode_genus_1"]["h"] == math.ceil(48 * scale)
+            assert state["icons"]["zoom_mode_genus_1_height"] == math.ceil(32 * scale)
             driver.command("reader_controls", action="choose", id="zoom_mode_genus_3")
             state = driver.command("reader_controls", action="paint")
             assert state["config"]["zoom_mode_genus"] == 2
@@ -775,7 +777,7 @@ def test_fixed_layout_reader_controls(extension):
             assert state["bounds"]["zoom_mode_genus_1"]["y"] < state["bounds"]["zoom_direction_1"]["y"]
             assert state["bounds"]["zoom_direction_1"]["y"] < state["bounds"]["zoom_range_number_1"]["y"]
             assert state["icons"]["zoom_direction_1"].endswith("/direction.LRTB.svg")
-            assert state["icons"]["zoom_direction_1_height"] == 32
+            assert state["icons"]["zoom_direction_1_height"] == math.ceil(32 * scale)
             driver.command("reader_controls", action="next_page")
             state = driver.command("reader_controls", action="paint")
             assert len(set(state["label_ends"].values())) == 1
@@ -1297,11 +1299,13 @@ def test_reader_shared_selection_and_setting_layout(show_chevrons):
                 assert "previous" not in second["bounds"] and "next" not in second["bounds"]
             driver.command("reader_controls", action="buttons_next")
             state = driver.command("reader_controls", action="paint")
+            scale = min(state["screen_width"], state["screen_height"]) / 600
+            inset = math.ceil(2 * scale)
             for name in ["font_size_decrease", "font_size_increase"]:
                 style = state["step_styles"][name]
-                assert style["size"] == 14 and style["bold"] is False
+                assert style["size"] == math.ceil(14 * scale) and style["bold"] is False
                 assert style["border"] == 0 and style["flash"] is False
-                assert state["bounds"][name]["w"] == 56
+                assert state["bounds"][name]["w"] == math.ceil(56 * scale)
             assert state["bounds"]["font_size_more"]["x"] == (
                 state["bounds"]["font_size_increase"]["x"] + state["bounds"]["font_size_increase"]["w"])
             assert state["icons"]["font_size_more_height"] == state["title_heights"]["font_size"]
@@ -1329,8 +1333,8 @@ def test_reader_shared_selection_and_setting_layout(show_chevrons):
                 cells = [bounds for key, bounds in state["bounds"].items()
                          if key.startswith(name + "_") and key[len(name) + 1:].isdigit()]
                 start, end = font_start, font_end
-                assert min(cell["x"] for cell in cells) - 2 == start["glyph_x"]
-                assert max(cell["x"] + cell["w"] for cell in cells) + 2 == end["glyph_x"] + end["glyph_w"]
+                assert min(cell["x"] for cell in cells) - inset == start["glyph_x"]
+                assert max(cell["x"] + cell["w"] for cell in cells) + inset == end["glyph_x"] + end["glyph_w"]
                 if name in ["word_spacing", "word_expansion"]:
                     step = font_step
                     assert state["bounds"][name + "_more"]["x"] == step["x"] + step["w"]
@@ -1393,8 +1397,8 @@ def test_reader_shared_selection_and_setting_layout(show_chevrons):
             cells = [state["bounds"]["view_mode_1"], state["bounds"]["view_mode_2"]]
             start = layout_state["step_styles"]["line_spacing_decrease"]
             end = layout_state["step_styles"]["line_spacing_increase"]
-            assert cells[0]["x"] - 2 == start["glyph_x"]
-            assert cells[1]["x"] + cells[1]["w"] + 2 == end["glyph_x"] + end["glyph_w"]
+            assert cells[0]["x"] - inset == start["glyph_x"]
+            assert cells[1]["x"] + cells[1]["w"] + inset == end["glyph_x"] + end["glyph_w"]
             driver.command("reader_controls", action="choose", id="view_mode_1")
             state = driver.command("reader_controls", action="paint")
             assert state["config"]["view_mode"] == 0

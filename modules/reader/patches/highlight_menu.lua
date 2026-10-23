@@ -355,6 +355,12 @@ local function apply()
             local close = spec.buttons[1][1].callback
             spec.buttons = {{ spec.buttons[1][3] }}
             local dialog = original_new(class, spec, ...)
+            local excess = dialog.dialog_frame:getSize().h + Screen:scaleBySize(40)
+                - (Screen:getHeight() - dialog._input_widget:getKeyboardDimen().h)
+            if excess > 0 then
+                dialog.orig_text_height = math.max(dialog._input_widget:getLineHeight(), dialog.text_height - excess)
+                dialog:reinit()
+            end
             local function close_dialog()
                 close()
                 return true

@@ -344,13 +344,16 @@ describe("reader lookup menus", function()
 
     describe("highlight note editor", function()
         local bookmark, InputDialog, native_spec, saved, cancelled, original_new
+        local screen_height, keyboard_height
 
         before_each(function()
             saved, cancelled = false, false
+            screen_height, keyboard_height = 800, 300
             ZenSpec.replace("apps/reader/modules/readerhighlight", {})
             ZenSpec.replace("ui/widget/buttondialog", {})
             ZenSpec.replace("device", { screen = {
-                getWidth = function() return 600 end, getHeight = function() return 800 end,
+                getWidth = function() return 600 end, getHeight = function() return screen_height end,
+                scaleBySize = function(_self, size) return size end,
             } })
             ZenSpec.replace("common/date_format", { formatISODate = function(value)
                 assert.are.equal("2026-10-18 12:01:00", value)
@@ -359,7 +362,18 @@ describe("reader lookup menus", function()
             ZenSpec.replace("common/ui/zen_modal_close", { installDialog = function(dialog, callback)
                 dialog.close_callback = callback
             end })
-            InputDialog = { new = function(_class, spec) return spec end }
+            InputDialog = { new = function(_class, spec)
+                spec.dialog_frame = { getSize = function() return { h = spec.text_height + 100 } end }
+                spec._input_widget = {
+                    getKeyboardDimen = function() return { h = keyboard_height } end,
+                    getLineHeight = function() return 20 end,
+                }
+                spec.reinit = function(self)
+                    self.text_height = self.orig_text_height
+                    self.reinitialized = true
+                end
+                return spec
+            end }
             original_new = InputDialog.new
             ZenSpec.replace("ui/widget/inputdialog", InputDialog)
             native_spec = {
@@ -393,6 +407,7 @@ describe("reader lookup menus", function()
             assert.is_false(editor.add_scroll_buttons)
             assert.is_false(editor.use_available_height)
             assert.are.equal(150, editor.text_height)
+            assert.is_nil(editor.reinitialized)
             assert.are.equal("   October 18 2026 · Page 7", editor.description)
             assert.are.equal("2026-10-18 12:01:00", bookmark.ui.annotation.annotations[1].datetime)
             assert.are.equal(original_new, InputDialog.new)
@@ -403,6 +418,13 @@ describe("reader lookup menus", function()
             cancelled = false
             assert.is_true(editor:onCloseDialog())
             assert.is_true(cancelled)
+        end)
+
+        it("leaves space around the editor when the keyboard opens on a short screen", function()
+            screen_height, keyboard_height = 320, 150
+            bookmark:setBookmarkNote(1)
+            assert.are.equal(30, bookmark.editor.text_height)
+            assert.is_true(bookmark.editor.reinitialized)
         end)
 
         it("keeps the stock editor when highlight customization is disabled", function()

@@ -412,7 +412,8 @@ def test_highlight_menu_icons_and_settings_shortcut(use_pack: bool, show_labels:
             )
             assert all(button["content_width"] <= button["width"] for button in buttons)
             if show_labels:
-                assert all(button["icon_width"] < 32 for button in buttons[:6])
+                scale = min(state["screen_w"], state["screen_h"]) / 600
+                assert all(button["icon_width"] < 32 * scale for button in buttons[:6])
                 artifact = Path(__file__).resolve().parents[2] / ".artifacts" / "highlight-handles"
                 artifact.mkdir(parents=True, exist_ok=True)
                 driver.screenshot(artifact / ("menu-labels-narrow.png" if use_pack else "menu-labels.png"))
