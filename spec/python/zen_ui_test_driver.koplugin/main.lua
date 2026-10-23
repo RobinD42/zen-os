@@ -748,6 +748,8 @@ local function reader_state()
     local library_state = rawget(_G, "__ZEN_UI_LIBRARY_STATE")
     local footer = reader.view and reader.view.footer
     local footer_settings = footer and footer.settings
+    local margins = reader.typeset and reader.typeset.unscaled_margins
+    local screen = require("device").screen
     local PluginLoader = require("pluginloader")
     local plugin = PluginLoader:getPluginInstance("zenos")
         or PluginLoader:getPluginInstance("zen_ui")
@@ -766,6 +768,11 @@ local function reader_state()
         saved_page = type(library_state) == "table" and library_state.page or nil,
         active_tab_label = rawget(_G, "__ZEN_UI_ACTIVE_TAB_LABEL"),
         footer_text = footer and footer.footer_text and footer.footer_text.text or nil,
+        page_margins = reader.rolling and reader.document:getPageMargins(),
+        user_top_margin = margins and screen:scaleBySize(margins[2]),
+        user_bottom_margin = margins and screen:scaleBySize(margins[4]),
+        header_height = reader.view._zen_header_dimen and reader.view._zen_header_dimen.h,
+        footer_height = footer and footer:getHeight(),
         footer_time = footer_settings and footer_settings.time == true,
         footer_chapter_time = footer_settings
             and footer_settings.chapter_time_to_read == true,

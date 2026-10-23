@@ -195,6 +195,6 @@ def test_reader_settings_hierarchy_icons_and_bottom_swipe(configured):
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
             browser = _wait_command(driver, "page_browser_state",
                                     lambda result: result.get("page_browser", {}).get("layout") == "carousel")
-            assert browser["page_browser"]["header_icons"] == ["appbar.search.svg", "appbar.textsize.svg", "toc.svg", "bookmark.svg", "close_light.svg"]
+            assert browser["page_browser"]["header_icons"] == ["quick_search.svg", "font.svg", "toc.svg", "bookmark.svg", "close.svg"]
         finally:
             stop(process)

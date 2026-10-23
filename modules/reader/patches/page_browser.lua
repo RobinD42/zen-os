@@ -269,18 +269,20 @@ local function apply_page_browser()
         local title_y = header_pad + math.floor((title_h - header_pad - btn_sz) / 2)
         canvas:paintRect(0, title_h - 1, slot_w, 1, Blitbuffer.COLOR_LIGHT_GRAY)
         local stock_icons_dir = _stock_icons_dir
-        local close_icon_path = utils.resolveIcon(_icons_dir, "close_light")
-        paint_icon(nil, close_icon_path, slot_w - slot_btn_w + btn_pad, title_y, btn_sz)
+        local close_icon_path = utils.resolveIcon(_stock_icons_dir, "close")
+        local close_size = require("common/ui/zen_title_style").ICON_SIZE
+        local close_inset = math.floor((btn_sz - close_size) / 2)
+        paint_icon(nil, close_icon_path, slot_w - slot_btn_w + btn_pad + close_inset, title_y + close_inset, close_size)
         paint_icon(nil, utils.resolveIcon(_icons_dir, "more_vertical"), slot_w - slot_btn_w * 2 + btn_pad, title_y, btn_sz)
         local tabs = ZenTabBar:new{
             items = {
                 { icon = utils.resolveIcon(_icons_dir, "coverflow") },
-                { icon = utils.resolveIcon(stock_icons_dir, "appbar.textsize") },
+                { icon = utils.resolveIcon(_icons_dir, "font") },
                 { icon = utils.resolveIcon(_icons_dir, "book_open") },
                 { icon = utils.resolveIcon(_icons_dir, "toc") },
             },
             selected = 1, icon_size = Screen:scaleBySize(24),
-            width = math.min(Screen:scaleBySize(256), slot_w - slot_btn_w * 4),
+            width = math.min(math.floor(slot_w * 2 / 3), slot_w - slot_btn_w * 4),
             cell_height = Screen:scaleBySize(40),
         }
         local tabs_size = tabs:getSize()
@@ -408,7 +410,7 @@ local function apply_page_browser()
             make_button(utils.resolveIcon(_icons_dir, "grid")),
             make_button(utils.resolveIcon(stock_icons_dir, "chevron.left")),
             make_button(utils.resolveIcon(stock_icons_dir, "chevron.right")),
-            make_button(utils.resolveIcon(stock_icons_dir, "appbar.search")),
+            make_button(utils.resolveIcon(_icons_dir, "quick_search")),
         }
         local button_size = buttons[1]:getSize()
         local row_h = button_size.h
@@ -1002,13 +1004,17 @@ local function apply_page_browser()
                 self.title_bar.has_left_icon = false
             end
 
-            local function make_header_btn(file_path, x_pos, cb, hold_cb, align)
+            local function make_header_btn(file_path, x_pos, cb, hold_cb, align, icon_size)
+                icon_size = icon_size or btn_sz
+                local inset_start = math.floor((btn_sz - icon_size) / 2)
+                local inset_end = btn_sz - icon_size - inset_start
                 local button = {
                     file           = file_path,
-                    width          = btn_sz,
-                    height         = btn_sz,
-                    padding        = btn_pad,
-                    padding_bottom = btn_sz,
+                    width          = icon_size,
+                    height         = icon_size,
+                    padding        = btn_pad + inset_start,
+                    padding_right  = btn_pad + inset_end,
+                    padding_bottom = btn_sz + inset_end,
                     overlap_align  = align or "left",
                     allow_flash    = true,
                     show_parent    = self,
@@ -1060,9 +1066,9 @@ local function apply_page_browser()
                     end
                 end
                 self.title_bar.right_button = make_header_btn(
-                    utils.resolveIcon(_icons_dir, "close_light"), nil,
+                    utils.resolveIcon(_stock_icons_dir, "close"), nil,
                     old_right_button.callback, old_right_button.hold_callback,
-                    "right")
+                    "right", require("common/ui/zen_title_style").ICON_SIZE)
                 table.insert(self.title_bar, self.title_bar.right_button)
             end
 
@@ -1138,8 +1144,7 @@ local function apply_page_browser()
                 search_button = nil
                 local show_search = is_annotation_tab(pbw._zen_active_tab)
                 if show_search then
-                    search_button = make_header_btn(utils.resolveIcon(_icons_dir, "quick_search")
-                        or utils.resolveLocalIcon(_icons_dir, "quick_search"), 0, function()
+                    search_button = make_header_btn(utils.resolveIcon(_icons_dir, "quick_search"), 0, function()
                         require("modules/reader/annotation_viewer").showSearch(pbw)
                     end)
                     table.insert(pbw.title_bar, search_button)
@@ -1152,7 +1157,7 @@ local function apply_page_browser()
                 end
                 local tabs = require("common/ui/zen_tab_bar"):new{
                     items = items, selected = selected, icon_size = Screen:scaleBySize(24),
-                    width = math.min(Screen:scaleBySize(256), pbw.dimen.w - (btn_sz + btn_pad * 2) * 4),
+                    width = math.min(math.floor(pbw.dimen.w * 2 / 3), pbw.dimen.w - (btn_sz + btn_pad * 2) * 4),
                     cell_height = Screen:scaleBySize(40), focusable = pbw._zen_focus_enabled,
                 }
                 local size = tabs:getSize()
@@ -1818,7 +1823,7 @@ local function apply_page_browser()
                 }
                 UIManager:show(dialog)
             end)
-            local search_button = make_button(resolve_stock_icon("appbar.search"), function()
+            local search_button = make_button(utils.resolveIcon(_icons_dir, "quick_search"), function()
                 pbw.ui:handleEvent(Event:new("ShowFulltextSearchInput"))
             end)
             local skip_left_btn = make_button(resolve_stock_icon("chevron.left"), function() pbw:onScrollPageUp() end)

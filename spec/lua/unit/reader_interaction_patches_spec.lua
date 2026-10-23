@@ -195,6 +195,63 @@ describe("reader interaction patches", function()
         assert.are.equal(1, saves)
     end)
 
+    it("resets saved book margins once only while a Zen reader preset is active", function()
+        local saved_defaults = package.loaded["common/reader_defaults"]
+        local saved_presets = package.loaded["config/preset_store"]
+        local saved_device = package.loaded["device"]
+        ZenSpec.replace("device", { hasColorScreen = function() return false end })
+        ZenSpec.unload("common/reader_defaults")
+        local preset_name = "(ZenOS) Chapter Time + %"
+        ZenSpec.replace("config/preset_store", { getActivePreset = function() return preset_name end })
+        local ReaderUI = { onReaderReady = function() end }
+        ZenSpec.replace("apps/reader/readerui", ReaderUI)
+        ZenSpec.replace("common/book_status", { acknowledgeNewVersion = function() return false end })
+        apply_patch("modules/reader/patches/status_on_open")
+
+        local calls, saves = {}, 0
+        local ui = {
+            rolling = {},
+            document = { configurable = { t_page_margin = 30, b_page_margin = 30, font_size = 23 } },
+            doc_settings = ZenSpec.memorySettings({ copt_t_page_margin = 30, copt_b_page_margin = 30 }),
+            typeset = { onSetPageTopAndBottomMargin = function(_self, margins)
+                calls[#calls + 1] = margins
+            end },
+            saveSettings = function() saves = saves + 1 end,
+        }
+        ReaderUI.onReaderReady(ui)
+        assert.same({ { 15, 15 } }, calls)
+        assert.are.equal(15, ui.document.configurable.t_page_margin)
+        assert.are.equal(15, ui.document.configurable.b_page_margin)
+        assert.are.equal(23, ui.document.configurable.font_size)
+        assert.is_true(ui.doc_settings:isTrue("zen_vertical_margins_migrated"))
+
+        ui.document.configurable.t_page_margin = 22
+        ReaderUI.onReaderReady(ui)
+        assert.are.equal(22, ui.document.configurable.t_page_margin)
+        assert.are.equal(1, saves)
+
+        for _i, name in ipairs({ "", "My preset", "(ZenOS) Custom preset" }) do
+            preset_name = name ~= "" and name or nil
+            ui.doc_settings = ZenSpec.memorySettings({ copt_t_page_margin = 30, copt_b_page_margin = 30 })
+            ReaderUI.onReaderReady(ui)
+            assert.are.equal(22, ui.document.configurable.t_page_margin)
+            assert.are.equal(1, saves)
+            assert.is_false(ui.doc_settings:isTrue("zen_vertical_margins_migrated"))
+        end
+        preset_name = "(ZenOS) Pages and %"
+        ui.doc_settings = ZenSpec.memorySettings()
+        ReaderUI.onReaderReady(ui)
+        assert.are.equal(1, saves)
+        ui.doc_settings = ZenSpec.memorySettings({ copt_t_page_margin = 30 })
+        ui.rolling = nil
+        ReaderUI.onReaderReady(ui)
+        assert.are.equal(1, saves)
+
+        package.loaded["common/reader_defaults"] = saved_defaults
+        package.loaded["config/preset_store"] = saved_presets
+        package.loaded["device"] = saved_device
+    end)
+
     it("starts explicit TBR books as reading and removes them from the collection", function()
         local saved, cached, invalidated, removed = {}, {}, {}, 0
         local ReaderUI = { onReaderReady = function() end }

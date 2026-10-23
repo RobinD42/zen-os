@@ -142,7 +142,7 @@ describe("full-size page-browser preview", function()
         assert.is_nil(preview.bb)
     end)
 
-    it("paints live pin state below the header over a cached page", function()
+    it("keeps the full-page settings preview free of pin overlays", function()
         local calls = {}
         package.loaded["modules/reader/references"].paintPin = function(...)
             calls[#calls + 1] = { ... }
@@ -151,8 +151,7 @@ describe("full-size page-browser preview", function()
         preview:paintTo(target, 20, 30)
         preview:paintTo(target, 20, 30)
         assert.equals(1, #buffers)
-        assert.equals(2, #calls)
-        assert.same({ ui, 7, target, 20, 130, 600, 800 }, calls[2])
+        assert.equals(0, #calls)
     end)
 
     it("fits an entire pinned PDF page without borrowing the reader's crop or zoom", function()
@@ -249,5 +248,30 @@ describe("full-size page-browser preview", function()
         preview:free()
         assert.equals(1, image.frees)
         assert.is_nil(preview.original_image)
+    end)
+
+    it("loads the held image without its heading or other images on the pinned page", function()
+        ui.view.highlight_visible = false
+        document._drawn_images_count = 2
+        document.getPageXPointer = function(_self, page) return "xp:" .. page end
+        document.getTextFromXPointers = function() return "Map" end
+        document._document = { getWordBoxesFromPositions = function(_self, first, last, segments, images)
+            assert.equals("xp:9/image[2]", first); assert.equals(first, last)
+            assert.is_true(segments); assert.is_true(images)
+            return {{ x0 = 50, y0 = 200, x1 = 550, y1 = 700 }}
+        end }
+        local image = require("ffi/blitbuffer").new(1000, 1000, "screen type")
+        document.getImageFromPosition = function(_self, pos)
+            assert.same({ x = 300, y = 450 }, pos)
+            return image
+        end
+        local preview = Preview:new{ ui = ui, page = 9, width = 600, height = 800,
+            fit_page = true, image_xpointer = "xp:9/image[2]" }
+        preview:render()
+        assert.equals(image, preview.bb)
+        assert.is_true(preview.original_image)
+        assert.equals(120, document.position)
+        preview:free()
+        assert.equals(1, image.frees)
     end)
 end)

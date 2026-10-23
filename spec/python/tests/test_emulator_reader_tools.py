@@ -266,7 +266,7 @@ def test_reader_page_browser_modes_and_search_render() -> None:
             )["page_browser"]
             assert default_carousel["thumbnail_count"] == 3
             assert default_carousel["controls"] == ["single", "carousel", "grid"]
-            assert default_carousel["header_icons"] == ["coverflow.svg", "appbar.textsize.svg", "book_open.svg", "toc.svg", "more_vertical.svg", "close_light.svg"]
+            assert default_carousel["header_icons"] == ["coverflow.svg", "font.svg", "book_open.svg", "toc.svg", "more_vertical.svg", "close.svg"]
             assert default_carousel["focused"] == "header:1"
             assert default_carousel["header_height"] >= (
                 default_carousel["header_tabs"]["y"] + default_carousel["header_tabs"]["h"]
@@ -1049,8 +1049,8 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
         pack = home / "icons" / "zen" / "browser"
         pack.mkdir(parents=True)
         (pack / "pack.json").write_text(json.dumps({"schema_version": 1, "id": "browser", "name": "Browser"}))
-        header_names = ["coverflow", "appbar.textsize", "book_open", "toc", "info", "more_vertical", "close_light"]
-        names = header_names + ["grid", "grid_slide", "chevron.left", "chevron.right", "appbar.search",
+        header_names = ["coverflow", "font", "book_open", "toc", "info", "more_vertical", "close"]
+        names = header_names + ["grid", "grid_slide", "chevron.left", "chevron.right", "quick_search",
                                 "quicksettings", "appbar.settings", "plus", "filter", "sort", "pin", "pin_remove",
                                 "bookmark", "bookmark_remove"]
         for name in names:
@@ -1131,7 +1131,7 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
             preview = _wait_command(driver, "page_browser_state", lambda result: result["page_browser"]["preview_ready"])
             assert not preview["page_browser"]["preview_bookmarked"]
             paths = list(zip(header_names, state["header_paths"]))
-            for control, name in {"grid": "grid", "search": "appbar.search",
+            for control, name in {"grid": "grid", "search": "quick_search",
                                   "previous": "chevron.left", "next": "chevron.right"}.items():
                 paths.append((name, state["footer_icons"][control]))
             more_rows = _page_browser_more_rows(driver)
@@ -1164,5 +1164,9 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
                     assert Path(path).resolve() == (pack / (name + ".svg")).resolve()
                 else:
                     assert "/icons/zen/browser/" not in path
+                    if name == "close":
+                        assert Path(path).resolve() == (runtime / "resources/icons/mdlight/close.svg").resolve()
+                    elif name == "quick_search":
+                        assert Path(path).resolve() == (runtime / "plugins/zenos.koplugin/icons/quick_search.svg").resolve()
         finally:
             stop(process)

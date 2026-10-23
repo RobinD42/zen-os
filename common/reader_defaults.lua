@@ -2,15 +2,15 @@ local plugin_root = require("common/plugin_root") or ""
 local ReaderStatusBar = require("common/reader_status_bar")
 local FontLanguage = require("common/font_language")
 
-local M = {}
+local M = { DEFAULT_VERTICAL_MARGIN = 15 }
 
 local READER_FONT = "Readerly R"
 local STATUS_FONT = plugin_root .. "/fonts/hyperreadable/Hyperreadable-SemiBold.ttf"
 local CRE_DEFAULTS = {
     copt_h_page_margins = {30, 30},
     copt_sync_t_b_page_margins = 1,
-    copt_t_page_margin = 30,
-    copt_b_page_margin = 30,
+    copt_t_page_margin = M.DEFAULT_VERTICAL_MARGIN,
+    copt_b_page_margin = M.DEFAULT_VERTICAL_MARGIN,
     copt_word_spacing = {100, 90},
     copt_word_expansion = 5,
     copt_line_spacing = 110,
@@ -34,6 +34,14 @@ local KOPT_DEFAULTS = {
     kopt_zoom_mode_genus = 4,
     kopt_zoom_mode_type = 1,
 }
+
+function M.isZenPreset(name)
+    if type(name) ~= "string" then return false end
+    for _i, preset in ipairs(require("modules/reader/patches/reader_footer_presets")) do
+        if preset.name == name then return true end
+    end
+    return false
+end
 
 local function copy_value(value)
     if type(value) ~= "table" then return value end
@@ -184,7 +192,10 @@ local function apply_to_active_reader(preset, use_bundled_fonts, reader, preserv
 
     local typeset = reader.typeset
     if typeset and type(typeset.onSetPageMargins) == "function" then
-        typeset.unscaled_margins = {30, 30, 30, 30}
+        typeset.unscaled_margins = {
+            configurable.h_page_margins[1], configurable.t_page_margin,
+            configurable.h_page_margins[2], configurable.b_page_margin,
+        }
         typeset.sync_t_b_page_margins = true
         typeset:onSetPageMargins(typeset.unscaled_margins)
     end

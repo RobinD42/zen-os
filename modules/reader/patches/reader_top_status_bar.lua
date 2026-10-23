@@ -657,13 +657,23 @@ local function apply_reader_top_status_bar()
         return orders
     end
 
-    local function getReservedHeaderHeight(view)
-        if not is_enabled() or view.footer.reclaim_height then return 0 end
+    local function getReservedHeaderHeight()
+        if not is_enabled() then return 0 end
         local cfg = zen_plugin and zen_plugin.config and zen_plugin.config.reader_top_status_bar
         local orders = getSlotOrders(cfg)
         if #orders.left == 0 and #orders.center == 0 and #orders.right == 0 then return 0 end
 
-        local height = view.footer:getHeight()
+        local text = TextWidget:new{ text = "", face = ReaderStatusBar.getHeaderFace(cfg), padding = 0 }
+        local height = text:getSize().h
+        text:free()
+        for _slot, order in pairs(orders) do
+            for _i, key in ipairs(order) do
+                if key == "pin" then
+                    height = math.max(height, Screen:scaleBySize((cfg and cfg.font_size or 14) + 2))
+                end
+            end
+        end
+        height = height + Size.padding.small
         if type(cfg) == "table" and cfg.show_bottom_border == true then
             height = height + Size.line.medium
         end
@@ -1230,7 +1240,7 @@ local function apply_reader_top_status_bar()
             local document = self.ui and self.ui.document
             if document then
                 document._zen_top_status_bar_margin_reserve = self.view
-                    and self.view.view_mode == "page" and getReservedHeaderHeight(self.view) or 0
+                    and self.view.view_mode == "page" and getReservedHeaderHeight() or 0
             end
             local result = orig_onSetPageMargins(self, margins, ...)
             if document then document._zen_top_status_bar_margin_reserve = nil end

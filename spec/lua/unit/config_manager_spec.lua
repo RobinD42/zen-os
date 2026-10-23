@@ -5,6 +5,8 @@ describe("config manager folder-path migration", function()
     local written_settings
     local write_error
     local google_key_ensures
+    local saved_device
+    local saved_footer_presets
 
     local function reload_manager(language)
         _G.G_reader_settings = ZenSpec.memorySettings(language and { language = language } or {})
@@ -14,6 +16,10 @@ describe("config manager folder-path migration", function()
     end
 
     before_each(function()
+        saved_device = package.loaded.device
+        saved_footer_presets = package.loaded["modules/reader/patches/reader_footer_presets"]
+        ZenSpec.replace("device", { hasColorScreen = function() return false end })
+        ZenSpec.unload("modules/reader/patches/reader_footer_presets")
         settings_file = { data = {}, flush = function() end }
         written_settings = nil
         write_error = nil
@@ -39,6 +45,7 @@ describe("config manager folder-path migration", function()
             getSettings = function() return {} end,
             saveSettings = function() return true end,
             loadStore = function(kind) return stores[kind] or { settings = {}, presets = {} } end,
+            getActivePreset = function(kind) return stores[kind].active_preset end,
             saveStore = function(kind, store)
                 stores[kind] = store
                 return true
@@ -65,6 +72,11 @@ describe("config manager folder-path migration", function()
             ensureFile = function() return false end,
         })
         reload_manager()
+    end)
+
+    after_each(function()
+        package.loaded.device = saved_device
+        package.loaded["modules/reader/patches/reader_footer_presets"] = saved_footer_presets
     end)
 
     it("loads complete defaults for a fresh install", function()
@@ -126,6 +138,59 @@ describe("config manager folder-path migration", function()
         config.reader_top_status_bar.right_order = { "battery" }
         Manager.save(config)
         assert.are.same({ "battery" }, Manager.load().reader_top_status_bar.right_order)
+    end)
+
+    it("disables legacy status bar overlap once without changing other footer settings", function()
+        G_reader_settings:saveSetting("footer", { reclaim_height = true, text_font_size = 22 })
+        stores.reader.settings.footer = { reclaim_height = true, text_font_size = 22 }
+        stores.reader.presets.custom = { footer = { reclaim_height = true } }
+
+        local config = Manager.load()
+        assert.is_false(G_reader_settings:readSetting("footer").reclaim_height)
+        assert.are.equal(22, G_reader_settings:readSetting("footer").text_font_size)
+        assert.is_false(stores.reader.settings.footer.reclaim_height)
+        assert.is_true(stores.reader.presets.custom.footer.reclaim_height)
+        assert.is_true(config._meta.reader_status_bar_space_migrated)
+
+        G_reader_settings:readSetting("footer").reclaim_height = true
+        stores.reader.settings.footer.reclaim_height = true
+        Manager.load()
+        assert.is_true(G_reader_settings:readSetting("footer").reclaim_height)
+        assert.is_true(stores.reader.settings.footer.reclaim_height)
+    end)
+
+    it("resets vertical margin defaults once for an active Zen reader preset", function()
+        stores.reader.active_preset = "(ZenOS) Chapter Time + %"
+        G_reader_settings:saveSetting("copt_t_page_margin", 30)
+        G_reader_settings:saveSetting("copt_b_page_margin", 30)
+        G_reader_settings:saveSetting("copt_h_page_margins", { 40, 50 })
+
+        local config = Manager.load()
+        assert.are.equal(15, G_reader_settings:readSetting("copt_t_page_margin"))
+        assert.are.equal(15, G_reader_settings:readSetting("copt_b_page_margin"))
+        assert.same({ 40, 50 }, G_reader_settings:readSetting("copt_h_page_margins"))
+        assert.is_true(config._meta.reader_vertical_margins_migrated)
+
+        G_reader_settings:saveSetting("copt_t_page_margin", 21)
+        G_reader_settings:saveSetting("copt_b_page_margin", 23)
+        Manager.load()
+        assert.are.equal(21, G_reader_settings:readSetting("copt_t_page_margin"))
+        assert.are.equal(23, G_reader_settings:readSetting("copt_b_page_margin"))
+    end)
+
+    it("keeps global margins when no Zen reader preset is active", function()
+        for _i, name in ipairs({ "", "My preset", "(ZenOS) Custom preset", "Backup of Original" }) do
+            reload_manager()
+            settings_file.data = {}
+            stores.reader.active_preset = name ~= "" and name or nil
+            G_reader_settings:saveSetting("copt_t_page_margin", 30)
+            G_reader_settings:saveSetting("copt_b_page_margin", 42)
+
+            local config = Manager.load()
+            assert.are.equal(30, G_reader_settings:readSetting("copt_t_page_margin"))
+            assert.are.equal(42, G_reader_settings:readSetting("copt_b_page_margin"))
+            assert.is_true(config._meta.reader_vertical_margins_migrated)
+        end
     end)
 
     it("keeps a pin already placed in another header slot", function()

@@ -1093,7 +1093,7 @@ function M.activate(name)
     if name == "page_browser_controls" or name == "page_browser_toc" or name == "page_browser_bookmarks"
             or name == "page_browser_annotations" or name == "page_browser_book_details" then
         if not browser then return false, "page browser unavailable" end
-        local icons = { page_browser_controls = ui.paging and "appbar.contrast" or "appbar.textsize", page_browser_toc = "toc",
+        local icons = { page_browser_controls = ui.paging and "appbar.contrast" or "font", page_browser_toc = "toc",
             page_browser_bookmarks = "bookmark", page_browser_annotations = "book_open", page_browser_book_details = "info" }
         return tap_browser_widget(find_control(browser.title_bar, icons[name], {}, 0))
     elseif name == "page_browser_search" then
@@ -1260,6 +1260,8 @@ function M.reference_action(params)
         local bounds = target == "footer" and footer._zen_pin_dimen
             or target == "menu" and drawer.menu_button.dimen
             or target == "zoom" and drawer.zoom_button.dimen
+            or target == "zoom_in" and drawer.zoom_in_button.dimen
+            or target == "zoom_out" and drawer.zoom_out_button.dimen
             or drawer.pager.dimen
         local pos = require("ui/geometry"):new{
             x = bounds.x + bounds.w * (params.x_ratio or 0.5),
@@ -1557,10 +1559,20 @@ function M.reference_action(params)
             zoom = drawer.zoom_button and drawer.zoom_button.dimen,
             zoom_icon = drawer.zoom_button and drawer.zoom_button.label_widget.file,
             zoom_icon_bounds = drawer.zoom_button and drawer.zoom_button.label_widget.dimen,
+            zoom_in = drawer.zoom_in_button and drawer.zoom_in_button.dimen,
+            zoom_in_icon = drawer.zoom_in_button and drawer.zoom_in_button.label_widget.file,
+            zoom_in_icon_bounds = drawer.zoom_in_button and drawer.zoom_in_button.label_widget.dimen,
+            zoom_out = drawer.zoom_out_button and drawer.zoom_out_button.dimen,
+            zoom_out_icon = drawer.zoom_out_button and drawer.zoom_out_button.label_widget.file,
+            zoom_out_icon_bounds = drawer.zoom_out_button and drawer.zoom_out_button.label_widget.dimen,
             close_icon = drawer.close_button and drawer.close_button.label_widget.file,
             close = drawer.close_button and drawer.close_button.dimen, page = drawer.page, footnote = drawer.footnote ~= nil,
             bounds = drawer.frame.dimen, content = drawer.content.dimen, scale = drawer.scale,
             image = drawer.htmlwidget == nil,
+            original_image = drawer.preview and drawer.preview.original_image or false,
+            source_size = drawer.preview and drawer.preview.bb and {
+                w = drawer.preview.bb:getWidth(), h = drawer.preview.bb:getHeight(),
+            },
             image_view = drawer.preview and not drawer.htmlwidget and drawer.content._bb and {
                 w = drawer.content:getCurrentWidth(), h = drawer.content:getCurrentHeight(),
                 x = drawer.content._offset_x, y = drawer.content._offset_y,

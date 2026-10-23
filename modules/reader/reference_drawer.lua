@@ -200,8 +200,8 @@ function Drawer:init()
     state.drawer = self
 end
 
-function Drawer:button(text, callback, width, icon, rotation, align)
-    local padding = Screen:scaleBySize(4)
+function Drawer:button(text, callback, width, icon, rotation, align, padding)
+    padding = Screen:scaleBySize(padding or 4)
     local icon_size = self.bar_height - 2 * padding
     local button = Button:new{ text = text, icon = icon, icon_rotation_angle = rotation, callback = callback, width = width,
         icon_width = icon_size, icon_height = icon_size,
@@ -231,6 +231,7 @@ end
 function Drawer:buildLayout()
     self.pager = nil
     self.zoom_button = nil
+    self.zoom_in_button, self.zoom_out_button = nil, nil
     self.layout = {{ self.content }}
     local left = not self.footnote and self.plugin.config.reader_pins.side == "left"
     local body = Geom:new{ w = self.body_width, h = self.body_height }
@@ -245,12 +246,13 @@ function Drawer:buildLayout()
     local contents = VerticalGroup:new{ align = "center", body }
     if not self.footnote then
         self.menu_button = self:button(nil, function() self:showMenu() end, self.bar_height,
-            utils.resolveLocalIcon(icons_dir, "more_vertical"))
+            utils.resolveLocalIcon(icons_dir, "more_vertical"), nil, nil, 2)
         if not self.htmlwidget then
             self.zoom_button = self:button(nil, function() self:showMenu(true) end, self.bar_height,
-                utils.resolveLocalIcon(stock_icons_dir, "zoom.page"))
+                utils.resolveLocalIcon(icons_dir, "fullscreen"))
         end
         local buttons_width = self.bar_height * (self.zoom_button and 2 or 1)
+            + (self.zoom_button and self.padding or 0)
         local left_span = math.floor((self.body_width - buttons_width - self.padding + self.right_padding) / 2)
         self.page_button = self:button(T(_("Page %1"), References.pageLabel(self.ui, self.page)),
             function() self:onExpand() end, left_span, nil, nil, "left")
@@ -274,13 +276,11 @@ function Drawer:buildLayout()
             self.menu_button, HorizontalSpan:new{ width = self.padding - self.right_padding } }
         self.layout = {{ self.page_button, self.menu_button }, { self.content }}
         if self.zoom_button then
+            table.insert(header, 3, HorizontalSpan:new{ width = self.padding })
             table.insert(header, 3, self.zoom_button)
             table.insert(self.layout[1], 2, self.zoom_button)
         end
         table.insert(contents, 1, HorizontalGroup:new(header))
-        if self.selected and self.selected.y == 1 then
-            self.selected.x = math.min(self.selected.x, #self.layout[1])
-        end
         if self.pager_height > 0 then
             self.pager = PinPager:new{ drawer = self,
                 dimen = Geom:new{ w = self.body_width, h = self.pager_height },
@@ -294,10 +294,26 @@ function Drawer:buildLayout()
         end
     end
     if self.full_image then
+        self.zoom_out_button = self:button(nil, function() self:zoom(0.8) end, self.bar_height,
+            utils.resolveLocalIcon(icons_dir, "zoom_out"))
+        self.zoom_in_button = self:button(nil, function() self:zoom(1.25) end, self.bar_height,
+            utils.resolveLocalIcon(icons_dir, "zoom_in"))
+        local zoom_controls = VerticalGroup:new{ align = "center",
+            self.zoom_in_button, VerticalSpan:new{ width = self.padding }, self.zoom_out_button }
+        local overlay_height = self.height - self.top_padding - self.bottom_padding - 2 * self.border_size
+        zoom_controls.overlap_offset = {
+            self.body_width - zoom_controls:getSize().w - (self.padding - self.right_padding),
+            self.bar_height + 2 * self.padding,
+        }
+        self.layout[#self.layout + 1] = { self.zoom_in_button }
+        self.layout[#self.layout + 1] = { self.zoom_out_button }
         self.content.overlap_offset = { -self.padding - (left and self.border_size or 0), -self.top_padding }
-        contents = OverlapGroup:new{ dimen = Geom:new{ w = self.body_width,
-                h = self.height - self.top_padding - self.bottom_padding - 2 * self.border_size },
-            allow_mirroring = false, self.content, contents }
+        contents = OverlapGroup:new{ dimen = Geom:new{ w = self.body_width, h = overlay_height },
+            allow_mirroring = false, self.content, contents, zoom_controls }
+    end
+    if self.selected then
+        self.selected.y = math.min(self.selected.y, #self.layout)
+        self.selected.x = math.min(self.selected.x, #self.layout[self.selected.y])
     end
     -- Hide the docked corners and border beyond the screen edge.
     local extension = self.footnote and 0 or Size.radius.window + self.border_size
@@ -354,9 +370,27 @@ function Drawer:onEdgeSwipe(_arg, ges)
     return true
 end
 
+function Drawer:renderImage(factor, x, y)
+    local height = self.full_image and self.height - 2 * self.border_size or self.body_height
+    local width_scale, height_scale = self.image_width / self.preview.bb:getWidth(), height / self.preview.bb:getHeight()
+    self.fit_scale = math.min(width_scale, height_scale)
+    local full_scale = math.max(width_scale, height_scale)
+    local base_scale = self.full_image and full_scale or self.fit_scale
+    local scale = factor and self.scale * factor or base_scale * self.image_settings.image_zoom
+    self.scale = math.max(self.fit_scale, math.min(math.max(4, full_scale), scale))
+    self.content = PinImage:new{ image = self.preview.bb, image_disposable = false,
+        width = self.image_width, height = height, scale_factor = self.scale,
+        center_x_ratio = x or 0.5, center_y_ratio = y or 0.5,
+        corner_radius = self.full_image and Size.radius.window or nil,
+        dock_left = self.plugin.config.reader_pins.side == "left",
+        original_in_nightmode = self.preview.original_image or false }
+    return self.scale / base_scale
+end
+
 function Drawer:renderPage()
     self.full_image = nil
-    if self.ui.rolling then
+    local image = self.pins[self.pin_index].image
+    if self.ui.rolling and not image then
         local html, css, size = require("modules/reader/pin_settings").content(
             self.ui, self.page, self.plugin.config.reader_pins, self.background, self.foreground)
         if html then
@@ -387,13 +421,14 @@ function Drawer:renderPage()
         fit_page = true,
     }
     self.preview:setPage(self.page)
+    self.preview.image_xpointer = image
     self.preview:render()
     self.image_width = self.width - self.border_size
-    self.fit_scale = math.min(self.image_width / self.preview.bb:getWidth(), self.body_height / self.preview.bb:getHeight())
-    self.scale = self.fit_scale
-    self.content = PinImage:new{ image = self.preview.bb, image_disposable = false,
-        width = self.image_width, height = self.body_height, scale_factor = self.scale,
-        original_in_nightmode = self.preview.original_image or false }
+    self.image_location = self.ui.rolling and self.pins[self.pin_index].location or self.page
+    local images = self.ui.doc_settings:readSetting("zen_pinned_image_settings") or {}
+    self.image_settings = images[self.image_location] or { image_full = false, image_zoom = 1 }
+    self.full_image = self.image_settings.image_full
+    self:renderImage()
 end
 
 function Drawer:changePage(step)
@@ -419,19 +454,13 @@ function Drawer:zoom(factor, full)
     if self.htmlwidget then return true end
     local x, y = self.content.center_x_ratio, self.content.center_y_ratio
     self.content:free()
-    if not factor then self.full_image = full end
-    local height = self.full_image and self.height - 2 * self.border_size or self.body_height
-    local width_scale, height_scale = self.image_width / self.preview.bb:getWidth(), height / self.preview.bb:getHeight()
-    self.fit_scale = math.min(width_scale, height_scale)
-    local full_scale = math.max(width_scale, height_scale)
-    self.scale = factor and math.max(self.fit_scale, math.min(math.max(4, full_scale), self.scale * factor))
-        or full and full_scale or self.fit_scale
-    self.content = PinImage:new{ image = self.preview.bb, image_disposable = false,
-        width = self.image_width, height = height, scale_factor = self.scale,
-        center_x_ratio = factor and x or 0.5, center_y_ratio = factor and y or 0.5,
-        corner_radius = self.full_image and Size.radius.window or nil,
-        dock_left = self.plugin.config.reader_pins.side == "left",
-        original_in_nightmode = self.preview.original_image or false }
+    local settings = self.image_settings
+    if not factor then self.full_image = full; settings.image_zoom = 1 end
+    settings.image_full = self.full_image == true
+    settings.image_zoom = self:renderImage(factor, factor and x or nil, factor and y or nil)
+    local images = self.ui.doc_settings:readSetting("zen_pinned_image_settings") or {}
+    images[self.image_location] = settings
+    self.ui.doc_settings:saveSetting("zen_pinned_image_settings", images)
     self[1]:free()
     self:buildLayout()
     UIManager:setDirty(self, "ui", self.refresh_dimen)
@@ -566,8 +595,6 @@ function Drawer:showMenu(zoom)
     if zoom then
         add{ text = _("Full"), callback = function() self:zoom(nil, true) end }
         add{ text = _("Fit"), callback = function() self:zoom(nil) end }
-        add{ text = _("Zoom in"), callback = function() self:zoom(1.25) end }
-        add{ text = _("Zoom out"), callback = function() self:zoom(0.8) end }
     else
         add{ text = _("Remove pin"), callback = function()
             References.setPin(self.ui, self.page, true)

@@ -149,6 +149,29 @@ describe("reader references", function()
         assert.is_nil(ui.doc_settings:readSetting("pinned_page"))
     end)
 
+    it("clears only the removed pin's image settings after repagination", function()
+        References.setPin(ui, 8)
+        References.setPin(ui, 12)
+        local images = { ["xp:8"] = { image_full = true, image_zoom = 2 },
+            ["xp:12"] = { image_full = false, image_zoom = 3 } }
+        ui.doc_settings:saveSetting("zen_pinned_image_settings", images)
+        ui.document.getPageFromXPointer = function(_self, xp) return tonumber(xp:match("%d+")) + 2 end
+        References.setPin(ui, 10, true)
+        assert.same({ ["xp:12"] = { image_full = false, image_zoom = 3 } },
+            ui.doc_settings:readSetting("zen_pinned_image_settings"))
+    end)
+
+    it("clears image settings for native fixed-page pins", function()
+        ui.rolling, ui.paging = nil, {}
+        ui.doc_settings:saveSetting("zen_pinned_pages", { {{ page = 8 }}, 12 })
+        ui.doc_settings:saveSetting("zen_pinned_image_settings", {
+            [8] = { image_full = true, image_zoom = 2 }, [12] = { image_full = false, image_zoom = 3 },
+        })
+        References.setPin(ui, 8, true)
+        assert.same({ [12] = { image_full = false, image_zoom = 3 } },
+            ui.doc_settings:readSetting("zen_pinned_image_settings"))
+    end)
+
     it("retains anchors after repagination and reopening, separately for each book", function()
         References.setPin(ui, 8)
         References.setPin(ui, 12)
@@ -412,7 +435,8 @@ describe("reader references", function()
         ZenSpec.replace("ui/widget/buttondialog", {
             new = function(_self, spec) return spec end, onCloseWidget = function() end,
         })
-        local highlight = { ui = ui, onClose = function(self) self.highlight_dialog:onCloseWidget() end }
+        local highlight = { ui = ui, view = { screenToPageTransform = function(_self, pos) return pos end },
+            onClose = function(self) self.highlight_dialog:onCloseWidget() end }
         local spec = { image = image, image_disposable = disposable }
         local menu = References.imageMenu(highlight, 9, { x = 20, y = 30 }, spec, function()
             opened = opened + 1
@@ -428,7 +452,7 @@ describe("reader references", function()
         assert.equals(1, #menu.buttons)
         assert.equals(2, #menu.buttons[1])
         assert.is_nil(menu.buttons[1][1].text)
-        assert.matches("zoom.page.svg$", menu.buttons[1][1].icon)
+        assert.matches("/icons/fullscreen.svg$", menu.buttons[1][1].icon)
         assert.equals("zen_pin", menu.buttons[1][2].id)
         assert.matches("/icons/pin.svg$", menu.buttons[1][2].icon)
         assert.is_nil(highlight.selected_text)
@@ -454,6 +478,41 @@ describe("reader references", function()
         assert.equals(prepared, applied)
     end)
 
+    it("persists only the held image anchor across reopening and repagination", function()
+        ui.document._document = { getTextFromPositions = function(_self, x0, y0, x1, y1, draw, segments, images)
+            assert.same({ 20, 30, 20, 30 }, { x0, y0, x1, y1 })
+            assert.is_false(draw); assert.is_false(segments); assert.is_true(images)
+            return { pos0 = "/body/p/text().0" }
+        end, getWordBoxesFromPositions = function(_self, first, last, segments, images)
+            assert.equals(first, last); assert.is_true(segments); assert.is_true(images)
+            if first == "/body/p/img[1].0" then return {{ x0 = 0, y0 = 0, x1 = 10, y1 = 10 }} end
+            assert.equals("/body/p/img[2].0", first)
+            return {{ x0 = 10, y0 = 20, x1 = 40, y1 = 50 }}
+        end }
+        ui.document.getHTMLFromXPointer = function(_self, xp, flags, from_parent)
+            assert.equals("/body/p", xp); assert.equals(0x8000, flags); assert.is_false(from_parent)
+            return "", {}, "0\t4\t12\tp\n3\t5\t16\timg\n5\t5\n5\t5\t20\timg\n7\t5\n7\t4\n"
+        end
+        local freed = 0
+        local menu = image_menu({ free = function() freed = freed + 1 end })
+        menu.buttons[1][2].callback()
+        assert.equals(1, freed)
+        assert.same({ "/body/p/img[2].0" }, References.pinLocations(ui))
+        assert.equals("/body/p/img[2].0", ui.doc_settings:readSetting("pinned_page"))
+        References.clear(ui)
+        ui.document.getPageFromXPointer = function(_self, xp)
+            return xp:find("img", 1, true) and 12 or 11
+        end
+        local pin = References.pins(ui)[1]
+        assert.equals("/body/p/img[2].0", pin.image)
+        assert.equals(12, pin.page)
+        assert.is_true(References.isPinned(ui, 12))
+        assert.is_false(References.isPinned(ui, 11))
+        References.setPin(ui, pin.page, true)
+        assert.same({}, References.pinLocations(ui))
+        assert.is_nil(ui.doc_settings:readSetting("zen_pinned_images")["/body/p/img[2].0"])
+    end)
+
     it("releases unused images once and retains borrowed panel images", function()
         local freed = 0
         local image = { free = function() freed = freed + 1 end }
@@ -465,6 +524,29 @@ describe("reader references", function()
         assert.equals(1, freed)
         image_menu(function(scale) assert.is_false(scale); freed = freed + 1 end):onCloseWidget()
         assert.equals(2, freed)
+    end)
+
+    it("finds a nested image beyond text-only ancestors and resets sibling counts", function()
+        ui.document._document = {
+            getTextFromPositions = function() return { pos0 = "/body/h1/text().0" } end,
+            getWordBoxesFromPositions = function(_self, xp)
+                if xp == "/body/p[1]/a[1]/img[1].0" then
+                    return {{ x0 = 0, y0 = 0, x1 = 10, y1 = 10 }}
+                end
+                assert.equals("/body/p[2]/a[1]/svg[1].0", xp)
+                return {{ x0 = 10, y0 = 20, x1 = 40, y1 = 50 }}
+            end,
+        }
+        ui.document.getPageFromXPointer = function() return 9 end
+        ui.document.getHTMLFromXPointer = function(_self, xp)
+            if xp == "/body/h1" then return "", {}, "0\t1\t1\th1\n2\t1\n" end
+            assert.equals("/body", xp)
+            return "", {}, "0\t0\t1\tbody\n1\t1\t2\tp\n2\t2\t3\ta\n3\t3\t4\timg\n"
+                .. "4\t3\n4\t2\n4\t1\n5\t1\t5\tp\n6\t2\t6\ta\n7\t3\t7\tsvg\n"
+        end
+        local menu = image_menu({ free = function() end })
+        menu.buttons[1][2].callback()
+        assert.equals("/body/p[2]/a[1]/svg[1].0", References.pins(ui)[1].image)
     end)
 
     it("restores the last opened pin across reopening, repagination and earlier pin removal", function()

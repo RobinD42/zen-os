@@ -43,7 +43,7 @@ function M.list(config, ui, include_disabled, extra_tab)
     local paging = ui and ui.paging
     local labels = {
         browser = { "coverflow", _("Page browser") },
-        aa = { paging and "appbar.contrast" or "appbar.textsize", paging and _("Contrast") or _("Font") },
+        aa = { paging and "appbar.contrast" or "font", paging and _("Contrast") or _("Font") },
         bookmarks = { "bookmark", _("Bookmarks") },
         highlights = { "lookup_highlight", _("Highlights") },
         annotations = { "book_open", _("Annotations") },

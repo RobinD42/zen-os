@@ -1094,6 +1094,35 @@ local function migrate_changed_defaults(cfg)
         changed = true
     end
 
+    if cfg._meta.reader_vertical_margins_migrated ~= true then
+        local ReaderDefaults = require("common/reader_defaults")
+        if ReaderDefaults.isZenPreset(PresetStore.getActivePreset("reader")) then
+            local g = rawget(_G, "G_reader_settings")
+            if g then
+                g:saveSetting("copt_t_page_margin", ReaderDefaults.DEFAULT_VERTICAL_MARGIN)
+                g:saveSetting("copt_b_page_margin", ReaderDefaults.DEFAULT_VERTICAL_MARGIN)
+            end
+        end
+        cfg._meta.reader_vertical_margins_migrated = true
+        changed = true
+    end
+
+    if cfg._meta.reader_status_bar_space_migrated ~= true then
+        local g = rawget(_G, "G_reader_settings")
+        local footer = g and g:readSetting("footer")
+        if type(footer) == "table" then
+            footer.reclaim_height = false
+            g:saveSetting("footer", footer)
+        end
+        local store = PresetStore.loadStore("reader")
+        if type(store.settings.footer) == "table" then
+            store.settings.footer.reclaim_height = false
+            PresetStore.saveStore("reader", store)
+        end
+        cfg._meta.reader_status_bar_space_migrated = true
+        changed = true
+    end
+
     if cfg._meta.reader_footer_hide_cbz_default_migrated ~= true then
         if type(cfg.reader_footer) ~= "table" then
             cfg.reader_footer = {}

@@ -86,6 +86,7 @@ describe("page browser entry", function()
             resolveLocalIcon = function() return nil end,
         })
         ZenSpec.replace("common/zen_logger", { new = logger_stub })
+        ZenSpec.replace("common/ui/zen_title_style", { ICON_SIZE = 28 })
         ZenSpec.replace("config/preset_store", {
             getSettings = function() return reader_store.settings end,
             loadStore = function() return reader_store end,
@@ -127,6 +128,7 @@ describe("page browser entry", function()
         ZenSpec.unload("modules/reader/page_browser_preview")
         ZenSpec.unload("modules/filebrowser/patches/library_font")
         ZenSpec.unload("common/reader_font")
+        ZenSpec.unload("common/ui/zen_title_style")
     end)
 
     it("renders Android EPUB thumbnails without changing the live reader", function()
@@ -1301,13 +1303,20 @@ describe("page browser entry", function()
         ZenSpec.replace("common/ui/zen_tab_bar", { new = function(_self, spec)
             spec.cells = {}
             for i, item in ipairs(spec.items) do spec.cells[i] = { callback = item.callback } end
-            spec.getSize = function() return { w = 256, h = 44 } end
+            spec.getSize = function() return { w = spec.width, h = 44 } end
             spec.free = function() end
             return spec
         end })
+        ZenSpec.replace("common/plugin_root", ZenSpec.root)
         ZenSpec.replace("common/utils", {
             resolveIcon = function(_dir, name) return "/custom-icons/" .. name .. ".svg" end,
-            resolveLocalIcon = function() error("header bypassed custom icons") end,
+            resolveLocalIcon = function(dir, name)
+                local path = dir .. name .. ".svg"
+                local file = io.open(path, "rb")
+                if not file then return nil end
+                file:close()
+                return path
+            end,
         })
         local details
         ZenSpec.replace("modules/reader/book_details", { show = function(ui) details = ui end })
@@ -1329,8 +1338,24 @@ describe("page browser entry", function()
         end
         local close = browser._zen_header_buttons[6]
         expect(browser._zen_header_buttons[1].file == "/custom-icons/coverflow.svg")
-        expect(close.file == "/custom-icons/close_light.svg" and close.overlap_align == "right")
-        expect(browser._zen_tab_bar.selected == 1 and browser._zen_tab_bar.overlap_offset[1] == 172)
+        expect(browser._zen_header_buttons[2].file == "/custom-icons/font.svg")
+        expect(browser._zen_tab_bar.icon_size == 24)
+        expect(browser._zen_tab_bar.items[2].icon_size == nil and browser._zen_tab_bar.items[4].icon_size == nil)
+        expect(browser._zen_header_buttons[4].file == "/custom-icons/toc.svg")
+        expect(browser._zen_more_button.file == "/custom-icons/more_vertical.svg")
+        expect(close.file == "/custom-icons/close.svg" and close.overlap_align == "right")
+        expect(close.width == 28 and close.height == 28)
+        expect(close.width + close.padding + close.padding_right == 54)
+        expect(close.height + close.padding + close.padding_bottom == 75)
+        expect(browser._zen_tab_bar.selected == 1 and browser._zen_tab_bar.overlap_offset[1] == 108)
+        for _i, dimensions in ipairs({ { 1200, 800 }, { 1000, 666 }, { 400, 184 }, { 600, 384 } }) do
+            browser.dimen.w = dimensions[1]
+            browser:_zenBuildHeaderTabs()
+            local tabs = browser._zen_tab_bar
+            expect(tabs.width == dimensions[2])
+            expect(tabs.overlap_offset[1] == math.floor((dimensions[1] - dimensions[2]) / 2))
+            expect(tabs.overlap_offset[1] + tabs.width <= dimensions[1] - 108)
+        end
         expect(details == nil and closes == 0)
         browser._zen_post_scrub = true
         browser._zen_placeholders_painted = true
@@ -1436,6 +1461,19 @@ describe("page browser entry", function()
         PageBrowserWidget.init(details_first)
         expect(#details_first._zen_tab_bar.cells == 1 and details == nil)
         expect(details_first._zen_active_tab == "book_details" and details_first._zen_tab_bar.selected == 1)
+
+        require("common/utils").resolveIcon = function(dir, name) return dir .. name .. ".svg" end
+        cfg.tab_order = { "browser", "aa", "toc", "book_details" }
+        cfg.tabs.browser, cfg.tabs.aa, cfg.tabs.toc = true, true, true
+        local bundled = shell()
+        PageBrowserWidget.init(bundled)
+        expect(bundled._zen_tab_bar.cells[1].file == ZenSpec.root .. "/icons/coverflow.svg")
+        for i, name in ipairs({ "font", "toc", "info" }) do
+            expect(bundled._zen_tab_bar.cells[i + 1].file == ZenSpec.root .. "/icons/" .. name .. ".svg")
+        end
+        expect(bundled._zen_more_button.file == ZenSpec.root .. "/icons/more_vertical.svg")
+        expect(bundled.title_bar.right_button.file == require("libs/libkoreader-lfs").currentdir()
+            .. "/resources/icons/mdlight/close.svg")
     end)
 
     it("offers bookmark and pin actions for the held page without navigating", function()

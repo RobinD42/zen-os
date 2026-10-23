@@ -131,9 +131,9 @@ def test_page_browser_tab_order(document_type: str) -> None:
             state = _state(driver)
             assert state["top_is_browser"]
             assert state["active_tab"] == "annotations"
-            control_icon = "appbar.contrast.svg" if document_type == "pdf" else "appbar.textsize.svg"
+            control_icon = "appbar.contrast.svg" if document_type == "pdf" else "font.svg"
             assert state["header_icons"] == ["quick_search.svg", "book_open.svg", control_icon,
-                                              "bookmark.svg", "toc.svg", "more_vertical.svg", "close_light.svg"]
+                                              "bookmark.svg", "toc.svg", "more_vertical.svg", "close.svg"]
             assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
             assert _state(driver)["active_tab"] == "aa"
             assert driver.command("page_browser_key", key="Back")["handled"]

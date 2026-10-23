@@ -21,6 +21,7 @@ describe("page browser tabs", function()
         assert.are.equal("Contrast", entries[2].text)
         assert.are.equal("appbar.contrast", entries[2].icon)
         assert.are.equal("Font", Tabs.list({}, { rolling = {} })[2].text)
+        assert.are.equal("font", Tabs.list({}, { rolling = {} })[2].icon)
     end)
 
     it("keeps saved order, skips disabled tabs, and repairs unknown or empty orders", function()

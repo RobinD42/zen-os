@@ -154,10 +154,11 @@ def _assert_pin_header_padding(state):
 
 def _assert_pin_header_icon_padding(state):
     drawer = state["drawer"]
-    padding = math.ceil(4 * min(state["screen"].values()) / 600)
-    for name in ("menu", "zoom"):
+    scale = min(state["screen"].values()) / 600
+    for name in ("menu", "zoom", "zoom_in", "zoom_out"):
         if not drawer.get(name):
             continue
+        padding = math.ceil((2 if name == "menu" else 4) * scale)
         button, icon = drawer[name], drawer[name + "_icon_bounds"]
         assert icon["x"] == button["x"] + padding
         assert icon["y"] == button["y"] + padding
@@ -1282,11 +1283,21 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
                 files = {name: archive.read(name) for name in archive.namelist()}
             files["content.opf"] = files["content.opf"].replace(b"<manifest>", b"""<manifest>
               <item id="illustration" href="illustration.xhtml" media-type="application/xhtml+xml"/>
+              <item id="illustration2" href="illustration2.xhtml" media-type="application/xhtml+xml"/>
+              <item id="marker" href="marker.png" media-type="image/png"/>
               <item id="image" href="image.png" media-type="image/png"/>""").replace(
-                  b"<spine>", b'<spine><itemref idref="illustration"/>')
+                  b"<spine>", b'<spine><itemref idref="illustration"/>').replace(
+                  b"</spine>", b'<itemref idref="illustration2"/></spine>')
             files["illustration.xhtml"] = b"""<html xmlns="http://www.w3.org/1999/xhtml"><head>
-              <title>Illustration</title></head><body style="margin:0"><p style="margin:0">
-              <img src="image.png" alt="Illustration"/></p></body></html>"""
+              <title>Illustration</title></head><body style="margin:0"><h1>Map</h1><p style="margin:0">
+              <img src="marker.png" alt="Marker" style="width:2em"/>
+              <img src="image.png" alt="Illustration" style="height:70vh"/></p></body></html>"""
+            files["illustration2.xhtml"] = files["illustration.xhtml"].replace(b"<h1>Map</h1>", b"").replace(
+                b' style="height:70vh"', b"").replace(
+                b'<img src="marker.png" alt="Marker" style="width:2em"/>', b"")
+            buffer = io.BytesIO()
+            Image.new("RGB", (40, 30), "black").save(buffer, format="PNG")
+            files["marker.png"] = buffer.getvalue()
             buffer = io.BytesIO()
             picture.save(buffer, format="PNG")
             files["image.png"] = buffer.getvalue()
@@ -1318,7 +1329,7 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
                 assert len(held["image_buttons"]) == 1
                 buttons = held["image_buttons"][0]
                 assert len(buttons) == 2
-                assert buttons[0]["icon"].endswith("/zoom.page.svg")
+                assert buttons[0]["icon"].endswith("/fullscreen.svg")
                 assert buttons[1]["icon"].endswith("/pin.svg")
                 assert [button["text"] for button in buttons] == (["View image", "Pin"] if show_labels else ["", ""])
                 assert all(button["content_width"] <= button["width"] for button in buttons)
@@ -1337,10 +1348,54 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
                 _ref(driver, "hold_image")
                 pinned = _ref(driver, "pin_button")
                 assert len(pinned["pins"]) == 1 and not pinned["image_menu"]
+                assert pinned["pins"][0].get("image", "").endswith("/img[2].0"), pinned["pins"]
                 assert pinned["annotations"] == original["annotations"]
                 assert pinned["location"] == original["location"]
             else:
                 _ref(driver, "pin", page=1)
+            initial = _ref(driver, "open_pin")
+            if format == "epub":
+                assert initial["drawer"]["original_image"], initial["drawer"]
+                assert initial["drawer"]["source_size"] == {"w": 600, "h": 800}
+            _ref(driver, "pin_control", target="zoom")
+            single = _ref(driver, "pin_popup_action", text="Full")
+            _assert_pin_header_icon_padding(single)
+            single_drawer = single["drawer"]
+            assert single_drawer["full_image"] and not single_drawer.get("pager")
+            zoom_in = single_drawer["zoom_in"]
+            scale = min(single["screen"].values()) / 600
+            menu = single_drawer["menu"]
+            assert zoom_in["y"] == menu["y"] + menu["h"] + 2 * math.ceil(8 * scale)
+            single_zoomed = _ref(driver, "pin_control", target="zoom_in")["drawer"]
+            assert single_zoomed["scale"] > single_drawer["scale"]
+            _ref(driver, "close")
+            restored = _ref(driver, "open_pin")["drawer"]
+            assert restored["full_image"] and restored["scale"] == pytest.approx(single_zoomed["scale"])
+            _ref(driver, "close")
+            _ref(driver, "pin", page=original["page_count"])
+            fresh = _ref(driver, "open_pin", index=2)["drawer"]
+            assert fresh["image"] and not fresh["full_image"]
+            assert max(fresh["image_view"][axis] / fresh["content"][axis] for axis in ("w", "h")) == pytest.approx(1, abs=0.01)
+            fresh_scale = fresh["scale"]
+            restored = _ref(driver, "previous")["drawer"]
+            assert restored["full_image"] and restored["scale"] == pytest.approx(single_zoomed["scale"])
+            _ref(driver, "next")
+            _ref(driver, "pin_control", target="zoom")
+            _ref(driver, "pin_popup_action", text="Full")
+            _ref(driver, "zoom", factor=2)
+            _ref(driver, "pin_menu")
+            _ref(driver, "pin_popup_action", text="Remove pin")
+            _ref(driver, "close")
+            _ref(driver, "pin", page=original["page_count"])
+            fresh = _ref(driver, "open_pin", index=2)["drawer"]
+            assert not fresh["full_image"]
+            assert fresh["scale"] == pytest.approx(fresh_scale)
+            _ref(driver, "pin_menu")
+            restored = _ref(driver, "pin_popup_action", text="Remove pin")["drawer"]
+            assert restored["full_image"] and restored["scale"] == pytest.approx(single_zoomed["scale"])
+            _ref(driver, "pin_control", target="zoom")
+            _ref(driver, "pin_popup_action", text="Fit")
+            _ref(driver, "close")
             _ref(driver, "pin", page=3)
             opened = _ref(driver, "open_pin")
             assert opened["drawer"]["image"]
@@ -1348,17 +1403,16 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
             drawer = opened["drawer"]
             _assert_pin_header_padding(opened)
             zoom, menu = drawer["zoom"], drawer["menu"]
-            assert drawer["zoom_icon"].endswith("/zoom.page.svg")
+            assert drawer["zoom_icon"].endswith("/icons/fullscreen.svg")
+            assert drawer["menu_icon"].endswith("/icons/more_vertical.svg")
+            assert not drawer.get("zoom_in") and not drawer.get("zoom_out")
             assert drawer["page_label"]["x"] + drawer["page_label"]["w"] <= zoom["x"]
-            assert zoom["x"] + zoom["w"] == menu["x"]
+            gap = math.ceil(8 * min(opened["screen"].values()) / 600)
+            assert zoom["x"] + zoom["w"] + gap == menu["x"]
             assert zoom["y"] == menu["y"] and zoom["h"] == menu["h"]
             _ref(driver, "pin_control", target="zoom")
-            assert _ref(driver)["pin_popup_buttons"] == ["Full", "Fit", "Zoom in", "Zoom out"]
-            zoomed_menu = _ref(driver, "pin_popup_action", text="Zoom in")
-            assert zoomed_menu["drawer"]["scale"] > drawer["scale"]
-            assert not zoomed_menu["pin_popup_buttons"]
-            _ref(driver, "pin_control", target="zoom")
-            unzoomed = _ref(driver, "pin_popup_action", text="Zoom out")
+            assert _ref(driver)["pin_popup_buttons"] == ["Full", "Fit"]
+            unzoomed = _ref(driver, "pin_popup_action", text="Fit")
             assert unzoomed["drawer"]["scale"] == pytest.approx(drawer["scale"])
             content, image = drawer["content"], drawer["image_view"]
             assert content["x"] == drawer["bounds"]["x"] + drawer["border"]
@@ -1396,11 +1450,19 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
             assert image["w"] >= viewport["w"] - 1 and image["h"] >= viewport["h"] - 1
             assert image["w"] / image["h"] == pytest.approx(0.75, abs=0.01)
             assert filled["control_radius"] == filled["feedback_radius"]
+            zoom_out, zoom_in = filled["zoom_out"], filled["zoom_in"]
+            assert filled["zoom_in_icon"].endswith("/icons/zoom_in.svg")
+            assert filled["zoom_out_icon"].endswith("/icons/zoom_out.svg")
+            assert zoom_out["x"] == zoom_in["x"] == filled["menu"]["x"]
+            assert zoom_in["y"] + zoom_in["h"] + gap == zoom_out["y"]
+            assert zoom_in["x"] + zoom_in["w"] == filled["menu"]["x"] + filled["menu"]["w"]
+            assert zoom_in["y"] == filled["menu"]["y"] + filled["menu"]["h"] + 2 * gap
+            assert zoom_out["y"] + zoom_out["h"] < filled["pager"]["y"]
             snapshot = Image.open(_capture(driver, f"pin-{format}-full.png")).convert("RGB")
             for y in (viewport["y"], viewport["y"] + viewport["h"] - 1):
                 assert snapshot.getpixel((viewport["x"], y)) == fitted.getpixel((viewport["x"], y))
             inset = math.ceil(min(full["screen"].values()) / 600) + 1
-            for key in ("zoom", "menu", "dots_background"):
+            for key in ("zoom", "menu", "zoom_in", "zoom_out", "dots_background"):
                 control = filled[key]
                 assert snapshot.getpixel((control["x"], control["y"] + control["h"] // 2)) == (0, 0, 0)
                 assert snapshot.getpixel((control["x"] + inset, control["y"] + control["h"] // 2)) == (255, 255, 255)
@@ -1408,18 +1470,21 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
                 control = filled[key]["bounds"]
                 assert snapshot.getpixel((control["x"], control["y"] + control["h"] // 2)) == (0, 0, 0)
                 assert snapshot.getpixel((control["x"] + inset, control["y"] + control["h"] // 2)) == (255, 255, 255)
-            _ref(driver, "pin_control", target="zoom")
-            magnified = _ref(driver, "pin_popup_action", text="Zoom in")
+            magnified = _ref(driver, "pin_control", target="zoom_in")
             assert magnified["drawer"]["full_image"] and magnified["drawer"]["scale"] > filled["scale"]
-            _ref(driver, "pin_control", target="zoom")
-            reduced = _ref(driver, "pin_popup_action", text="Zoom out")
+            assert not magnified["pin_popup_buttons"]
+            reduced = _ref(driver, "pin_control", target="zoom_out")
             assert reduced["drawer"]["full_image"] and reduced["drawer"]["scale"] < magnified["drawer"]["scale"]
             _ref(driver, "pin_control", target="zoom")
             fitted = _ref(driver, "pin_popup_action", text="Fit")
             assert not fitted["drawer"]["full_image"]
+            assert not fitted["drawer"].get("zoom_in") and not fitted["drawer"].get("zoom_out")
             assert not fitted["drawer"].get("control_radius") and not fitted["drawer"].get("dots_background")
             assert fitted["drawer"]["content"] == opened["drawer"]["content"]
             assert fitted["drawer"]["center"] == {"x": 0.5, "y": 0.5}
+            _ref(driver, "close")
+            restored = _ref(driver, "open_pin")["drawer"]
+            assert not restored["full_image"] and restored["scale"] == pytest.approx(fitted["drawer"]["scale"])
             assert _ref(driver, "gesture", target="body")["image_viewer"]
             _ref(driver, "tap_image")
             fit = opened["drawer"]["scale"]
@@ -1428,6 +1493,9 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
             pinched = _ref(driver, "gesture", target="body", gesture="pinch")
             assert pinched["drawer"]["scale"] < spread["drawer"]["scale"]
             zoomed = _ref(driver, "zoom", factor=4)
+            _ref(driver, "close")
+            restored = _ref(driver, "open_pin")["drawer"]
+            assert not restored["full_image"] and restored["scale"] == pytest.approx(zoomed["drawer"]["scale"])
             before = Image.open(_capture(driver, f"pin-{format}-before-pan.png")).convert("RGB")
             _ref(driver, "gesture", target="body", gesture="pan", relative={"x": -40, "y": -60})
             moved = _ref(driver, "gesture", target="outside", gesture="pan_release")
@@ -1472,10 +1540,30 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
             left_full = _ref(driver, "pin_popup_action", text="Full")["drawer"]
             assert left_full["full_image"] and left_full["content"]["x"] == 0
             assert left_full["content"]["y"] == left_full["bounds"]["y"] + left_full["border"]
+            left_zoomed = _ref(driver, "pin_control", target="zoom_in")["drawer"]
             _capture(driver, f"pin-{format}-full-left.png")
             next_pin = _ref(driver, "pin_control", target="next")["drawer"]
-            assert next_pin["pin_index"] == 2 and not next_pin["full_image"]
-            assert not next_pin.get("control_radius") and not next_pin.get("dots_background")
+            assert next_pin["pin_index"] == 2
+            if format == "epub":
+                assert not next_pin["full_image"]
+                assert not next_pin.get("zoom_in") and not next_pin.get("zoom_out")
+                assert not next_pin.get("control_radius") and not next_pin.get("dots_background")
+            else:
+                assert not next_pin["full_image"] and next_pin["scale"] == pytest.approx(fit)
+            restored = _ref(driver, "pin_control", target="previous")["drawer"]
+            assert restored["full_image"] and restored["scale"] == pytest.approx(left_zoomed["scale"])
+            _ref(driver, "close_book")
+            stop(process)
+            process = launch(Path(os.environ["KOREADER_DIR"]), root / "home", socket, library,
+                             initialize_settings=False)
+            wait_for_socket(socket)
+            driver = ZenDriver(socket)
+            assert driver.open_book(book)["ok"]
+            _wait_reader(driver)
+            restored = _ref(driver, "open_pin")["drawer"]
+            assert restored["full_image"] and restored["scale"] == pytest.approx(left_zoomed["scale"])
+            if format == "epub":
+                assert restored["original_image"] and restored["source_size"] == {"w": 600, "h": 800}
         finally:
             stop(process)
 

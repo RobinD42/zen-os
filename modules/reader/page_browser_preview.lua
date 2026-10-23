@@ -50,7 +50,8 @@ function Preview:render()
             view:drawSavedHighlight(bb, 0, 0)
         end
         if self.fit_page and ui.rolling then
-            local first, last = document:getPageXPointer(page), document:getPageXPointer(page + 1)
+            local first = self.image_xpointer or document:getPageXPointer(page)
+            local last = self.image_xpointer or document:getPageXPointer(page + 1)
             if not last or last == "" then
                 local range = document._document:getTextFromPositions(0, 0, self.width - 1, self.height - 1,
                     false, false, true)
@@ -66,7 +67,7 @@ function Preview:render()
             right, bottom = math.min(self.width, right), math.min(self.height, bottom)
             if right > left and bottom > top then
                 local text = document._drawn_images_count == 1 and document:getTextFromXPointers(first, last, false)
-                local image = text and not text:find("%S") and document:getImageFromPosition{
+                local image = (self.image_xpointer or text and not text:find("%S")) and document:getImageFromPosition{
                     x = (left + right) / 2, y = (top + bottom) / 2,
                 }
                 local cropped = image or bb:viewport(left, top, right - left, bottom - top):copy()
@@ -89,8 +90,6 @@ function Preview:paintTo(bb, x, y)
         bb:paintBorder(x, y + self.top, self.width, self.height - self.top - self.bottom,
             Size.border.thick, Blitbuffer.COLOR_BLACK)
     end
-    require("modules/reader/references").paintPin(self.ui, self.page, bb,
-        x, y + (self.top or 0), self.width, self.height)
 end
 
 function Preview:onFocus()

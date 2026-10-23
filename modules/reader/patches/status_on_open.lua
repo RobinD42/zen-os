@@ -48,6 +48,19 @@ local function apply_status_on_open()
                 plugin:saveConfig()
             end
         end
+        if self.rolling and self.typeset and not doc_settings:isTrue("zen_vertical_margins_migrated")
+                and (doc_settings:readSetting("copt_t_page_margin") ~= nil
+                    or doc_settings:readSetting("copt_b_page_margin") ~= nil) then
+            local ReaderDefaults = require("common/reader_defaults")
+            if ReaderDefaults.isZenPreset(require("config/preset_store").getActivePreset("reader")) then
+                local configurable = self.document.configurable
+                configurable.t_page_margin = ReaderDefaults.DEFAULT_VERTICAL_MARGIN
+                configurable.b_page_margin = ReaderDefaults.DEFAULT_VERTICAL_MARGIN
+                self.typeset:onSetPageTopAndBottomMargin({ configurable.t_page_margin, configurable.b_page_margin })
+                doc_settings:saveSetting("zen_vertical_margins_migrated", true)
+                self:saveSettings()
+            end
+        end
     end
 end
 

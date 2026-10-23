@@ -68,16 +68,18 @@ end
 
 function M.pins(ui)
     local pins = {}
+    local images = ui.doc_settings:readSetting("zen_pinned_images") or {}
     for index, location in ipairs(M.pinLocations(ui)) do
-        local page
+        local page, image
         if ui.rolling and type(location) == "string" then
-            page = ui.document:getPageFromXPointer(location)
+            image = images[location]
+            page = ui.document:getPageFromXPointer(image or location)
         elseif ui.paging then
             page = type(location) == "number" and location
                 or type(location) == "table" and location[1] and location[1].page
         end
         if page and page >= 1 and page <= ui.document:getPageCount() then
-            pins[#pins + 1] = { page = page, location = location, index = index }
+            pins[#pins + 1] = { page = page, location = location, index = index, image = image }
         end
     end
     return pins
@@ -96,24 +98,38 @@ function M.isPinned(ui, page)
     return false
 end
 
-function M.setPin(ui, page, remove)
+function M.setPin(ui, page, remove, image)
     page = page or ui:getCurrentPage()
     if not page or page < 1 or page > ui.document:getPageCount() then return end
     local footer = ui.view and ui.view.footer
     local footer_height = footer and footer:getHeight()
     local locations = M.pinLocations(ui)
-    local location = ui.rolling and ui.document:getPageXPointer(page) or page
+    local location = image or ui.rolling and ui.document:getPageXPointer(page) or page
     local found
     for _i, pin in ipairs(M.pins(ui)) do
-        if pin.page == page or pin.location == location then found = pin.index; break end
+        if pin.page == page or pin.location == location then
+            found, location = pin.index, pin.location
+            break
+        end
     end
     if remove then
         if not found then return end
         table.remove(locations, found)
+        local images = ui.doc_settings:readSetting("zen_pinned_image_settings")
+        if images then
+            images[ui.rolling and location or page] = nil
+            ui.doc_settings:saveSetting("zen_pinned_image_settings", images)
+        end
     elseif not found then
         locations[#locations + 1] = location
     else return end
     ui.doc_settings:saveSetting("zen_pinned_pages", locations)
+    local images = ui.doc_settings:readSetting("zen_pinned_images")
+    if image or images then
+        images = images or {}
+        images[location] = not remove and image or nil
+        ui.doc_settings:saveSetting("zen_pinned_images", images)
+    end
     -- Keep one native pin available when the reference drawer is disabled.
     ui.doc_settings:saveSetting("pinned_page", locations[1])
     if footer and ui.view.footer_visible then
@@ -191,21 +207,61 @@ function M.paintPin(ui, page, bb, x, y, width, height)
     icon:free()
 end
 
+local function imageXPointer(document, pos)
+    local range = document._document:getTextFromPositions(pos.x, pos.y, pos.x, pos.y, false, false, true)
+    local parent = range and range.pos0:match("^(.*)/")
+    while parent and parent ~= "" do
+        -- CRe's node metadata preserves hierarchy without parsing book HTML.
+        local nodes = select(3, document:getHTMLFromXPointer(parent, 0x8000, false))
+        local paths, counts = {}, {}
+        for row in (nodes or ""):gmatch("[^\n]+") do
+            local level, tag = row:match("^%d+\t(%d+)\t%d+\t([^\t]+)")
+            if level then
+                level = tonumber(level)
+                if not next(paths) then
+                    paths[level] = parent
+                else
+                    counts[level] = counts[level] or {}
+                    counts[level][tag] = (counts[level][tag] or 0) + 1
+                    paths[level] = paths[level - 1] .. "/" .. tag .. "[" .. counts[level][tag] .. "]"
+                end
+                counts[level + 1] = nil
+                if tag == "img" or tag == "svg" then
+                    local xp = paths[level] .. ".0"
+                    local boxes = document._document:getWordBoxesFromPositions(xp, xp, true, true)
+                    for _i, box in ipairs(boxes or {}) do
+                        if pos.x >= box.x0 and pos.x < box.x1 and pos.y >= box.y0 and pos.y < box.y1 then
+                            return xp
+                        end
+                    end
+                end
+            end
+        end
+        parent = parent:match("^(.*)/")
+    end
+end
+
 function M.imageMenu(highlight, page, position, spec, open)
     local UIManager = require("ui/uimanager")
     local ButtonDialog = require("ui/widget/buttondialog")
     local Labels = require("common/ui/button_labels")
     local labels = plugin.config.highlight_lookup and plugin.config.highlight_lookup.show_labels == true
     local image = spec.image
-    local stock_icons = require("libs/libkoreader-lfs").currentdir() .. "/resources/icons/mdlight/"
     local buttons = {{ { text = labels and _("View image") or nil,
-        icon = require("common/utils").resolveLocalIcon(stock_icons, "zoom.page"), callback = function()
+        icon = utils.resolveLocalIcon(icons_dir, "fullscreen"), callback = function()
         local viewer = open()
         image = nil -- The viewer takes ownership of the image.
         highlight:onClose()
         UIManager:show(viewer)
     end } }}
     M.addPinButton(buttons, highlight.ui, page, function() highlight:onClose() end)
+    if highlight.ui.rolling and not M.isPinned(highlight.ui, page) then
+        buttons[1][2].callback = function()
+            local pos = highlight.view:screenToPageTransform(position)
+            M.setPin(highlight.ui, page, nil, imageXPointer(highlight.ui.document, pos))
+            highlight:onClose()
+        end
+    end
     if labels then buttons = Labels.prepare(buttons) end
     require("modules/reader/highlight_menu_items").compact(buttons)
     local dialog = ButtonDialog:new{

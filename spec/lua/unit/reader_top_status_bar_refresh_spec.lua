@@ -530,7 +530,7 @@ describe("reader top status bar refresh", function()
         return typeset, document
     end
 
-    it("adds the bottom status bar height only to effective paged CRE margins", function()
+    it("reserves the header's own height in effective paged CRE margins", function()
         local typeset, document = make_typeset("page")
         assert.are.equal(1, G_reader_settings:readSetting("copt_status_line"))
         assert.is_false(G_reader_settings:readSetting("alt_status_bar"))
@@ -539,25 +539,41 @@ describe("reader top status bar refresh", function()
         assert.are.equal(startup_reader, disabled_reader)
 
         typeset:onSetPageMargins(typeset.unscaled_margins)
-        assert.same({ 5, 25, 5, 12 }, document.applied_margins)
-        assert.are.equal(15, document._zen_top_status_bar_reserved_height)
+        assert.same({ 5, 30, 5, 12 }, document.applied_margins)
+        assert.are.equal(20, document._zen_top_status_bar_reserved_height)
 
         typeset:onSetPageMargins(typeset.unscaled_margins)
-        assert.same({ 5, 25, 5, 12 }, document.applied_margins)
+        assert.same({ 5, 30, 5, 12 }, document.applied_margins)
 
         _G.__ZEN_UI_PLUGIN.config.reader_top_status_bar.show_bottom_border = true
         typeset:onSetPageMargins(typeset.unscaled_margins)
-        assert.same({ 5, 26, 5, 12 }, document.applied_margins)
+        assert.same({ 5, 31, 5, 12 }, document.applied_margins)
     end)
 
-    it("keeps equal margins equal when the status bars reclaim their height", function()
+    it("reserves the header independently of footer overlap or visibility", function()
         local typeset, document = make_typeset("page")
         typeset.view.footer.reclaim_height = true
         typeset.unscaled_margins = { 5, 10, 5, 10 }
 
         typeset:onSetPageMargins(typeset.unscaled_margins)
-        assert.same({ 5, 10, 5, 10 }, document.applied_margins)
-        assert.are.equal(0, document._zen_top_status_bar_reserved_height)
+        assert.same({ 5, 30, 5, 10 }, document.applied_margins)
+        assert.are.equal(20, document._zen_top_status_bar_reserved_height)
+
+        typeset.view.footer.getHeight = function() return 0 end
+        typeset:onSetPageMargins(typeset.unscaled_margins)
+        assert.same({ 5, 30, 5, 10 }, document.applied_margins)
+    end)
+
+    it("reserves taller pin icons and releases an empty header", function()
+        local typeset, document = make_typeset("page")
+        local cfg = _G.__ZEN_UI_PLUGIN.config.reader_top_status_bar
+        cfg.font_size, cfg.right_order = 30, { "pin" }
+        typeset:onSetPageMargins(typeset.unscaled_margins)
+        assert.same({ 5, 44, 5, 12 }, document.applied_margins)
+
+        cfg.left_order, cfg.center_order, cfg.right_order = {}, {}, {}
+        typeset:onSetPageMargins(typeset.unscaled_margins)
+        assert.same({ 5, 10, 5, 12 }, document.applied_margins)
     end)
 
     it("removes reserved space outside enabled paged CRE documents", function()
@@ -580,12 +596,12 @@ describe("reader top status bar refresh", function()
         }
         typeset.view = view
         typeset:onSetPageMargins(typeset.unscaled_margins)
-        assert.are.equal(25, document.applied_margins[2])
+        assert.are.equal(30, document.applied_margins[2])
 
         ReaderView.onSetViewMode(view, "scroll")
         assert.are.equal(10, document.applied_margins[2])
         ReaderView.onSetViewMode(view, "page")
-        assert.are.equal(25, document.applied_margins[2])
+        assert.are.equal(30, document.applied_margins[2])
     end)
 
     it("keeps margins unchanged during KOReader's temporary selection scrolling", function()
@@ -594,7 +610,7 @@ describe("reader top status bar refresh", function()
         local highlight = {}
         view.ui = { typeset = typeset, highlight = highlight }
         typeset:onSetPageMargins(typeset.unscaled_margins)
-        assert.are.equal(25, document.applied_margins[2])
+        assert.are.equal(30, document.applied_margins[2])
 
         local margin_updates = 0
         typeset.onSetPageMargins = function() margin_updates = margin_updates + 1 end
@@ -604,7 +620,7 @@ describe("reader top status bar refresh", function()
         ReaderView.onSetViewMode(view, "scroll")
         assert.are.equal("scroll", view.view_mode)
         assert.are.equal(0, margin_updates) -- UpdatePos would reset the active hold gesture.
-        assert.are.equal(25, document.applied_margins[2])
+        assert.are.equal(30, document.applied_margins[2])
 
         highlight.restore_page_mode_func()
         highlight.restore_page_mode_func = nil

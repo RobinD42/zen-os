@@ -100,6 +100,8 @@ under `/koreader/icons` when no pack is selected.
 Reader references use `pin.svg`, `pin_remove.svg`, and `return.svg`. Annotation
 lists use `filter.svg` and `sort.svg`.
 Page-preview bookmark actions use `bookmark.svg` and `bookmark_remove.svg`.
+Page browser controls use `font.svg` (Font) or `appbar.contrast.svg` (Contrast).
+Page browser search buttons share `quick_search.svg` with Settings; close buttons use KOReader's `close.svg`.
 
 Quick Settings and its menus use `airplane.svg`, `app_menu.svg`,
 `brightness.svg`, `network.svg`, `quick_battery.svg`, and `warmth.svg`.
