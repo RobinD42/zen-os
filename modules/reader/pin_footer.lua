@@ -2,6 +2,7 @@ local Blitbuffer = require("ffi/blitbuffer")
 local ButtonLabels = require("common/ui/button_labels")
 local ColorIconWidget = require("common/ui/color_icon_widget")
 local ColorTextWidget = require("common/ui/color_text_widget")
+local Device = require("device")
 local Font = require("ui/font")
 local Geom = require("ui/geometry")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
@@ -9,7 +10,7 @@ local HorizontalSpan = require("ui/widget/horizontalspan")
 local References = require("modules/reader/references")
 local ReaderStatusBar = require("common/reader_status_bar")
 local ReaderThemes = require("common/reader_themes")
-local Screen = require("device").screen
+local Screen = Device.screen
 local Size = require("ui/size")
 local UIManager = require("ui/uimanager")
 local utils = require("common/utils")
@@ -18,6 +19,11 @@ local icons_dir = require("common/plugin_root") .. "/icons/"
 
 local M = {}
 local plugin
+local MONO_SCALE = 0.875
+
+local function controlSize(size)
+    return Screen:scaleBySize(size * (Device:hasColorScreen() and 1 or MONO_SCALE))
+end
 
 function M.visible(footer)
     if footer.settings.pinned_pages == false then return false end
@@ -32,25 +38,26 @@ function M.width(footer)
     if footer._zen_pin_count ~= count or footer._zen_pin_face ~= face
             or footer._zen_pin_bold ~= footer.settings.text_font_bold then
         if footer._zen_pin_label then footer._zen_pin_label:free() end
-        local size = math.min(Screen:scaleBySize(16), footer.height)
+        local size = controlSize(16)
         footer._zen_pin_label = HorizontalGroup:new{ allow_mirroring = false,
             ColorIconWidget:new{ icon = utils.resolveLocalIcon(icons_dir, "pin"),
                 width = size, height = size, alpha = true },
-            HorizontalSpan:new{ width = Screen:scaleBySize(3) },
+            HorizontalSpan:new{ width = controlSize(3) },
             ColorTextWidget:new{ text = tostring(count), face = face,
                 bold = footer.settings.text_font_bold, padding = 0, invert_night_mode = false },
         }
         ButtonLabels.alignIcon(footer._zen_pin_label[1], footer._zen_pin_label[3])
+        footer._zen_pin_height = footer._zen_pin_label:getSize().h + 2 * controlSize(3)
         footer._zen_pin_count, footer._zen_pin_face = count, face
         footer._zen_pin_bold = footer.settings.text_font_bold
     end
     -- Leave room for the footer container's centering margin.
-    return footer._zen_pin_label:getSize().w + Screen:scaleBySize(22) + footer.horizontal_margin
+    return footer._zen_pin_label:getSize().w + controlSize(22) + footer.horizontal_margin
 end
 
 function M.height(footer)
     if M.width(footer) == 0 then return footer.height end
-    return math.max(footer.height, footer._zen_pin_label:getSize().h + 2 * Screen:scaleBySize(1))
+    return math.max(footer.height, footer._zen_pin_height)
 end
 
 local function centered(footer)
@@ -74,12 +81,15 @@ local function paint_label(footer, bb, right, y, height, background)
         or footer.footer_text and footer.footer_text.fgcolor or Blitbuffer.COLOR_BLACK
     label[1].fgcolor, label[3].fgcolor = color, color
     local size = label:getSize()
-    local padding = Screen:scaleBySize(9)
+    y = y + math.floor((height - footer._zen_pin_height) / 2)
+    height = footer._zen_pin_height
+    y = math.min(y, Screen:getHeight() - math.max(footer.bottom_padding, Screen:scaleBySize(1)) - height)
+    local padding = controlSize(9)
     local box_width = size.w + 2 * padding
     local left = right - box_width
     if background then bb:paintRect(left, y, box_width, height, background) end
-    bb:paintBorder(left, y, box_width, height, Screen:scaleBySize(1), color,
-        Size.radius.window, G_reader_settings:nilOrTrue("anti_alias_ui"))
+    bb:paintBorder(left, y, box_width, height, controlSize(1), color,
+        controlSize(7), G_reader_settings:nilOrTrue("anti_alias_ui"))
     label:paintTo(bb, left + padding, y + math.floor((height - size.h) / 2))
     footer._zen_pin_dimen = Geom:new{ x = left, y = y, w = box_width, h = height }
 end
@@ -146,6 +156,8 @@ function M.apply()
     local paint = Footer.paintTo
     Footer.paintTo = function(self, bb, x, y)
         self._zen_pin_dimen = nil
+        local height = self:getHeight()
+        if self.footer_content and self.footer_content.dimen then self.footer_content.dimen.h = height end
         return paint(self, bb, x, y)
     end
     local close = Footer.onCloseWidget

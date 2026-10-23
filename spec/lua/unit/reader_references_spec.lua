@@ -21,6 +21,7 @@ describe("reader references", function()
         ui = {
             page = 5, rolling = {}, doc_settings = ZenSpec.memorySettings(),
             document = { getPageCount = function() return 100 end,
+                getPageMargins = function() return { left = 0, right = 0 } end,
                 getPageFromXPointer = function(_self, xp) return tonumber(xp:match("%d+")) end,
                 getPageXPointer = function(_self, page) return "xp:" .. page end },
             getCurrentPage = function(self) return self.page end,
@@ -291,6 +292,23 @@ describe("reader references", function()
         assert.equals("Font size", PinSettings.items(ui, { config = { reader_pins = settings } })[2].text)
     end)
 
+    it("halves the rendered book margins independently for pinned text", function()
+        ZenSpec.replace("ui/uimanager", {})
+        ZenSpec.unload("modules/reader/pin_settings")
+        local PinSettings = require("modules/reader/pin_settings")
+        local bb = require("ffi/blitbuffer")
+        local settings = { relative_font_size = 0, use_book_font = false, justify = true }
+        ui.document.configurable = { font_size = 18 }
+        ui.document.getHTMLFromXPointers = function() return "<p>Reference</p>" end
+        for _i, margins in ipairs({ { left = 31, right = 46 }, { left = 0, right = 0 } }) do
+            ui.document.getPageMargins = function() return margins end
+            local html, css = PinSettings.content(ui, 9, settings, bb.COLOR_WHITE, bb.COLOR_BLACK)
+            assert.equals("<p>Reference</p>", html)
+            assert.matches(string.format("@page { margin: 0 %gpx 0 %gpx;", margins.right / 2, margins.left / 2),
+                css, 1, true)
+        end
+    end)
+
     it("keeps publisher indentation and spacing on regular and final pages", function()
         ZenSpec.replace("device", { screen = { scaleBySize = function(_self, size) return size end } })
         ZenSpec.replace("ui/uimanager", {})
@@ -524,15 +542,20 @@ describe("native footnote adapter", function()
         "apps/reader/modules/readerlink", "apps/reader/modules/readerdictionary",
         "ui/widget/footnotewidget", "modules/reader/patches/reader_references",
         "modules/reader/pin_footer", "apps/reader/modules/readergoto",
-        "apps/reader/modules/readerhighlight", "ui/widget/imageviewer" }
-    local saved, Footnote, ReaderLink, ReaderHighlight, ImageViewer, ui, enabled
+        "apps/reader/modules/readerhighlight", "ui/widget/imageviewer", "device" }
+    local saved, saved_settings, Footnote, ReaderLink, ReaderHighlight, ImageViewer, ui, enabled
 
     before_each(function()
         saved = {}
         for _i, name in ipairs(names) do saved[name] = package.loaded[name] end
+        saved_settings = G_reader_settings
+        _G.G_reader_settings = ZenSpec.memorySettings()
+        G_reader_settings.isFalse = function(self, key) return self:readSetting(key) == false end
+        ZenSpec.replace("device", { screen = { scaleByDPI = function(_self, value) return 2 * value end } })
         enabled, ui = true, {}
         Footnote = { new = function(_self, spec) return spec end }
         ReaderLink = { onReadSettings = function() return "native settings" end,
+            onTap = function(self) return self.native_tap_result end,
             showAsFootnotePopup = function(_self, link)
             if link.fail then error("extraction failed", 0) end
             if link.ordinary then return false end
@@ -566,7 +589,32 @@ describe("native footnote adapter", function()
     end)
 
     after_each(function()
+        _G.G_reader_settings = saved_settings
         for _i, name in ipairs(names) do package.loaded[name] = saved[name] end
+    end)
+
+    it("adds a small scaled internal-link tap allowance after precise detection misses", function()
+        local ges = { pos = { x = 100, y = 200 } }
+        local link = setmetatable({ ui = ui, onGoToPageLink = function(_self, gesture, internal_only, distance)
+            assert.equals(ges, gesture)
+            assert.is_true(internal_only)
+            assert.equals(16, distance)
+            return "nearby link"
+        end }, { __index = ReaderLink })
+        assert.equals("nearby link", link:onTap(nil, ges))
+        link.native_tap_result = "precise link"
+        assert.equals("precise link", link:onTap(nil, ges))
+        link.native_tap_result = nil
+        enabled = false
+        assert.is_nil(link:onTap(nil, ges))
+        enabled, ui.paging = true, {}
+        assert.is_nil(link:onTap(nil, ges))
+        ui.paging = nil
+        G_reader_settings:saveSetting("tap_to_follow_links", false)
+        assert.is_nil(link:onTap(nil, ges))
+        G_reader_settings:delSetting("tap_to_follow_links")
+        G_reader_settings:saveSetting("larger_tap_area_to_follow_links", true)
+        assert.is_nil(link:onTap(nil, ges))
     end)
 
     it("reuses native content and restores the factory", function()

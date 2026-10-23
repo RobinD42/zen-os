@@ -2,13 +2,15 @@ local Blitbuffer = require("ffi/blitbuffer")
 local ButtonLabels = require("common/ui/button_labels")
 local ColorIconWidget = require("common/ui/color_icon_widget")
 local ColorTextWidget = require("common/ui/color_text_widget")
+local Device = require("device")
+local Font = require("ui/font")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
 local HorizontalSpan = require("ui/widget/horizontalspan")
 local ReaderThemes = require("common/reader_themes")
 local ReaderStatusBar = require("common/reader_status_bar")
 local References = require("modules/reader/references")
-local Screen = require("device").screen
+local Screen = Device.screen
 local Size = require("ui/size")
 local UIManager = require("ui/uimanager")
 local Widget = require("ui/widget/widget")
@@ -59,11 +61,13 @@ function ReturnButton:paintTo(bb, x, y)
     self.text = T(_("Return to page %1"), References.pageLabel(self.ui, page))
     local foreground = ReaderThemes.getTextColor(self.plugin) or Blitbuffer.COLOR_BLACK
     local icon_size, gap = Screen:scaleBySize(16), Screen:scaleBySize(4)
-    local padding, border = Screen:scaleBySize(8), Screen:scaleBySize(1)
-    local cfg = self.plugin and self.plugin.config and self.plugin.config.reader_top_status_bar
+    local padding, border = Screen:scaleBySize(10), Screen:scaleBySize(1)
+    local vertical_padding = Screen:scaleBySize(Device:hasColorScreen() and 6 or 4)
+    local footer = self.ui.view.footer
     local label = ColorTextWidget:new{
         text = self.text,
-        face = ReaderStatusBar.getHeaderFace(cfg), fgcolor = foreground, invert_night_mode = false,
+        face = footer.footer_text_face or Font:getFace("cfont", footer.settings.text_font_size),
+        bold = footer.settings.text_font_bold, fgcolor = foreground, invert_night_mode = false,
         max_width = math.floor(Screen:getWidth() * 0.48) - 2 * (padding + border) - icon_size - gap,
     }
     local icon = ColorIconWidget:new{ icon = utils.resolveLocalIcon(icons_dir, "return"),
@@ -72,14 +76,14 @@ function ReturnButton:paintTo(bb, x, y)
     local frame = FrameContainer:new{
         bordersize = border, margin = 0, radius = Size.radius.window,
         padding_left = padding, padding_right = padding,
-        padding_top = Screen:scaleBySize(2), padding_bottom = Screen:scaleBySize(2) + Size.radius.window,
+        padding_top = vertical_padding, padding_bottom = vertical_padding + Size.radius.window,
         background = ReaderThemes.getBackgroundColor(self.plugin) or Blitbuffer.COLOR_WHITE,
         color = foreground, HorizontalGroup:new{ allow_mirroring = false,
             icon,
             HorizontalSpan:new{ width = gap }, label,
         },
     }
-    local left = ReaderStatusBar.getHorizontalMargins(self.ui.document, self.ui.view.footer.horizontal_margin, self.plugin)
+    local left = ReaderStatusBar.getHorizontalMargins(self.ui.document, footer.horizontal_margin, self.plugin)
     frame:paintTo(bb, x + left, y + Screen:getHeight() - frame:getSize().h + frame.radius)
     self.dimen = frame.dimen
     frame:free()

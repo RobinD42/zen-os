@@ -87,6 +87,7 @@ end
 
 local Drawer = FocusManager:extend{
     name = "zen_reference_drawer", covers_footer = true, disable_double_tap = true,
+    alpha = 0.3, -- Repaint the background before blending the shadow.
 }
 
 function Drawer:new(spec)
@@ -117,6 +118,7 @@ function Drawer:init()
     self.top_padding = Screen:scaleBySize(self.footnote and 16 or 4)
     self.bottom_padding = Screen:scaleBySize(self.footnote and 8 or 2)
     self.border_size = Screen:scaleBySize(2)
+    self.shadow_size = Screen:scaleBySize(4)
     self.background = ReaderThemes.getBackgroundColor(self.plugin)
     if not self.background then
         local color = G_reader_settings:readSetting("cre_background_color")
@@ -312,7 +314,38 @@ function Drawer:buildLayout()
                 or (not self.footnote or self.landscape) and self.dimen.w - self.width - self.side_margin or self.side_margin,
             self.footnote and self.landscape and 0 or self.dimen.h - self.height }, contents,
     }
+    local size = self.frame:getSize()
+    self.refresh_dimen = Geom:new{
+        x = self.frame.overlap_offset[1] - self.shadow_size,
+        y = self.frame.overlap_offset[2] - self.shadow_size,
+        w = size.w + 2 * self.shadow_size,
+        h = self.frame.height + 2 * self.shadow_size,
+    }:intersect(self.dimen)
     self[1] = OverlapGroup:new{ dimen = self.dimen, allow_mirroring = false, self.frame }
+end
+
+function Drawer:paintTo(bb, x, y)
+    local frame, shadow, opacity = self.frame, self.shadow_size, self.alpha
+    local width, height = frame:getSize().w, frame.height
+    local radius = frame.radius + frame.bordersize
+    local fx, fy = x + frame.overlap_offset[1], y + frame.overlap_offset[2]
+    local shade = Screen.night_mode and bb.lightenRect or bb.darkenRect
+    -- Blend only the narrow perimeter; the opaque frame covers the inner corner pixels.
+    shade(bb, fx + radius, fy - shadow, width - 2 * radius, shadow, opacity)
+    shade(bb, fx + radius, fy + height, width - 2 * radius, shadow, opacity)
+    shade(bb, fx - shadow, fy + radius, shadow, height - 2 * radius, opacity)
+    shade(bb, fx + width, fy + radius, shadow, height - 2 * radius, opacity)
+    local outer_radius = radius + shadow
+    for row = 0, outer_radius - 1 do
+        local dy = outer_radius - row - 0.5
+        local cut = math.ceil(outer_radius - math.sqrt(outer_radius * outer_radius - dy * dy))
+        local span = outer_radius - cut
+        shade(bb, fx - shadow + cut, fy - shadow + row, span, 1, opacity)
+        shade(bb, fx + width - radius, fy - shadow + row, span, 1, opacity)
+        shade(bb, fx - shadow + cut, fy + height + shadow - row - 1, span, 1, opacity)
+        shade(bb, fx + width - radius, fy + height + shadow - row - 1, span, 1, opacity)
+    end
+    FocusManager.paintTo(self, bb, x, y)
 end
 
 function Drawer:onEdgeSwipe(_arg, ges)
@@ -375,7 +408,7 @@ function Drawer:changePage(step)
     self:renderPage()
     self:buildLayout()
     self.ui.doc_settings:saveSetting("zen_last_pinned_page", self.ui.rolling and self.pins[index].location or self.page)
-    UIManager:setDirty(self, "ui", self.frame.dimen)
+    UIManager:setDirty(self, "ui", self.refresh_dimen)
     return true
 end
 
@@ -401,7 +434,7 @@ function Drawer:zoom(factor, full)
         original_in_nightmode = self.preview.original_image or false }
     self[1]:free()
     self:buildLayout()
-    UIManager:setDirty(self, "ui", self.frame.dimen)
+    UIManager:setDirty(self, "ui", self.refresh_dimen)
     return true
 end
 
@@ -477,7 +510,7 @@ function Drawer:onExpand()
 end
 
 function Drawer:onShow()
-    UIManager:setDirty(self, "ui", self.frame.dimen)
+    UIManager:setDirty(self, "ui", self.refresh_dimen)
 end
 
 function Drawer:onClose()
@@ -501,7 +534,7 @@ function Drawer:onCloseWidget()
     if self.footnote and self.footnote.close_callback then
         self.footnote.close_callback(self.landscape and nil or self.height)
     end
-    UIManager:setDirty(self.ui, "ui", self.frame.dimen)
+    UIManager:setDirty(self.ui, "ui", self.refresh_dimen)
     self:free()
 end
 
@@ -517,7 +550,7 @@ function Drawer:reload()
     self:free()
     self:renderPage()
     self:buildLayout()
-    UIManager:setDirty(self, "ui", self.frame.dimen)
+    UIManager:setDirty(self, "ui", self.refresh_dimen)
 end
 
 function Drawer:showMenu(zoom)

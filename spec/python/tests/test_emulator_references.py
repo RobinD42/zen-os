@@ -107,6 +107,7 @@ def _browser(driver: ZenDriver):
 def _assert_pin_padding(state):
     box = state["pin_footer"]
     scale = min(state["screen"]["w"], state["screen"]["h"]) / 600
+    assert state["pin_icon_bounds"]["w"] == state["pin_icon_bounds"]["h"] == math.ceil(16 * scale)
     for key in ("pin_icon_bounds", "pin_count_bounds"):
         content = state[key]
         assert content["x"] - box["x"] >= math.ceil(8 * scale), key
@@ -283,20 +284,42 @@ def test_reference_popups_preserve_the_reader_header(landscape):
             assert before.convert("L").getextrema()[0] < 200
             for reference in ("footnote", "open_pin"):
                 if reference == "open_pin":
-                    _ref(driver, "pin", page=3)
-                _ref(driver, reference)
+                    _ref(driver, "pin", page=1)
+                    pinned = _ref(driver, "pin", page=original["page_count"] - 1)
+                    assert len(pinned["pins"]) == 2
+                page = Image.open(_capture(driver, f"shadow-{orientation}-{reference}-before.png")).convert("RGB")
+                _ref(driver, reference, index=2)
                 opened = _ref(driver, "paint")
                 assert opened["drawer"] and opened["location"] == original["location"]
+                bounds = opened["drawer"]["bounds"]
                 if reference == "footnote":
-                    bounds = opened["drawer"]["bounds"]
                     margin = math.ceil(8 * min(opened["screen"].values()) / 600)
                     available = opened["screen"]["w"] // (2 if landscape else 1)
                     assert bounds["w"] == available - 2 * margin
                     assert bounds["x"] > 0
                     assert bounds["x"] + bounds["w"] == opened["screen"]["w"] - margin
-                after = Image.open(_capture(driver, f"header-{orientation}-{reference}.png")).convert("RGB").crop(area)
-                assert ImageChops.difference(before, after).getbbox() is None
+                after = Image.open(_capture(driver, f"header-{orientation}-{reference}.png")).convert("RGB")
+                assert ImageChops.difference(before, after.crop(area)).getbbox() is None
+                shadow = math.ceil(4 * min(opened["screen"].values()) / 600)
+                middle = bounds["y"] + bounds["h"] // 2
+                strip = (bounds["x"] - shadow, middle, bounds["x"], middle + 1)
+                expected = page.crop(strip).point(lambda value: round(value * 0.7))
+                assert ImageChops.difference(page.crop(strip), after.crop(strip)).getbbox()
+                assert max(ImageChops.difference(expected, after.crop(strip)).convert("L").getextrema()) <= 1
+                outside = (bounds["x"] - shadow - 1, middle)
+                assert after.getpixel(outside) == page.getpixel(outside)
+                for turn in range(3):
+                    previous = _ref(driver)
+                    changed = _ref(driver, "next")
+                    if reference == "footnote":
+                        assert changed["drawer"]["ratio"] > previous["drawer"]["ratio"]
+                    else:
+                        assert changed["drawer"]["page"] != previous["drawer"]["page"]
+                    repainted = Image.open(_capture(driver, f"shadow-{orientation}-{reference}-turn-{turn}.png")).convert("RGB")
+                    assert ImageChops.difference(after.crop(strip), repainted.crop(strip)).getbbox() is None
                 _ref(driver, "close")
+                restored = Image.open(_capture(driver, f"shadow-{orientation}-{reference}-closed.png")).convert("RGB")
+                assert ImageChops.difference(page.crop(strip), restored.crop(strip)).getbbox() is None
             _ref(driver, "goto", page=original["page_count"] - 1)
             before = Image.open(_capture(driver, f"header-{orientation}-back-before.png")).convert("RGB").crop(area)
             _ref(driver, "open_pin")
@@ -1525,8 +1548,8 @@ def test_pin_control_visibility_and_footer_space():
             bounds = one["pin_footer"]
             scale = min(one["screen"].values()) / 600
             content_height = max(one["pin_icon_bounds"]["h"], one["pin_count_bounds"]["h"])
-            assert bounds["h"] == content_height + 2 * math.ceil(scale)
-            assert bounds["h"] < one["footer_text"]["h"]
+            assert bounds["h"] == content_height + 2 * math.ceil(3 * scale)
+            assert bounds["h"] <= one["footer_bounds"]["h"]
             left, right = bounds["x"], bounds["x"] + bounds["w"]
             assert image.getpixel(((left + right) // 2, bounds["y"])) == (0, 0, 0)
             assert image.getpixel((right - 1, bounds["y"] + bounds["h"] // 2)) == (0, 0, 0)

@@ -23,6 +23,14 @@ return function()
     local ReaderLink = require("apps/reader/modules/readerlink")
     if ReaderLink._zen_references_patched then return end
     ReaderLink._zen_references_patched = true
+    local tap = ReaderLink.onTap
+    ReaderLink.onTap = function(self, arg, ges)
+        local result = tap(self, arg, ges)
+        if result or not References.enabled(self.ui) or self.ui.paging
+            or G_reader_settings:isFalse("tap_to_follow_links")
+            or G_reader_settings:isTrue("larger_tap_area_to_follow_links") then return result end
+        return self:onGoToPageLink(ges, true, require("device").screen:scaleByDPI(8))
+    end
     local ReaderHighlight = require("apps/reader/modules/readerhighlight")
     local hold = ReaderHighlight.onHold
     ReaderHighlight.onHold = function(self, arg, ges)

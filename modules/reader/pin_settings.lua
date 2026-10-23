@@ -124,11 +124,13 @@ function M.content(ui, page, settings, background, foreground)
         end
         font_family = "ZenPinFont"
     end
+    local margins = document:getPageMargins()
     css = css .. string.format(
-        "@page { margin: 0; background-color: %s; }"
+        "@page { margin: 0 %gpx 0 %gpx; background-color: %s; }"
         .. " body { margin: 0; font-family: %s; line-height: %.3f; text-align: %s; }"
         .. " body, body * { color: %s !important; } img { max-width: 100%%; }",
-        color(background), font_family, line_height * (document.configurable.line_spacing or 100) / 100,
+        margins.right / 2, margins.left / 2, color(background), font_family,
+        line_height * (document.configurable.line_spacing or 100) / 100,
         settings.justify and "justify" or "left", color(foreground))
     local size = settings.font_size and Screen:scaleBySize(settings.font_size)
         or Screen:scaleBySize(document.configurable.font_size) + settings.relative_font_size

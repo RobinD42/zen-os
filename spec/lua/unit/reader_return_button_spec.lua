@@ -11,7 +11,7 @@ describe("temporary reader return button", function()
         saved, timers, queued, dirty, returns, enabled = {}, {}, {}, {}, 0, true
         painted_frame = nil
         saved_settings = G_reader_settings
-        _G.G_reader_settings = ZenSpec.memorySettings({ footer = { text_font_face = "NotoSans-Bold.ttf" } })
+        _G.G_reader_settings = ZenSpec.memorySettings()
         for _i, name in ipairs(names) do saved[name] = package.loaded[name] end
         for _i, name in ipairs(names) do ZenSpec.replace(name, {}) end
         local Widget = {}
@@ -20,7 +20,8 @@ describe("temporary reader return button", function()
         ZenSpec.replace("ui/widget/widget", Widget)
         ZenSpec.replace("ui/size", { radius = { window = 7 } })
         ZenSpec.replace("gettext", function(text) return text end)
-        ZenSpec.replace("device", { screen = { bb = {}, getWidth = function() return 600 end,
+        ZenSpec.replace("device", { hasColorScreen = function() return true end,
+            screen = { bb = {}, getWidth = function() return 600 end,
             getHeight = function() return 800 end,
             scaleBySize = function(_self, size) return size end } })
         ZenSpec.replace("common/plugin_root", ZenSpec.root)
@@ -30,7 +31,7 @@ describe("temporary reader return button", function()
             ZenSpec.replace(name, { new = function(_self, spec) return spec end })
         end
         ZenSpec.replace("ui/font", { getFace = function(_self, name, size)
-            if name ~= "/missing/header.ttf" then return { name = name, size = size } end
+            return { name = name, size = size }
         end })
         ZenSpec.replace("common/reader_themes", { getTextColor = function() return "sepia" end,
             getBackgroundColor = function() return "paper" end })
@@ -65,7 +66,10 @@ describe("temporary reader return button", function()
         ZenSpec.unload("modules/reader/return_button")
         ZenSpec.unload("common/reader_status_bar")
         Button = require("modules/reader/return_button")
-        ui = { page = 3, view = { footer = { horizontal_margin = 10 } } }
+        ui = { page = 3, view = { footer = { horizontal_margin = 10,
+            settings = { text_font_size = 14, text_font_bold = false },
+            footer_text_face = { name = "NotoSans-Bold.ttf", size = 14 },
+        } } }
         ui.link = { compareLocationToCurrent = function(_self, location) return location.page == ui.page end }
         button = Button:new{ ui = ui }
     end)
@@ -111,24 +115,37 @@ describe("temporary reader return button", function()
         assert.equals("sepia", row[1].fgcolor)
         assert.equals("Return to page 7", row[3].text)
         assert.equals("sepia", row[3].fgcolor)
-        assert.same({ name = "NotoSans-Bold.ttf", size = 14 }, row[3].face)
+        assert.equals(ui.view.footer.footer_text_face, row[3].face)
         assert.is_true(row[3].max_width + row[1].width + row[2].width
             + painted_frame.padding_left + painted_frame.padding_right + 2 * painted_frame.bordersize <= 600 * 0.48)
     end)
 
-    it("follows the header font and size, including inheritance and unavailable fonts", function()
+    it("follows live footer font settings on both screen types independently of the header", function()
         button:queue({ page = 7 })
         queued[#queued]()
-        button.plugin = { config = {} }
-        for _i, case in ipairs({
-            { face = "default", size = 18, expected = "NotoSans-Bold.ttf" },
-            { face = "NotoSerif-Regular.ttf", size = 20, expected = "NotoSerif-Regular.ttf" },
-            { face = "/missing/header.ttf", size = 16, expected = "cfont" },
-        }) do
-            button.plugin.config.reader_top_status_bar = { font_face = case.face, font_size = case.size }
-            button:paintTo(require("device").screen.bb, 0, 0)
-            assert.same({ name = case.expected, size = case.size }, painted_frame[1][3].face)
+        button.plugin = { config = { reader_top_status_bar = { font_face = "header.ttf", font_size = 40 } } }
+        local device = require("device")
+        local footer = ui.view.footer
+        for _i, size in ipairs({ 14, 20, 32 }) do
+            footer.settings.text_font_size = size
+            footer.settings.text_font_bold = size > 14
+            footer.footer_text_face = { name = "footer.ttf", size = size }
+            for _j, color in ipairs({ true, false }) do
+                device.hasColorScreen = function() return color end
+                button:paintTo(device.screen.bb, 0, 0)
+                assert.equals(footer.footer_text_face, painted_frame[1][3].face)
+                assert.equals(footer.settings.text_font_bold, painted_frame[1][3].bold)
+            end
         end
+    end)
+
+    it("uses the footer size before its font face is available", function()
+        button:queue({ page = 7 })
+        queued[#queued]()
+        ui.view.footer.footer_text_face = nil
+        ui.view.footer.settings.text_font_size = 22
+        button:paintTo(require("device").screen.bb, 0, 0)
+        assert.same({ name = "cfont", size = 22 }, painted_frame[1][3].face)
     end)
 
     it("anchors a rounded tab to the bottom left with its label fully on screen", function()
@@ -139,13 +156,16 @@ describe("temporary reader return button", function()
             screen.getWidth = function() return size.w end
             screen.getHeight = function() return size.h end
             for _j, font_size in ipairs({ 14, 32 }) do
-                button.plugin = { config = { reader_top_status_bar = { font_size = font_size } } }
+                ui.view.footer.footer_text_face = { name = "footer.ttf", size = font_size }
                 button:paintTo(screen.bb, 0, 0)
                 local bounds = button.dimen
                 assert.equals(10, bounds.x)
                 assert.equals(require("ui/size").radius.window, painted_frame.radius)
-                assert.equals(2, painted_frame.padding_top)
-                assert.equals(2, painted_frame.padding_bottom - painted_frame.radius)
+                assert.equals(10, painted_frame.padding_left)
+                assert.equals(10, painted_frame.padding_right)
+                assert.equals(6, painted_frame.padding_top)
+                assert.equals(6, painted_frame.padding_bottom - painted_frame.radius)
+                assert.equals(font_size, painted_frame[1][3].face.size)
                 assert.is_true(bounds.y > size.h / 2)
                 assert.equals(size.h + painted_frame.radius, bounds.y + bounds.h)
                 local content_bottom = bounds.y + painted_frame.bordersize + painted_frame.padding_top
@@ -171,6 +191,34 @@ describe("temporary reader return button", function()
         button.plugin.config.features.reader_status_bar_margins = false
         button:paintTo(screen.bb, 0, 0)
         assert.equals(10, button.dimen.x)
+    end)
+
+    it("uses less vertical padding on monochrome screens while keeping footer-sized text visible", function()
+        button:queue({ page = 7 })
+        queued[#queued]()
+        local device = require("device")
+        local screen = device.screen
+        for _i, size in ipairs({ { w = 600, h = 800 }, { w = 800, h = 600 }, { w = 1200, h = 1600 } }) do
+            screen.getWidth = function() return size.w end
+            screen.getHeight = function() return size.h end
+            local scale = math.min(size.w, size.h) / 600
+            screen.scaleBySize = function(_self, value) return math.ceil(value * scale) end
+            device.hasColorScreen = function() return true end
+            button:paintTo(screen.bb, 0, 0)
+            local color_height = button.dimen.h
+            assert.equals(ui.view.footer.footer_text_face, painted_frame[1][3].face)
+            device.hasColorScreen = function() return false end
+            button:paintTo(screen.bb, 0, 0)
+            local padding = screen:scaleBySize(4)
+            assert.equals(padding, painted_frame.padding_top)
+            assert.equals(padding, painted_frame.padding_bottom - painted_frame.radius)
+            assert.is_true(button.dimen.h < color_height)
+            assert.equals(size.h + painted_frame.radius, button.dimen.y + button.dimen.h)
+            local content_bottom = button.dimen.y + painted_frame.bordersize + painted_frame.padding_top
+                + math.max(painted_frame[1][1].height, painted_frame[1][3].face.size)
+            assert.is_true(content_bottom < size.h)
+            assert.equals(ui.view.footer.footer_text_face, painted_frame[1][3].face)
+        end
     end)
 
     it("replaces the timer on a new jump and cancels pending work on hide", function()
