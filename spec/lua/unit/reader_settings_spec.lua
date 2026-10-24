@@ -1,4 +1,4 @@
-describe("reader themes settings", function()
+describe("reader settings", function()
     local ReaderSettings
     local shown_dialog
     local dialog_input
@@ -105,6 +105,111 @@ describe("reader themes settings", function()
         items[1].checkmark_callback()
         assert.is_false(config.features.reader_controls)
         assert.are.equal("reader_controls", applied)
+    end)
+
+    it("shows popup settings directly in footnote options", function()
+        local native_items
+        local reader_ui = { instance = { rolling = {}, link = {
+            getFootnoteSettingsMenuTable = function() return native_items end,
+        } } }
+        ZenSpec.replace("apps/reader/readerui", reader_ui)
+        local items = ReaderSettings.build({ config = { features = {} }, plugin = {}, save_and_apply = function() end })
+        local options = find_item(items, "Footnote options")
+        local show_popup = { text = "Show footnotes in popup" }
+        local popup_items = {
+            { text = "Show more links as footnotes" },
+            { text = "Use book font in popups", enabled_func = function() return false end },
+            { text = "Footnote popup font size", callback = function() end, keep_menu_open = true },
+            { text = "Justify text in popups" },
+        }
+        local expected = { show_popup, unpack(popup_items) }
+        assert.is_true(options.enabled_func())
+        for _i, menu in ipairs({
+            { show_popup, { text = "Footnote popup settings", sub_item_table = popup_items } },
+            expected,
+        }) do
+            native_items = menu
+            local flattened = options.sub_item_table_func()
+            assert.are.equal(#expected, #flattened)
+            for index, item in ipairs(expected) do assert.are.equal(item, flattened[index]) end
+        end
+        reader_ui.instance.rolling = nil
+        assert.is_false(options.enabled_func())
+        reader_ui.instance = nil
+        assert.is_true(options.enabled_func())
+    end)
+
+    it("edits pinned page defaults without an open book", function()
+        local saved_settings, saved_defaults = G_reader_settings, G_defaults
+        local pin_settings = package.loaded["modules/reader/pin_settings"]
+        finally(function()
+            _G.G_reader_settings, _G.G_defaults = saved_settings, saved_defaults
+            package.loaded["modules/reader/pin_settings"] = pin_settings
+        end)
+        _G.G_reader_settings = ZenSpec.memorySettings{ copt_font_size = 24 }
+        _G.G_defaults = ZenSpec.memorySettings{ DCREREADER_CONFIG_DEFAULT_FONT_SIZE = 22 }
+        ZenSpec.replace("apps/reader/readerui", {})
+        ZenSpec.unload("modules/reader/pin_settings")
+        local config = { features = {}, reader_pins = {
+            use_book_font = true, relative_font_size = 0, justify = true, side = "right",
+        } }
+        local saves = 0
+        local items = ReaderSettings.build{ config = config, plugin = {
+            config = config, saveConfig = function() saves = saves + 1 end,
+        }, save_and_apply = function() end }
+        local options = find_item(items, "Pinned page options")
+        assert.is_nil(options.enabled_func)
+        local pins = options.sub_item_table_func()
+        for index = 1, 3 do assert.is_true(pins[index].enabled) end
+        pins[1].callback()
+        pins[3].callback()
+        pins[4].sub_item_table[1].callback()
+        assert.is_false(config.reader_pins.use_book_font)
+        assert.is_false(config.reader_pins.justify)
+        assert.are.equal("left", config.reader_pins.side)
+        pins[2].callback()
+        assert.are.equal(0, shown_dialog.value)
+        shown_dialog.extra_callback()
+        assert.are.equal(24, shown_dialog.value)
+        shown_dialog.callback{ value = 30 }
+        assert.are.equal(30, config.reader_pins.font_size)
+        shown_dialog.extra_callback()
+        shown_dialog.callback{ value = 2 }
+        assert.is_nil(config.reader_pins.font_size)
+        assert.are.equal(2, config.reader_pins.relative_font_size)
+        assert.are.equal(5, saves)
+        G_reader_settings:delSetting("copt_font_size")
+        pins = options.sub_item_table_func()
+        pins[2].callback()
+        shown_dialog.extra_callback()
+        assert.are.equal(22, shown_dialog.value)
+    end)
+
+    it("reuses the native footnote menu with font defaults when no book is open", function()
+        local saved_settings = G_reader_settings
+        local reader_link = package.loaded["apps/reader/modules/readerlink"]
+        finally(function()
+            _G.G_reader_settings = saved_settings
+            package.loaded["apps/reader/modules/readerlink"] = reader_link
+        end)
+        _G.G_reader_settings = ZenSpec.memorySettings{ copt_font_size = 26 }
+        ZenSpec.replace("apps/reader/readerui", {})
+        local native_item = { text = "Show footnotes in popup", callback = function()
+            G_reader_settings:saveSetting("footnote_link_in_popup", true)
+        end }
+        ZenSpec.replace("apps/reader/modules/readerlink", {
+            getFootnoteSettingsMenuTable = function(link)
+                assert.are.equal(26, link.document.configurable.font_size)
+                return { native_item }
+            end,
+        })
+        local items = ReaderSettings.build{ config = { features = {} }, plugin = {}, save_and_apply = function() end }
+        local options = find_item(items, "Footnote options")
+        assert.is_true(options.enabled_func())
+        local footnotes = options.sub_item_table_func()
+        assert.are.same({ native_item }, footnotes)
+        footnotes[1].callback()
+        assert.is_true(G_reader_settings:readSetting("footnote_link_in_popup"))
     end)
 
     it("selects mutually exclusive bottom swipe actions and reuses the launcher editor", function()

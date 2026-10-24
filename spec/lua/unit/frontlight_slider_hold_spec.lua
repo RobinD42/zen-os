@@ -260,6 +260,42 @@ describe("frontlight slider", function()
         assert.are.equal(8, powerd.warmth)
     end)
 
+    it("refreshes status values after slider and step changes in both layouts", function()
+        for _i, mode in ipairs({ "brightness", "unified_warmth", "warmth" }) do
+            local powerd = power_device()
+            local opts = slider_opts(powerd)
+            opts.show_warmth = true
+            local menu = touch_menu()
+            local status_values = {}
+            menu._zen_status_timer = function(self)
+                assert.are.equal(menu, self)
+                status_values[#status_values + 1] = mode == "brightness" and powerd.intensity or powerd.warmth
+            end
+            local module = mode == "warmth" and "warmth_slider" or "brightness_slider"
+            local group = require("modules/menu/patches/" .. module)(menu, opts)
+            if mode == "unified_warmth" then opts.refs.toggles[2].callback() end
+            assert.are.same({}, status_values)
+            local slider = opts.refs.sliders[1].slider
+            slider.on_change(12)
+            assert.are.same({ 12 }, status_values)
+
+            local number_box = find_widget(group, function(widget)
+                return widget.dimen and widget[1] and widget[1].text == "12"
+            end)
+            number_box.dimen.x, number_box.dimen.y = 130, 60
+            slider.dimen = { x = 150, y = 110, w = 300, h = 40 }
+            slider._dragging = true
+            slider.on_change(13)
+            assert.are.same({ 12, 13 }, status_values)
+            slider._dragging = false
+
+            button(group, "＋").callback()
+            button(group, "−").callback()
+            button(group, "−").hold_callback()
+            assert.are.same({ 12, 13, 14, 13, 0 }, status_values)
+        end
+    end)
+
     it("moves the accent background and icon styling between unified slider tabs", function()
         local screen = package.loaded["device"].screen
         ZenSpec.replace("common/ui/accent", {

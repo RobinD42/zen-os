@@ -48,7 +48,7 @@ function M.build(ctx)
             { text = _("Preview length"), sub_item_table = choices(cfg, "preview_length", {
                 { "short", _("Short") }, { "standard", _("Standard") }, { "long", _("Long") },
             }, "standard") },
-            { text_func = function()
+            { keep_menu_open = true, text_func = function()
                 return _("Text size") .. ": " .. tostring(config.page_browser and config.page_browser.bookmarks_font_size or 18)
             end, callback = function()
                 config.page_browser = config.page_browser or {}

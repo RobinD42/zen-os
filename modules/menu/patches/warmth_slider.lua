@@ -85,6 +85,7 @@ local function build_warmth_slider(touch_menu, opts)
         nl_progress:setValue(nl.cur)
         nl_drag_num:setText(tostring(nl.cur))
         UIManager:setDirty(show_parent, "ui", touch_menu.dimen)
+        if touch_menu._zen_status_timer then touch_menu:_zen_status_timer() end
     end
 
     nl.prev_non_min = nl.cur > nl.min and nl.cur or math.min(nl.max, nl.min + 1)
@@ -123,6 +124,7 @@ local function build_warmth_slider(touch_menu, opts)
             nl_drag_num:setText(tostring(nl.cur))
             UIManager:setDirty(show_parent, "ui", touch_menu.dimen)
         end
+        if touch_menu._zen_status_timer then touch_menu:_zen_status_timer() end
     end
 
     local nl_minus = Button:new{

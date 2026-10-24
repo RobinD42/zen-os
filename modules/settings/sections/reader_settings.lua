@@ -1446,18 +1446,27 @@ function M.build(ctx)
         }},
     }, icons.page_browser))
 
+    local function reference_settings_reader()
+        local reader = require("apps/reader/readerui").instance
+        if reader then return reader end
+        -- Reuse popup menus with global font defaults when no book is open.
+        return {
+            rolling = {},
+            document = { configurable = {
+                font_size = G_reader_settings:readSetting("copt_font_size")
+                    or G_defaults:readSetting("DCREREADER_CONFIG_DEFAULT_FONT_SIZE"),
+            } },
+        }
+    end
+
     table.insert(items, {
         text = _("Footnotes and pinned pages"),
         sub_item_table = {
             make_enable_feature_item("reader_references", _("Reference drawer")),
             {
                 text = _("Pinned page options"),
-                enabled_func = function()
-                    local reader = require("apps/reader/readerui").instance
-                    return reader ~= nil
-                end,
                 sub_item_table_func = function()
-                    local reader = require("apps/reader/readerui").instance
+                    local reader = reference_settings_reader()
                     return require("modules/reader/pin_settings").items(reader, plugin, function()
                         local state = reader._zen_references
                         if state and state.drawer and not state.drawer.footnote then state.drawer:reload() end
@@ -1468,11 +1477,19 @@ function M.build(ctx)
                 text = _("Footnote options"),
                 enabled_func = function()
                     local reader = require("apps/reader/readerui").instance
-                    return reader and reader.rolling ~= nil
+                    return not reader or reader.rolling ~= nil
                 end,
                 sub_item_table_func = function()
-                    local reader = require("apps/reader/readerui").instance
-                    return reader and reader.link:getFootnoteSettingsMenuTable() or {}
+                    local reader = reference_settings_reader()
+                    local link = reader.link or require("apps/reader/modules/readerlink")
+                    local native_items = link.getFootnoteSettingsMenuTable(reader.link or { document = reader.document })
+                    local footnote_items = {}
+                    for _i, item in ipairs(native_items) do
+                        for _j, option in ipairs(item.sub_item_table or { item }) do
+                            footnote_items[#footnote_items + 1] = option
+                        end
+                    end
+                    return footnote_items
                 end,
             },
         },

@@ -103,6 +103,7 @@ local function build_brightness_slider(touch_menu, opts)
         progress:setValue(value)
         number:setText(tostring(value))
         UIManager:setDirty(show_parent, "ui", touch_menu.dimen)
+        if touch_menu._zen_status_timer then touch_menu:_zen_status_timer() end
     end
 
     progress.on_drag_start = function()
@@ -147,6 +148,7 @@ local function build_brightness_slider(touch_menu, opts)
             number:setText(tostring(value))
             UIManager:setDirty(show_parent, "ui", touch_menu.dimen)
         end
+        if touch_menu._zen_status_timer then touch_menu:_zen_status_timer() end
     end
 
     local function adjust_button(text, callback, hold_callback)
