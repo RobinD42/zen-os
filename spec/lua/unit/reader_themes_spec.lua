@@ -194,7 +194,7 @@ describe("reader themes", function()
         }
 
         assert.is_true(Themes.applyCurrent(plugin))
-        assert.matches("#3f3524", applied_css, 1, true)
+        assert.matches("body, body * { color: #000000 !important; }", applied_css, 1, true)
         assert.are.equal(1, call_cache_resets)
         assert.are.equal(1, buffer_cache_resets)
         assert.are.equal(0xf3ead2, backgrounds[1])

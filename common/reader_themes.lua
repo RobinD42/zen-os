@@ -14,7 +14,7 @@ M.BUILTIN_THEMES = {
         background = "#252525",
     },
     light_sepia = {
-        text = "#3f3524",
+        text = "#000000",
         background = "#f3ead2",
     },
     light_tan = {
