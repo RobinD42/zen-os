@@ -193,9 +193,12 @@ def test_reader_themes_allow_page_turns_after_changing_theme(dark_mode: bool) ->
                     colors = dict((color, count) for count, color in frame.getcolors(frame.width * frame.height))
                     assert colors.get(background, 0) > frame.width * frame.height // 2, sorted(
                         colors.items(), key=lambda entry: -entry[1])[:8]
+                    assert colors.get(text, 0) > 0, sorted(colors.items(), key=lambda entry: -entry[1])[:8]
                     header = frame.crop((0, 0, frame.width, 40))
                     header_colors = dict((color, count) for count, color in header.getcolors(header.width * header.height))
-                    assert header_colors.get(text, 0) > 0, sorted(header_colors.items(), key=lambda entry: -entry[1])[:8]
+                    # Small header glyphs may contain only antialiased pixels.
+                    assert any(max(abs(actual - expected) for actual, expected in zip(color, text)) <= 8
+                               for color in header_colors), sorted(header_colors.items(), key=lambda entry: -entry[1])[:8]
 
             assert_palette(first_frame, (0x47, 0x3b, 0x2d), (0xe8, 0xdc, 0xc5))
             driver.command("reader_controls", action="open")

@@ -202,6 +202,7 @@ run_python() {
   mkdir -p "$ARTIFACTS/python"
   PYTHONPATH="$ROOT/spec/python" KOREADER_DIR="$staged_runtime" \
     "$python" -m pytest "$pytest_target" -q \
+      --durations=20 \
       --junitxml="$ARTIFACTS/python/$report_name" || python_status=$?
   if [[ -n "$staged_runtime" ]]; then rm -rf "$staged_runtime"; fi
   return "$python_status"

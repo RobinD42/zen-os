@@ -2,9 +2,7 @@ import json
 import os
 import re
 import shutil
-import signal
 import sqlite3
-import subprocess
 import sys
 import tempfile
 import zipfile
@@ -15,7 +13,7 @@ import pytest
 from fixtures import build_library, _write_zip
 from test_emulator_home import _seed_bookinfo, _seed_history_books
 from test_emulator_reader_tools import _wait_command
-from zen_driver import ZenDriver, launch, wait_for_socket
+from zen_driver import ZenDriver, launch, stop, wait_for_socket
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("ZEN_UI_RUN_EMULATOR") != "1", reason="requires KOReader emulator",
@@ -63,12 +61,7 @@ def test_end_book_delete_requires_confirmation_and_returns_to_library():
             assert state["active_tab_label"] == "Library"
             assert str(book) not in {item["path"] for item in state["items"]}
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            stop(process)
 
 
 @pytest.mark.parametrize("width,height", [(600, 800), (800, 600)])
@@ -142,12 +135,7 @@ def test_end_book_rating_is_optional_saved_and_read_only_in_preview(width, heigh
                 assert driver.command("arrange_page_back")["ok"]
                 _wait_command(driver, "end_book", lambda result: "rating" not in result.get("rows", []))
             finally:
-                process.send_signal(signal.SIGTERM)
-                try:
-                    process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait()
+                stop(process)
 
 
 def test_end_book_preview_shows_cbz_strip_cover_from_reader_and_library():
@@ -187,12 +175,7 @@ def test_end_book_preview_shows_cbz_strip_cover_from_reader_and_library():
                 assert driver.command("end_book", dismiss_cover=True)["active"]
                 driver.command("end_book", close=True)
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            stop(process)
 
 
 def _assert_fits(layout):
@@ -741,9 +724,4 @@ def test_end_book_renders_and_preserves_changed_default_after_restart(width, hei
                 driver.command("end_book", action="nothing")
                 assert driver.command("end_book", show=True)["active"] is False
             finally:
-                process.send_signal(signal.SIGTERM)
-                try:
-                    process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait()
+                stop(process)

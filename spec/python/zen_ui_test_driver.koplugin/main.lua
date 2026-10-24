@@ -1891,6 +1891,7 @@ end
 function Driver:handleCommand(command)
     local kind = command and command.type
     local params = command and command.params or {}
+    if kind == "shutdown" then return { ok = true } end
     if kind == "configure_showcase" then
         local ok, err = configure_showcase(params)
         return { ok = ok == true, error = err }
@@ -3798,7 +3799,13 @@ function Driver:pollServer()
                     error = "invalid JSON",
                 }
                 -- Finish deferred UI callbacks and repaint before the next command.
-                UIManager:tickAfterNext(function() self:reply(client, payload) end)
+                UIManager:tickAfterNext(function()
+                    self:reply(client, payload)
+                    if ok and command.type == "shutdown" then
+                        UIManager:broadcastEvent(Event:new("Close"))
+                        UIManager:nextTick(function() UIManager:quit() end)
+                    end
+                end)
             else
                 C.close(client)
             end

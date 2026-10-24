@@ -195,11 +195,23 @@ def launch(
     })
     if env_overrides:
         env.update(env_overrides)
-    return subprocess.Popen([str(koreader_dir / "reader.lua")], cwd=koreader_dir, env=env, text=True)
+    process = subprocess.Popen([str(koreader_dir / "reader.lua")], cwd=koreader_dir, env=env, text=True)
+    process._zen_socket_path = socket_path
+    return process
 
 
 def stop(process: subprocess.Popen[str]) -> None:
-    process.terminate()
+    if process.poll() is not None:
+        return
+    shutdown_requested = False
+    socket_path = getattr(process, "_zen_socket_path", None)
+    if socket_path is not None and socket_path.is_socket():
+        try:
+            shutdown_requested = ZenDriver(socket_path).command("shutdown").get("ok") is True
+        except (OSError, ValueError):
+            pass
+    if not shutdown_requested:
+        process.terminate()
     try:
         process.wait(timeout=15)
     except subprocess.TimeoutExpired:

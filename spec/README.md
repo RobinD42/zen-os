@@ -27,6 +27,8 @@ LuaCheck caches analysis of unchanged files under `spec/.cache/luacheck`.
 The emulator test driver polls for commands every 20 ms; each scenario still
 starts with its own emulator and temporary settings.
 Commands wait for deferred UI work and repaint before replying.
+Shutdown goes through the test driver to flush settings and close KOReader
+without waiting on SDL input handling; signal and kill fallbacks remain for hung instances.
 
 Runtime versions live in `koreader-lock.json`. Update a pin deliberately, then
 regenerate the affected goldens and review every PNG diff. Test artifacts belong
@@ -52,6 +54,14 @@ integration modules from the test plan.
 
 Set `ZEN_UI_PYTEST_TARGET` to one Python test file when debugging a single
 emulator scenario; normal smoke and CI runs still execute the complete suite.
+
+Stable CI distributes Python tests across four isolated runners using
+`ZEN_UI_PYTEST_SHARD=INDEX/COUNT` (1-based). Each runner keeps its own emulator
+display, settings, and artifacts; Lua tests and package checks still run in
+every shard. Local runs execute all tests unless this variable is set. For example,
+`ZEN_UI_PYTEST_SHARD=1/4 ./spec/run full` runs the first shard locally.
+Python runs print the 20 slowest test durations, and CI uploads each shard's
+JUnit reports and screenshots for timing and failure analysis.
 
 ## Linux goldens
 

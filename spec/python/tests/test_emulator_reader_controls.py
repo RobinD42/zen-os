@@ -16,9 +16,12 @@ pytestmark = pytest.mark.skipif(
 
 def _enable_reader_tabs(driver, labels):
     driver.command("reader_controls", action="edit_buttons")
-    rows = driver.command("arrange_page_state")["arrange"]["labels"]
+    arrange = driver.command("arrange_page_state")["arrange"]
     for label in labels:
-        assert driver.command("arrange_page_select", index=rows.index(label) + 1, toggle=True)["ok"]
+        index = arrange["labels"].index(label) + 1
+        page = (index - 1) // arrange["items_per_page"] + 1
+        assert driver.command("arrange_page_go_to", page=page)["ok"]
+        assert driver.command("arrange_page_select", index=index, toggle=True)["ok"]
     assert driver.command("close_arrange_page")["ok"]
 
 
@@ -1011,7 +1014,7 @@ def test_reader_menu_keeps_its_default_and_reader_buttons_remain_editable(launch
             assert state["ok"]
             assert state["arrange"]["labels"] == ["Font", "Contrast (PDF/CBZ)", "Page", "Document", "Book info", "TOC",
                                                       "Bookmarks", "Search", "Profiles", "Themes", "Vocabulary builder",
-                                                      "Page Browser", "KOReader reader menu"]
+                                                      "Page Browser", "KOReader reader menu", "Book switcher"]
             assert state["arrange"]["has_action"]
             driver.screenshot(Path("/tmp/zen-reader-buttons-editor.png"))
             assert driver.command("arrange_page_select", index=1, toggle=True)["ok"]
@@ -1104,6 +1107,7 @@ def test_reader_font_pickers_swipes_steps_and_formatting_background():
             driver = ZenDriver(socket_path)
             assert driver.open_book(book)["ok"]
             _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("open"))
+            _enable_reader_tabs(driver, ["Profiles", "Vocabulary builder"])
             driver.command("reader_controls", action="open")
             state = _wait_command(driver, "reader_controls", lambda result: not result.get("locked"))
             assert state["font_face"] in state["font_family_label"]

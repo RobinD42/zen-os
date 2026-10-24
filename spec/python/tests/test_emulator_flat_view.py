@@ -1,5 +1,4 @@
 import os
-import signal
 import shutil
 import subprocess
 import tempfile
@@ -11,6 +10,7 @@ import pytest
 from fixtures import build_library
 from test_emulator_smoke import _wait_command
 from zen_driver import (
+    stop,
     ZenDriver,
     launch,
     wait_for_socket,
@@ -104,9 +104,4 @@ def test_flat_view_pulls_books_out_of_subfolders() -> None:
             assert str(received_book.resolve()) not in refreshed_paths
             assert expected not in refreshed_paths
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            stop(process)

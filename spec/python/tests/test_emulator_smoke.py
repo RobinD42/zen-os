@@ -1,7 +1,5 @@
 import os
 import platform
-import signal
-import subprocess
 import tempfile
 import time
 from pathlib import Path
@@ -174,12 +172,7 @@ def test_flip_lh_rh_swaps_both_menu_tab_pairs(
                 assert tapped["feedback_repaints"] > 0
                 assert driver.command("home_state")["home"]["on_top"] is True
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-            process.wait()
+            stop(process)
 
 
 def test_reader_controls_hide_on_first_library_menu_open() -> None:
@@ -225,12 +218,7 @@ def test_reader_controls_hide_on_first_library_menu_open() -> None:
             assert driver.command("close_settings_page")["ok"] is True
             assert driver.command("menu_tab_layout")["button_ids"] == ["rotate", "night", "cb_1"]
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-            process.wait()
+            stop(process)
 
 
 def test_launcher_book_switcher_fits_inside_the_panel() -> None:
@@ -304,12 +292,7 @@ def test_launcher_book_switcher_fits_inside_the_panel() -> None:
             assert confirmation["launcher_open"] is False
             assert confirmation["opening_banner_count"] == 0
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-            process.wait()
+            stop(process)
 
 
 def test_native_koreader_menu_shortcuts_open_in_library_and_reader() -> None:
@@ -445,12 +428,7 @@ def test_native_koreader_menu_shortcuts_open_in_library_and_reader() -> None:
             )
             assert style["arrange"]["title"].startswith("Style tweaks")
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            stop(process)
 
 
 def test_pt_br_settings_root_labels_are_localized() -> None:
@@ -474,12 +452,7 @@ def test_pt_br_settings_root_labels_are_localized() -> None:
             assert {"Controles", "Inicializador", "Barra de navegação", "Ícones personalizados"}.issubset(labels)
             assert {"Controls", "Launcher", "Navbar", "Custom icons"}.isdisjoint(labels)
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            stop(process)
 
 
 def test_action_selection_saves_immediately_and_x_closes_settings_stack() -> None:
@@ -574,12 +547,7 @@ def test_action_selection_saves_immediately_and_x_closes_settings_stack() -> Non
             assert history["open"] is True
             assert history["settings_open"] is False
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            stop(process)
 
 
 def test_clean_emulator_renders_fixture_library_and_reader_goldens() -> None:
@@ -965,12 +933,7 @@ def test_clean_emulator_renders_fixture_library_and_reader_goldens() -> None:
             assert reader_screenshot.stat().st_size > 0
             _assert_golden(reader_screenshot, "fixture-reader.png")
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            stop(process)
 
 
 @pytest.mark.parametrize("tab_id", ["quicksettings", "app_launcher"])
@@ -1106,12 +1069,7 @@ def test_settings_page_keeps_enabled_status_bar_at_top() -> None:
             assert arrange.get("status_identity") != status_identity, arrange
             assert arrange.get("status_y") == arrange.get("filemanager_status_y")
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            stop(process)
 
 
 def test_touch_arrange_drag_crosses_to_previous_page() -> None:
@@ -1204,12 +1162,7 @@ def test_touch_arrange_drag_crosses_to_previous_page() -> None:
             arrange = driver.command("arrange_page_state")["arrange"]
             assert arrange["labels"] == expected_labels
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            stop(process)
 
 
 def test_touch_arrange_hold_drag_supports_rows_and_handles() -> None:
@@ -1286,12 +1239,7 @@ def test_touch_arrange_hold_drag_supports_rows_and_handles() -> None:
             labels = driver.command("arrange_page_state")["arrange"]["labels"]
             assert labels[:2] == initial_labels[:2]
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            stop(process)
 
 
 def test_touch_arrange_swipe_release_exits_drag_mode() -> None:
@@ -1348,12 +1296,7 @@ def test_touch_arrange_swipe_release_exits_drag_mode() -> None:
             reopened = driver.command("arrange_page_state")["arrange"]
             assert reopened["labels"][:2] == initial_labels[1::-1]
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            stop(process)
 
 
 def test_touch_dpad_arrange_handle_reorders_with_keys() -> None:
@@ -1465,9 +1408,4 @@ def test_touch_dpad_arrange_handle_reorders_with_keys() -> None:
             arrange = driver.command("arrange_page_state")["arrange"]
             assert arrange["title"] != initial_title
         finally:
-            process.send_signal(signal.SIGTERM)
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            stop(process)

@@ -23,13 +23,18 @@ on:
 
 jobs:
   stable:
-    name: Stable KOReader Test
+    name: Stable KOReader Test (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(inputs.suite == 'lua' && '[1]' || '[1,2,3,4]') }}
     env:
       REQUESTED_SUITE: ${{ inputs.suite || github.event.inputs.suite || '' }}
       BASE_REF: ${{ github.base_ref }}
       ZEN_UI_KOREADER_CACHE: ${{ github.workspace }}/spec/.cache/koreader
       KOREADER_CACHE_VERSION: 3
+      ZEN_UI_PYTEST_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,7 +69,7 @@ jobs:
           echo "KOREADER_DIR=$KOREADER_DIR" >> "$GITHUB_ENV"
 
       - name: Save stable KOReader build
-        if: ${{ github.event_name != 'pull_request' && steps.stable-koreader-cache.outputs.cache-hit != 'true' }}
+        if: ${{ matrix.shard == 1 && github.event_name != 'pull_request' && steps.stable-koreader-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v4
         with:
           path: spec/.cache/koreader/stable/runtime
@@ -84,8 +89,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: stable-test-artifacts
+          name: stable-test-artifacts-${{ matrix.shard }}
           path: spec/.artifacts
+          include-hidden-files: true
           if-no-files-found: ignore
 
   nightly:
@@ -129,4 +135,5 @@ jobs:
         with:
           name: nightly-test-artifacts
           path: spec/.artifacts
+          include-hidden-files: true
           if-no-files-found: ignore
