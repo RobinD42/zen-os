@@ -96,7 +96,7 @@ describe("reader navbar dispatch", function()
         package.loaded["modules/settings/battery_stats_menu"] = original
     end)
 
-    it("registers a global annotation viewer and four reader destinations", function()
+    it("registers a global annotation viewer and reader destinations", function()
         local actions = {}
         ZenSpec.replace("dispatcher", {
             registerAction = function(_self, name, spec) actions[name] = spec end,
@@ -108,7 +108,8 @@ describe("reader navbar dispatch", function()
         local plugin = {}
         Dispatch.install(plugin)
         for _i, entry in ipairs({ { "annotations", "Annotations" }, { "bookmarks", "Bookmarks" },
-                { "highlights", "Highlights" }, { "pinned_pages", "PinnedPages" } }) do
+                { "highlights", "Highlights" }, { "pinned_pages", "PinnedPages" },
+                { "book_switcher", "BookSwitcher" } }) do
             local action = actions["zen_ui_show_" .. entry[1]]
             assert.is_true(action.reader)
             assert.is_nil(action.general)
@@ -116,6 +117,7 @@ describe("reader navbar dispatch", function()
             assert.is_function(plugin["on" .. action.event])
         end
         assert.is_function(plugin.onShowZenUIAnnotationViewer)
+        assert.are.equal("ZenOS: Book switcher", actions.zen_ui_show_book_switcher.title)
     end)
 
     it("opens the requested book tab or pinned preview and ignores reader actions in the library", function()
@@ -127,11 +129,13 @@ describe("reader navbar dispatch", function()
         assert.is_true(Dispatch.onShowZenUIAnnotations())
         assert.is_true(Dispatch.onShowZenUIBookmarks())
         assert.is_true(Dispatch.onShowZenUIHighlights())
-        assert.are.same({ "annotations", "bookmarks", "highlights" }, tabs)
+        assert.is_true(Dispatch.onShowZenUIBookSwitcher())
+        assert.are.same({ "annotations", "bookmarks", "highlights", "book_switcher" }, tabs)
         assert.is_true(Dispatch.onShowZenUIPinnedPages())
         assert.are.equal(reader, pinned)
         require("apps/reader/readerui").instance = nil
         assert.is_false(Dispatch.onShowZenUIAnnotations())
+        assert.is_false(Dispatch.onShowZenUIBookSwitcher())
         assert.is_false(Dispatch.onShowZenUIPinnedPages())
     end)
 

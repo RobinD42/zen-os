@@ -1364,8 +1364,9 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
             if format == "epub":
                 assert initial["drawer"]["original_image"], initial["drawer"]
                 assert initial["drawer"]["source_size"] == {"w": 600, "h": 800}
-            _ref(driver, "pin_control", target="zoom")
-            single = _ref(driver, "pin_popup_action", text="Full")
+            single = _ref(driver, "pin_control", target="zoom")
+            assert not single["pin_popup_buttons"]
+            assert single["drawer"]["zoom_icon"].endswith("/icons/fullscreen_exit.svg")
             _assert_pin_header_icon_padding(single)
             single_drawer = single["drawer"]
             assert single_drawer["full_image"] and not single_drawer.get("pager")
@@ -1388,7 +1389,6 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
             assert restored["full_image"] and restored["scale"] == pytest.approx(single_zoomed["scale"])
             _ref(driver, "next")
             _ref(driver, "pin_control", target="zoom")
-            _ref(driver, "pin_popup_action", text="Full")
             _ref(driver, "zoom", factor=2)
             _ref(driver, "pin_menu")
             _ref(driver, "pin_popup_action", text="Remove pin")
@@ -1401,7 +1401,6 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
             restored = _ref(driver, "pin_popup_action", text="Remove pin")["drawer"]
             assert restored["full_image"] and restored["scale"] == pytest.approx(single_zoomed["scale"])
             _ref(driver, "pin_control", target="zoom")
-            _ref(driver, "pin_popup_action", text="Fit")
             _ref(driver, "close")
             _ref(driver, "pin", page=3)
             opened = _ref(driver, "open_pin")
@@ -1417,9 +1416,14 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
             gap = math.ceil(8 * min(opened["screen"].values()) / 600)
             assert zoom["x"] + zoom["w"] + gap == menu["x"]
             assert zoom["y"] == menu["y"] and zoom["h"] == menu["h"]
-            _ref(driver, "pin_control", target="zoom")
-            assert _ref(driver)["pin_popup_buttons"] == ["Full", "Fit"]
-            unzoomed = _ref(driver, "pin_popup_action", text="Fit")
+            toggled = _ref(driver, "pin_control", target="zoom")
+            assert toggled["drawer"]["full_image"]
+            assert toggled["drawer"]["zoom_icon"].endswith("/icons/fullscreen_exit.svg")
+            assert not toggled["pin_popup_buttons"]
+            unzoomed = _ref(driver, "pin_control", target="zoom")
+            assert not unzoomed["drawer"]["full_image"]
+            assert unzoomed["drawer"]["zoom_icon"].endswith("/icons/fullscreen.svg")
+            assert not unzoomed["pin_popup_buttons"]
             assert unzoomed["drawer"]["scale"] == pytest.approx(drawer["scale"])
             content, image = drawer["content"], drawer["image_view"]
             assert content["x"] == drawer["bounds"]["x"] + drawer["border"]
@@ -1439,10 +1443,12 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
                 for axis, size in (("x", "w"), ("y", "h")):
                     limit = (min if distance > 0 else max)(0, image[size] - content[size])
                     assert edge["image_view"][axis] == pytest.approx(limit, abs=1)
-            _ref(driver, "pin_control", target="zoom")
-            opened = _ref(driver, "pin_popup_action", text="Fit")
-            _ref(driver, "pin_control", target="zoom")
-            full = _ref(driver, "pin_popup_action", text="Full")
+            assert edge["center"] != drawer["center"]
+            _ref(driver, "close")
+            restored = _ref(driver, "open_pin")["drawer"]
+            assert restored["center"] == pytest.approx(edge["center"])
+            assert restored["image_view"] == edge["image_view"]
+            full = _ref(driver, "pin_control", target="zoom")
             _assert_pin_header_icon_padding(full)
             assert not full["image_viewer"] and full["drawer"]["full_image"]
             assert full["drawer"]["pin_index"] == opened["drawer"]["pin_index"]
@@ -1482,8 +1488,7 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
             assert not magnified["pin_popup_buttons"]
             reduced = _ref(driver, "pin_control", target="zoom_out")
             assert reduced["drawer"]["full_image"] and reduced["drawer"]["scale"] < magnified["drawer"]["scale"]
-            _ref(driver, "pin_control", target="zoom")
-            fitted = _ref(driver, "pin_popup_action", text="Fit")
+            fitted = _ref(driver, "pin_control", target="zoom")
             assert not fitted["drawer"]["full_image"]
             assert not fitted["drawer"].get("zoom_in") and not fitted["drawer"].get("zoom_out")
             assert not fitted["drawer"].get("control_radius") and not fitted["drawer"].get("dots_background")
@@ -1512,14 +1517,23 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
             bounds = moved["drawer"]["content"]
             crop = (bounds["x"], bounds["y"], bounds["x"] + bounds["w"], bounds["y"] + bounds["h"])
             assert ImageChops.difference(before.crop(crop), after.crop(crop)).getbbox()
+            _ref(driver, "close")
+            restored = _ref(driver, "open_pin")["drawer"]
+            assert restored["center"] == pytest.approx(moved["drawer"]["center"])
+            _ref(driver, "pin_control", target="next")
+            restored = _ref(driver, "pin_control", target="previous")["drawer"]
+            assert restored["center"] == pytest.approx(moved["drawer"]["center"])
             swiped = _ref(driver, "gesture", target="body", gesture="swipe", direction="west", distance=35)
             assert swiped["drawer"]["pin_index"] == opened["drawer"]["pin_index"]
             assert swiped["drawer"]["center"]["x"] > moved["drawer"]["center"]["x"]
             assert swiped["page"] == original["page"] and swiped["history"] == original["history"]
             if format == "epub":
                 assert swiped["location"] == original["location"]
+            _ref(driver, "close")
+            restored = _ref(driver, "open_pin")["drawer"]
+            assert restored["center"] == pytest.approx(swiped["drawer"]["center"])
             _ref(driver, "pin_control", target="zoom")
-            reset = _ref(driver, "pin_popup_action", text="Fit")
+            reset = _ref(driver, "pin_control", target="zoom")
             assert reset["drawer"]["scale"] == fit
             assert reset["drawer"]["center"] == {"x": 0.5, "y": 0.5}
             assert reset["double_tap_disabled"]
@@ -1543,11 +1557,14 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
             assert left["bounds"]["x"] < 0
             assert left["content"]["x"] == 0
             assert left["content"]["w"] == left["bounds"]["x"] + left["bounds"]["w"] - left["border"]
-            _ref(driver, "pin_control", target="zoom")
-            left_full = _ref(driver, "pin_popup_action", text="Full")["drawer"]
+            left_full = _ref(driver, "pin_control", target="zoom")["drawer"]
             assert left_full["full_image"] and left_full["content"]["x"] == 0
             assert left_full["content"]["y"] == left_full["bounds"]["y"] + left_full["border"]
             left_zoomed = _ref(driver, "pin_control", target="zoom_in")["drawer"]
+            _ref(driver, "gesture", target="body", gesture="pan", relative={"x": -40, "y": -60})
+            left_panned = _ref(driver, "gesture", target="outside", gesture="pan_release")["drawer"]
+            assert left_panned["center"]["x"] > left_zoomed["center"]["x"]
+            assert left_panned["center"]["y"] > left_zoomed["center"]["y"]
             _capture(driver, f"pin-{format}-full-left.png")
             next_pin = _ref(driver, "pin_control", target="next")["drawer"]
             assert next_pin["pin_index"] == 2
@@ -1559,6 +1576,7 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
                 assert not next_pin["full_image"] and next_pin["scale"] == pytest.approx(fit)
             restored = _ref(driver, "pin_control", target="previous")["drawer"]
             assert restored["full_image"] and restored["scale"] == pytest.approx(left_zoomed["scale"])
+            assert restored["center"] == pytest.approx(left_panned["center"])
             _ref(driver, "close_book")
             stop(process)
             process = launch(Path(os.environ["KOREADER_DIR"]), root / "home", socket, library,
@@ -1569,6 +1587,7 @@ def test_pinned_images_pan_and_zoom_without_switching_pins(format, show_labels):
             _wait_reader(driver)
             restored = _ref(driver, "open_pin")["drawer"]
             assert restored["full_image"] and restored["scale"] == pytest.approx(left_zoomed["scale"])
+            assert restored["center"] == pytest.approx(left_panned["center"])
             if format == "epub":
                 assert restored["original_image"] and restored["source_size"] == {"w": 600, "h": 800}
         finally:

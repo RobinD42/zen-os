@@ -77,6 +77,47 @@ describe("app launcher book switcher page", function()
         assert.is_nil(Page.pagePosition(cfg, false, 2))
     end)
 
+    it("shares reader panels, exclusions, removal, and deferred book opening", function()
+        local Page = require("modules/menu/app_launcher/book_switcher_page")
+        local cfg = { show_book_switcher = false, book_switcher_hidden = {} }
+        local calls, options, queued = {}, nil, nil
+        local ui = { document = { file = "/library/current.epub" } }
+        local plugin = { config = {} }
+        replace("modules/menu/app_launcher/model", {
+            ensure = function() return cfg end,
+            save = function(value) assert.are.equal(cfg, value); calls[#calls + 1] = "save" end,
+        })
+        replace("ui/uimanager", { nextTick = function(_self, callback) queued = callback end })
+        replace("common/settings_transition", { close = function() calls[#calls + 1] = "settings" end })
+        replace("apps/filemanager/filemanagerutil", { openFile = function(reader, path)
+            assert.are.equal(ui, reader)
+            assert.are.equal("/library/other.epub", path)
+            calls[#calls + 1] = "open"
+        end })
+        local refs = { layout_rows = { { "book cell" } }, buttons = {} }
+        Page.build = function(opts) options = opts; return {}, refs end
+        local panel, built_refs = Page.buildReader{
+            ui = ui, plugin = plugin, width = 600, height = 400,
+            close = function() calls[#calls + 1] = "close" end,
+            refresh = function() calls[#calls + 1] = "refresh" end,
+        }
+        assert.are.equal(refs, built_refs)
+        assert.are.equal(refs.layout_rows, panel.layout)
+        assert.are.equal(plugin.config, options.config)
+        assert.are.equal(cfg, options.launcher_config)
+        assert.are.equal(ui.document.file, options.exclude_path)
+        assert.are.equal(600, options.width)
+        assert.are.equal(400, options.height)
+        options.remove_book("/library/hidden.epub")
+        assert.is_true(cfg.book_switcher_hidden["/library/hidden.epub"])
+        assert.are.same({ "save", "refresh" }, calls)
+        options.open_book("/library/other.epub", {}, function() calls[#calls + 1] = "release" end)
+        assert.are.same({ "save", "refresh", "release", "close", "settings" }, calls)
+        queued()
+        assert.are.equal("open", calls[#calls])
+        assert.is_false(cfg.show_book_switcher)
+    end)
+
     it("maps the library cover renderer settings onto the page", function()
         local Page = require("modules/menu/app_launcher/book_switcher_page")
         assert.are.same({ uniform = true, show_title = true, show_author = false },

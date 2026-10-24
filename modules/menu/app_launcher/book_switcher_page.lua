@@ -212,6 +212,31 @@ function M.loadBooks(limit, exclude_path, config)
     return books
 end
 
+function M.buildReader(opts)
+    local Model = require("modules/menu/app_launcher/model")
+    local UIManager = require("ui/uimanager")
+    local cfg = Model.ensure()
+    local panel, refs = M.build{
+        width = opts.width, height = opts.height, config = opts.plugin.config,
+        launcher_config = cfg, exclude_path = opts.ui.document.file,
+        open_book = function(path, _cover, release_cover)
+            release_cover()
+            opts.close()
+            require("common/settings_transition").close()
+            UIManager:nextTick(function()
+                require("apps/filemanager/filemanagerutil").openFile(opts.ui, path)
+            end)
+        end,
+        remove_book = function(path)
+            cfg.book_switcher_hidden[path] = true
+            Model.save(cfg)
+            opts.refresh()
+        end,
+    }
+    panel.layout = refs.layout_rows
+    return panel, refs
+end
+
 function M.build(opts)
     opts = opts or {}
     local Blitbuffer = require("ffi/blitbuffer")

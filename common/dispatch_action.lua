@@ -368,7 +368,7 @@ local function show_zen_toc(plugin)
     return true
 end
 
-local function show_reader_annotations(kind)
+local function show_reader_tab(kind)
     local reader = get_reader()
     if not (reader and reader.document and reader.thumbnail) then return false end
     return reader.thumbnail:onShowPageBrowser(kind)
@@ -524,6 +524,12 @@ function M.onDispatcherRegisterActions()
         category = "none",
         event = "ShowZenUIPinnedPages",
         title = _("ZenOS") .. ": " .. _("Pinned pages"),
+        reader = true,
+    })
+    Dispatcher:registerAction("zen_ui_show_book_switcher", {
+        category = "none",
+        event = "ShowZenUIBookSwitcher",
+        title = _("ZenOS") .. ": " .. _("Book switcher"),
         reader = true,
     })
     Dispatcher:registerAction("zen_ui_show_home", {
@@ -753,15 +759,19 @@ function M.onShowZenUIAnnotationViewer(plugin)
 end
 
 function M.onShowZenUIAnnotations()
-    return show_reader_annotations("annotations")
+    return show_reader_tab("annotations")
 end
 
 function M.onShowZenUIBookmarks()
-    return show_reader_annotations("bookmarks")
+    return show_reader_tab("bookmarks")
 end
 
 function M.onShowZenUIHighlights()
-    return show_reader_annotations("highlights")
+    return show_reader_tab("highlights")
+end
+
+function M.onShowZenUIBookSwitcher()
+    return show_reader_tab("book_switcher")
 end
 
 function M.onShowZenUIPinnedPages()
@@ -795,6 +805,7 @@ function M.install(target)
     target.onShowZenUIAnnotations = M.onShowZenUIAnnotations
     target.onShowZenUIBookmarks = M.onShowZenUIBookmarks
     target.onShowZenUIHighlights = M.onShowZenUIHighlights
+    target.onShowZenUIBookSwitcher = M.onShowZenUIBookSwitcher
     target.onShowZenUIPinnedPages = M.onShowZenUIPinnedPages
 end
 

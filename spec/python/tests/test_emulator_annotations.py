@@ -132,8 +132,8 @@ def test_page_browser_tab_order(document_type: str) -> None:
             assert state["top_is_browser"]
             assert state["active_tab"] == "annotations"
             control_icon = "appbar.contrast.svg" if document_type == "pdf" else "font.svg"
-            assert state["header_icons"] == ["quick_search.svg", "book_open.svg", control_icon,
-                                              "bookmark.svg", "toc.svg", "more_vertical.svg", "close.svg"]
+            assert state["header_icons"] == ["more_vertical.svg", "book_open.svg", control_icon,
+                                              "bookmark.svg", "toc.svg", "close.svg"]
             assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
             assert _state(driver)["active_tab"] == "aa"
             assert driver.command("page_browser_key", key="Back")["handled"]
@@ -183,6 +183,20 @@ def test_annotations_and_floating_book_note(document_type: str) -> None:
             _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("file") == str(first))
             _action(driver, "seed")
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
+            for tab in ("annotations", "highlights", "bookmarks"):
+                _action(driver, "tab", tab=tab)
+                state = _state(driver)
+                assert "quick_search.svg" not in state["header_icons"]
+                search = state["annotation_search"]
+                assert Path(search["icon"]).name == "quick_search.svg"
+                bounds, title = search["bounds"], search["title_bounds"]
+                assert title["x"] + title["w"] <= bounds["x"]
+                assert state["screen_width"] * 0.75 < bounds["x"]
+                assert bounds["y"] > state["header_height"]
+                assert state["close_bounds"]["y"] + state["close_bounds"]["h"] <= bounds["y"]
+                assert title["y"] <= bounds["y"] + bounds["h"] / 2 <= title["y"] + title["h"]
+                _action(driver, "search")
+                _action(driver, "button", text="Cancel")
             _action(driver, "tab", tab="bookmarks")
             state = _state(driver)
             assert len(state["annotation_items"]) == 1
@@ -231,10 +245,13 @@ def test_annotations_and_floating_book_note(document_type: str) -> None:
                 assert top == image.getpixel((x, int(first_row["y"] + first_row["h"] - 1)))
                 assert top != (255, 255, 255)
                 assert image.getpixel((x, int(second_row["y"]))) == (255, 255, 255)
-            assert state["header_icons"][0] == "quick_search.svg"
+            assert state["header_icons"][0] == "more_vertical.svg"
             assert state["content_zen_scroll_bar"]
             assert driver.command("page_browser_key", key="Down")["handled"]
             assert _state(driver)["focused"].startswith("content:")
+            assert driver.command("page_browser_key", key="Return")["handled"]
+            _action(driver, "button", text="Cancel")
+            assert driver.command("page_browser_key", key="Down")["handled"]
             assert driver.command("page_browser_key", key="Return")["handled"]
             assert "October 18 2026" in _state(driver)["annotation_text"]
             assert "2026-10-18 12:01:00" not in _state(driver)["annotation_text"]

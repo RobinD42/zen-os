@@ -23,6 +23,17 @@ local function toc_items(pbw, focus_page)
 end
 
 function M.build(pbw, kind, width, height, on_navigate)
+    if kind == "book_switcher" then
+        local panel = require("modules/menu/app_launcher/book_switcher_page").buildReader{
+            ui = pbw.ui, plugin = pbw._zen_plugin, width = width, height = height,
+            close = function() pbw:onClose() end,
+            refresh = function() pbw:updateLayout(); require("ui/uimanager"):setDirty(pbw, "ui") end,
+        }
+        return require("ui/widget/container/centercontainer"):new{
+            dimen = require("ui/geometry"):new{ w = width, h = height },
+            layout = panel.layout, panel,
+        }
+    end
     if kind == "book_details" then
         local spec = require("modules/reader/book_details").buildSpec(pbw.ui, {
             config = pbw._zen_plugin.config, plugin = pbw._zen_plugin,

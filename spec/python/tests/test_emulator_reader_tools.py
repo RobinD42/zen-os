@@ -266,7 +266,7 @@ def test_reader_page_browser_modes_and_search_render() -> None:
             )["page_browser"]
             assert default_carousel["thumbnail_count"] == 3
             assert default_carousel["controls"] == ["single", "carousel", "grid"]
-            assert default_carousel["header_icons"] == ["coverflow.svg", "font.svg", "book_open.svg", "toc.svg", "more_vertical.svg", "close.svg"]
+            assert default_carousel["header_icons"] == ["more_vertical.svg", "coverflow.svg", "font.svg", "book_open.svg", "toc.svg", "close.svg"]
             assert default_carousel["focused"] == "header:1"
             assert default_carousel["header_height"] >= (
                 default_carousel["header_tabs"]["y"] + default_carousel["header_tabs"]["h"]
@@ -303,10 +303,7 @@ def test_reader_page_browser_modes_and_search_render() -> None:
                 state = driver.command("page_browser_state")["page_browser"]
                 assert state["active_tab"] == tab
                 assert state["browser_buttons_visible"] is False
-                expected_icons = list(default_carousel["header_icons"])
-                if tab == "annotations":
-                    expected_icons.insert(0, "quick_search.svg")
-                assert state["header_icons"] == expected_icons
+                assert state["header_icons"] == default_carousel["header_icons"]
                 if tab == "toc":
                     assert state["content_zen_scroll_bar"] is True
                 if tab in ("toc", "annotations"):
@@ -1048,7 +1045,7 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
         pack = home / "icons" / "zen" / "browser"
         pack.mkdir(parents=True)
         (pack / "pack.json").write_text(json.dumps({"schema_version": 1, "id": "browser", "name": "Browser"}))
-        header_names = ["coverflow", "font", "book_open", "toc", "info", "more_vertical", "close"]
+        header_names = ["more_vertical", "coverflow", "font", "book_open", "toc", "info", "close"]
         names = header_names + ["grid", "grid_slide", "chevron.left", "chevron.right", "quick_search",
                                 "quicksettings", "appbar.settings", "plus", "filter", "sort", "pin", "pin_remove",
                                 "bookmark", "bookmark_remove"]

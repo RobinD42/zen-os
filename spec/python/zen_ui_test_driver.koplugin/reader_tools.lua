@@ -142,6 +142,14 @@ function M.page_browser_state()
     local annotation_dialog = browser._zen_annotations and top.buttons and top.buttontable and top.movable and top
     local note_editor = browser._zen_annotations and top.allow_newline and top._input_widget and top
     local panel = browser._zen_content_panel
+    local switcher_books = {}
+    for _i, row in ipairs(panel and panel.layout or {}) do
+        for _j, cell in ipairs(row) do
+            if cell.book_path then switcher_books[#switcher_books + 1] = {
+                path = cell.book_path, bounds = cell.dimen,
+            } end
+        end
+    end
     local annotation_title = panel and panel.name == "page_browser_annotations" and panel.title_bar
     local button_labels = {}
     for _i, buttons in ipairs(top.buttons_table or note_editor and note_editor.buttons or {}) do
@@ -205,6 +213,7 @@ function M.page_browser_state()
         } end
     end
     return {
+        switcher_books = switcher_books,
         annotation_items = annotation_items,
         annotation_rows = annotation_rows,
         annotation_bookmarks = annotation_bookmarks,
@@ -222,6 +231,15 @@ function M.page_browser_state()
         annotation_subtitle_size = annotation_title and annotation_title.subtitle_widget.face.orig_size,
         annotation_subtitle_black = annotation_title and annotation_title.subtitle_widget.fgcolor
             == require("ffi/blitbuffer").COLOR_BLACK,
+        annotation_search = annotation_title and annotation_title.right_button and {
+            icon = annotation_title.right_button.image.file,
+            bounds = annotation_title.right_button.image.dimen,
+            title_bounds = {
+                x = annotation_title.dimen.x + annotation_title.title_h_padding,
+                y = annotation_title.dimen.y + annotation_title.title_group[1]:getSize().h,
+                w = annotation_title.title_widget:getSize().w, h = annotation_title.title_widget:getSize().h,
+            },
+        } or nil,
         note_editor = note_editor and { bounds = note_editor.dialog_frame.dimen,
             available_height = note_editor[1].dimen.h, buttons = button_labels,
             scroll_buttons = note_editor.add_scroll_buttons, nav_bar = note_editor.add_nav_bar } or nil,
@@ -328,11 +346,14 @@ function M.annotation_viewer_action(params)
         browser:_zenSelectTab(params.tab)
         return true
     elseif params.action == "search" then
-        if browser._zen_standalone then
-            browser._zen_content_panel.title_bar.left_button.callback()
-        else
-            require("modules/reader/annotation_viewer").showSearch(browser)
-        end
+        local title = browser._zen_content_panel.title_bar
+        local button = browser._zen_standalone and title.left_button or title.right_button
+        local bounds = button.image.dimen
+        UIManager:sendEvent(require("ui/event"):new("Gesture", {
+            ges = "tap", pos = require("ui/geometry"):new{
+                x = bounds.x + bounds.w / 2, y = bounds.y + bounds.h / 2, w = 1, h = 1,
+            },
+        }))
         return true
     elseif params.action == "details" then
         browser._zen_content_panel:onMenuSelect(browser._zen_content_panel.item_table[params.index or 1])
@@ -604,6 +625,7 @@ function M.reader_controls(params)
                 for _i, ref in ipairs(tm._zen_panel_refs and tm._zen_panel_refs.buttons or {}) do
                     if ref.widget._reader_control_id == params.id or ref.widget._reader_setting == params.id
                             or ref.widget._reader_button_page == params.id
+                            or ref.widget.book_path == params.id
                             or ref.widget.text == params.id then found = ref; break end
                     if ref.widget._reader_button_page == "next" then next_button = ref end
                 end
@@ -837,10 +859,11 @@ function M.reader_controls(params)
     tm = active_controls()
     local controls, labels, toggles, radios, font_count, header = {}, {}, {}, {}, 0, {}
     local bounds, selections, step_styles, zen_buttons, label_ends = {}, {}, {}, {}, {}
-    local icons, outlined, title_heights = {}, {}, {}
+    local icons, outlined, title_heights, switcher_books = {}, {}, {}, {}
     local slider_bounds, slider_states, value_cells, theme_count, family_label, family_radius = {}, {}, {}, 0, nil, nil
     for _i, row in ipairs(tm and tm.layout or {}) do
         for _j, widget in ipairs(row) do
+            if widget.book_path then switcher_books[#switcher_books + 1] = widget.book_path end
             if widget._reader_font_choice then font_count = font_count + 1 end
             if widget._reader_theme_choice then theme_count = theme_count + 1 end
             if widget._reader_setting == "font_face" then
@@ -965,12 +988,16 @@ function M.reader_controls(params)
         subsection_labels[#subsection_labels + 1] = cell.text
     end
     local bar = refs and refs.tab_bar
+    local reader_tabs = {}
+    for _i, cell in ipairs(bar and bar.icon_widgets or {}) do
+        reader_tabs[#reader_tabs + 1] = { x = cell.dimen.x, w = cell.dimen.w }
+    end
     local separators, footer_visible = {}, false
     for _i, separator in ipairs(bar and bar.icon_seps or {}) do separators[#separators + 1] = separator.style end
     for _i, widget in ipairs(tm and tm.item_group or {}) do footer_visible = footer_visible or widget == tm.footer end
     local family_menu = font_menu()
     local family_anchor = family_menu and menu_anchor(family_menu)
-    return { ok = true, header = header,
+    return { ok = true, header = header, switcher_books = switcher_books,
         font_family_label = family_label,
         font_family_radius = family_radius,
         font_menu = family_menu and { open = true, count = #family_menu.buttons,
@@ -981,6 +1008,7 @@ function M.reader_controls(params)
         native_reader_tabs = bar and getmetatable(bar) == getmetatable(tm.bar) or false,
         reader_tab_line_on_top = bar and bar[1][1][1] == bar.bar_sep or false,
         reader_tab_gap = bar and bar.bar_sep.empty_segments,
+        reader_tab_bounds = reader_tabs,
         reader_tab_separators = separators,
         reader_status_row = refs and refs.status_row ~= nil or false,
         footer_visible = footer_visible,
@@ -1091,11 +1119,16 @@ function M.activate(name)
     end
     local browser = page_browser()
     if name == "page_browser_controls" or name == "page_browser_toc" or name == "page_browser_bookmarks"
-            or name == "page_browser_annotations" or name == "page_browser_book_details" then
+            or name == "page_browser_annotations" or name == "page_browser_book_details"
+            or name == "page_browser_book_switcher" then
         if not browser then return false, "page browser unavailable" end
         local icons = { page_browser_controls = ui.paging and "appbar.contrast" or "font", page_browser_toc = "toc",
-            page_browser_bookmarks = "bookmark", page_browser_annotations = "book_open", page_browser_book_details = "info" }
+            page_browser_bookmarks = "bookmark", page_browser_annotations = "book_open", page_browser_book_details = "info",
+            page_browser_book_switcher = "tab_continue" }
         return tap_browser_widget(find_control(browser.title_bar, icons[name], {}, 0))
+    elseif name == "page_browser_switch_book" then
+        local panel = browser and browser._zen_active_tab == "book_switcher" and browser._zen_content_panel
+        return tap_browser_widget(panel and panel.layout[1] and panel.layout[1][1])
     elseif name == "page_browser_search" then
         if not browser then return false, "page browser unavailable" end
         if browser._zen_active_tab ~= "browser" then return false, "page browser tab inactive" end

@@ -11,11 +11,12 @@ function M.defaults()
         { "toc", _("TOC"), "toc" },
         { "bookmarks", _("Bookmarks"), "bookmark" },
         { "search", _("Search"), "quick_search" },
-        { "profiles", _("Profiles"), "bookshelf" },
+        { "profiles", _("Profiles"), "bookshelf", false },
         { "themes", _("Themes"), "quick_nightmode" },
-        { "vocabulary", _("Vocabulary builder"), "tab_vocab" },
+        { "vocabulary", _("Vocabulary builder"), "tab_vocab", false },
         { "page_browser", _("Page Browser"), "grid_slide", false },
         { "koreader_menu", _("KOReader reader menu"), "koreader", false },
+        { "book_switcher", _("Book switcher"), "tab_continue" },
     }
     local buttons = {}
     for _i, entry in ipairs(entries) do
@@ -88,6 +89,18 @@ function M.ensure(config)
             end
         end
         cfg.menu_buttons_added = true
+    end
+    if not cfg.book_switcher_added then
+        local present = false
+        for _i, entry in ipairs(cfg.entries) do
+            if entry.type == "reader_control" and entry.control == "book_switcher" then present = true end
+        end
+        if not present then
+            for _i, entry in ipairs(M.defaults()) do
+                if entry.control == "book_switcher" then cfg.entries[#cfg.entries + 1] = entry; break end
+            end
+        end
+        cfg.book_switcher_added = true
     end
     return cfg
 end

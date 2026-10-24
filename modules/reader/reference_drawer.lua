@@ -32,10 +32,21 @@ local stock_icons_dir = require("libs/libkoreader-lfs").currentdir() .. "/resour
 
 local PinImage = ImageWidget:extend{ alpha = true }
 function PinImage:_render()
+    local x, y = self.center_x_ratio, self.center_y_ratio
     ImageWidget._render(self)
     -- Smaller images can pan through the spare space until their edges meet the viewport.
     self._max_off_center_x_ratio = math.abs(self.width - self._bb_w) / (2 * self._bb_w)
     self._max_off_center_y_ratio = math.abs(self.height - self._bb_h) / (2 * self._bb_h)
+    self.center_x_ratio = math.max(0.5 - self._max_off_center_x_ratio, math.min(x, 0.5 + self._max_off_center_x_ratio))
+    self.center_y_ratio = math.max(0.5 - self._max_off_center_y_ratio, math.min(y, 0.5 + self._max_off_center_y_ratio))
+    self._offset_x = math.floor(self.center_x_ratio * self._bb_w - self.width / 2)
+    self._offset_y = math.floor(self.center_y_ratio * self._bb_h - self.height / 2)
+end
+
+function PinImage:panBy(x, y)
+    local center_x, center_y = ImageWidget.panBy(self, x, y)
+    self.drawer:saveImageSettings()
+    return center_x, center_y
 end
 
 function PinImage:paintTo(bb, x, y)
@@ -248,8 +259,8 @@ function Drawer:buildLayout()
         self.menu_button = self:button(nil, function() self:showMenu() end, self.bar_height,
             utils.resolveLocalIcon(icons_dir, "more_vertical"), nil, nil, 2)
         if not self.htmlwidget then
-            self.zoom_button = self:button(nil, function() self:showMenu(true) end, self.bar_height,
-                utils.resolveLocalIcon(icons_dir, "fullscreen"))
+            self.zoom_button = self:button(nil, function() self:zoom(nil, not self.full_image) end, self.bar_height,
+                utils.resolveLocalIcon(icons_dir, self.full_image and "fullscreen_exit" or "fullscreen"))
         end
         local buttons_width = self.bar_height * (self.zoom_button and 2 or 1)
             + (self.zoom_button and self.padding or 0)
@@ -378,7 +389,7 @@ function Drawer:renderImage(factor, x, y)
     local base_scale = self.full_image and full_scale or self.fit_scale
     local scale = factor and self.scale * factor or base_scale * self.image_settings.image_zoom
     self.scale = math.max(self.fit_scale, math.min(math.max(4, full_scale), scale))
-    self.content = PinImage:new{ image = self.preview.bb, image_disposable = false,
+    self.content = PinImage:new{ drawer = self, image = self.preview.bb, image_disposable = false,
         width = self.image_width, height = height, scale_factor = self.scale,
         center_x_ratio = x or 0.5, center_y_ratio = y or 0.5,
         corner_radius = self.full_image and Size.radius.window or nil,
@@ -428,7 +439,7 @@ function Drawer:renderPage()
     local images = self.ui.doc_settings:readSetting("zen_pinned_image_settings") or {}
     self.image_settings = images[self.image_location] or { image_full = false, image_zoom = 1 }
     self.full_image = self.image_settings.image_full
-    self:renderImage()
+    self:renderImage(nil, self.image_settings.center_x_ratio, self.image_settings.center_y_ratio)
 end
 
 function Drawer:changePage(step)
@@ -450,6 +461,14 @@ end
 function Drawer:onNextReferencePage() return self:changePage(1) end
 function Drawer:onPreviousReferencePage() return self:changePage(-1) end
 
+function Drawer:saveImageSettings()
+    local settings = self.image_settings
+    settings.center_x_ratio, settings.center_y_ratio = self.content.center_x_ratio, self.content.center_y_ratio
+    local images = self.ui.doc_settings:readSetting("zen_pinned_image_settings") or {}
+    images[self.image_location] = settings
+    self.ui.doc_settings:saveSetting("zen_pinned_image_settings", images)
+end
+
 function Drawer:zoom(factor, full)
     if self.htmlwidget then return true end
     local x, y = self.content.center_x_ratio, self.content.center_y_ratio
@@ -458,9 +477,7 @@ function Drawer:zoom(factor, full)
     if not factor then self.full_image = full; settings.image_zoom = 1 end
     settings.image_full = self.full_image == true
     settings.image_zoom = self:renderImage(factor, factor and x or nil, factor and y or nil)
-    local images = self.ui.doc_settings:readSetting("zen_pinned_image_settings") or {}
-    images[self.image_location] = settings
-    self.ui.doc_settings:saveSetting("zen_pinned_image_settings", images)
+    self:saveImageSettings()
     self[1]:free()
     self:buildLayout()
     UIManager:setDirty(self, "ui", self.refresh_dimen)
@@ -582,7 +599,7 @@ function Drawer:reload()
     UIManager:setDirty(self, "ui", self.refresh_dimen)
 end
 
-function Drawer:showMenu(zoom)
+function Drawer:showMenu()
     local dialog
     local rows = {}
     local function add(item)
@@ -592,27 +609,22 @@ function Drawer:showMenu(zoom)
                 item.callback()
             end }}
     end
-    if zoom then
-        add{ text = _("Full"), callback = function() self:zoom(nil, true) end }
-        add{ text = _("Fit"), callback = function() self:zoom(nil) end }
-    else
-        add{ text = _("Remove pin"), callback = function()
-            References.setPin(self.ui, self.page, true)
-            local index = self.pin_index
-            self:onClose()
-            References.openPinned(self.ui, index)
-        end }
-        add{ text = _("Settings"), callback = function()
-            self:onClose()
-            require("modules/settings/zen_settings_page").show(self.plugin, {
-                path = { { key = "text", value = _("Reader") },
-                    { key = "text", value = _("Footnotes and pinned pages") },
-                    { key = "text", value = _("Pinned page options") } },
-            })
-        end }
-    end
+    add{ text = _("Remove pin"), callback = function()
+        References.setPin(self.ui, self.page, true)
+        local index = self.pin_index
+        self:onClose()
+        References.openPinned(self.ui, index)
+    end }
+    add{ text = _("Settings"), callback = function()
+        self:onClose()
+        require("modules/settings/zen_settings_page").show(self.plugin, {
+            path = { { key = "text", value = _("Reader") },
+                { key = "text", value = _("Footnotes and pinned pages") },
+                { key = "text", value = _("Pinned page options") } },
+        })
+    end }
     dialog = require("common/ui/zen_anchored_menu").new{
-        anchor = function() return (zoom and self.zoom_button or self.menu_button).dimen, true end, buttons = rows,
+        anchor = function() return self.menu_button.dimen, true end, buttons = rows,
     }
     dialog._zen_pin_menu = true
     UIManager:show(dialog)

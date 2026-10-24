@@ -320,8 +320,10 @@ function M.build(pbw, kind, width, height)
         subtitle_face = LibraryFont.getFace(20),
         left_icon = pbw._zen_standalone and utils.resolveLocalIcon(icons_dir, "quick_search") or nil,
         left_icon_tap_callback = function() M.showSearch(pbw) end,
-        right_icon = pbw._zen_standalone and utils.resolveLocalIcon(icons_dir, "close_light") or nil,
-        right_icon_tap_callback = function() pbw:onClose() end,
+        right_icon = utils.resolveLocalIcon(icons_dir, pbw._zen_standalone and "close_light" or "quick_search"),
+        right_icon_tap_callback = function()
+            if pbw._zen_standalone then pbw:onClose() else M.showSearch(pbw) end
+        end,
     }
     if pbw._zen_standalone then
         local search, close = title_bar.left_button, title_bar.right_button
@@ -341,6 +343,11 @@ function M.build(pbw, kind, width, height)
     end
     title_bar.subtitle_widget.fgcolor = Blitbuffer.COLOR_BLACK
     local StyledMenu = Menu:extend{}
+    function StyledMenu:mergeTitleBarIntoLayout()
+        if pbw._zen_standalone then return Menu.mergeTitleBarIntoLayout(self) end
+        table.insert(self.layout, 1, { self.title_bar.right_button })
+        self.selected.y = self.selected.y + 1
+    end
     session.row_heights = session.row_heights or {}
     function StyledMenu:setupItemHeights()
         local pages, page, used = {}, {}, 0

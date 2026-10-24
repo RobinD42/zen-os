@@ -34,6 +34,7 @@ return function(plugin)
     local TextWidget = require("ui/widget/textwidget")
     local LineWidget = require("ui/widget/linewidget")
     local Geom = require("ui/geometry")
+    local BD = require("ui/bidi")
     local Blitbuffer = require("ffi/blitbuffer")
     local InputContainer = require("ui/widget/container/inputcontainer")
     local ZenSlider = require("common/ui/zen_slider")
@@ -452,6 +453,31 @@ return function(plugin)
                     width = tm.width, icons = icons, show_parent = tm,
                     menu = { layout = {}, switchMenuTab = function() end },
                 }
+                local icon_group = tab_bar.bar_icon_group
+                for i = #icon_group, 1, -1 do icon_group[i] = nil end
+                tab_bar.icon_seps[#icons] = nil
+                local separator_width = tab_bar.icon_seps[1] and tab_bar.icon_seps[1]:getSize().w or 0
+                local available = tm.width - separator_width * (#icons - 1)
+                for i, cell in ipairs(tab_bar.icon_widgets) do
+                    local start = math.floor(available * (i - 1) / #icons)
+                    local width = math.floor(available * i / #icons) - start
+                    local padding = (width - cell.image:getSize().w) / 2
+                    cell.padding_left, cell.padding_right = math.floor(padding), math.ceil(padding)
+                    cell:update()
+                    cell.horizontal_group:resetLayout()
+                    cell.button:resetLayout()
+                    icon_group[#icon_group + 1] = cell
+                    if i < #icons then icon_group[#icon_group + 1] = tab_bar.icon_seps[i] end
+                    start = start + separator_width * (i - 1)
+                    cell.callback = function()
+                        local x = BD.mirroredUILayout() and tm.width - start - width or start
+                        tab_bar.bar_sep.empty_segments = {{ s = x, e = x + width }}
+                        for j, separator in ipairs(tab_bar.icon_seps) do
+                            separator.style = (j == i - 1 or j == i) and "solid" or "none"
+                        end
+                    end
+                end
+                icon_group:resetLayout()
                 local group = tab_bar[1][1]
                 -- Bottom tabs open into the panel above them.
                 group[1], group[2] = group[2], group[1]
@@ -524,12 +550,13 @@ return function(plugin)
             end
             section_gap, pager_height = Screen:scaleBySize(4), Screen:scaleBySize(32)
         end
-        local settings_page = state.section ~= "themes" and state.section ~= "profiles" and state.section ~= "book_info"
+        local settings_page = state.section ~= "themes" and state.section ~= "profiles"
+            and state.section ~= "book_info" and state.section ~= "book_switcher"
         local budget = math.max(Screen:scaleBySize(70), height - size(refs.bottom_tabs) - size(tm.footer)
             - (embedded and pager_height + size(refs.section_tabs) + section_gap or settings_page and pager_height or 0)
             - footer_padding - size(refs.footer_top_margin) - panel:getSize().h)
-        if state.section == "book_info" then
-            local details, detail_refs = require("modules/menu/app_launcher/book_details_page").build{
+        if state.section == "book_info" or state.section == "book_switcher" then
+            local opts = {
                 width = w, height = budget, config = plugin.config,
                 launcher_config = plugin.config.app_launcher, ui = ui,
                 open_details = function()
@@ -538,6 +565,15 @@ return function(plugin)
                     end)
                 end,
             }
+            local details, detail_refs
+            if state.section == "book_switcher" then
+                opts.plugin = plugin
+                opts.close = function() tm:closeMenu() end
+                opts.refresh = function() tm:updateItems(1) end
+                details, detail_refs = require("modules/menu/app_launcher/book_switcher_page").buildReader(opts)
+            else
+                details, detail_refs = require("modules/menu/app_launcher/book_details_page").build(opts)
+            end
             panel[#panel + 1] = details
             for _i, ref in ipairs(detail_refs.buttons) do refs.buttons[#refs.buttons + 1] = ref end
             for _i, row in ipairs(detail_refs.layout_rows) do refs.layout_rows[#refs.layout_rows + 1] = row end

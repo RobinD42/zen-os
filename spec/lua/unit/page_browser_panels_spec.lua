@@ -7,6 +7,8 @@ describe("embedded page-browser lists", function()
         "modules/reader/zen_toc_widget", "modules/reader/page_browser_panels", "gettext",
         "modules/reader/annotation_viewer",
         "modules/reader/book_details", "modules/reader/book_info_widget",
+        "modules/menu/app_launcher/book_switcher_page", "ui/uimanager",
+        "ui/widget/container/centercontainer", "ui/geometry",
     }
 
     before_each(function()
@@ -143,6 +145,36 @@ describe("embedded page-browser lists", function()
         assert.are.equal(1, frees)
         assert.are.equal(0, closes)
         assert.is_true(panel:onClose())
+        assert.are.equal(1, closes)
+    end)
+
+    it("embeds the book switcher in the preview body and refreshes it in place", function()
+        local options, paints, layouts
+        local panel = { layout = { { "book cell" } } }
+        ZenSpec.replace("modules/menu/app_launcher/book_switcher_page", {
+            buildReader = function(opts) options = opts; return panel end,
+        })
+        ZenSpec.replace("ui/widget/container/centercontainer", { new = function(_self, spec) return spec end })
+        ZenSpec.replace("ui/geometry", { new = function(_self, spec) return spec end })
+        ZenSpec.replace("ui/uimanager", { setDirty = function(_self, widget, mode)
+            assert.are.equal(browser, widget)
+            assert.are.equal("ui", mode)
+            paints = (paints or 0) + 1
+        end })
+        browser.updateLayout = function() layouts = (layouts or 0) + 1 end
+        local container = Panels.build(browser, "book_switcher", 600, 700)
+        assert.are.equal(panel, container[1])
+        assert.are.equal(panel.layout, container.layout)
+        assert.are.same({ w = 600, h = 700 }, container.dimen)
+        assert.are.equal(browser.ui, options.ui)
+        assert.are.equal(browser._zen_plugin, options.plugin)
+        assert.are.equal(600, options.width)
+        assert.are.equal(700, options.height)
+        options.refresh()
+        assert.are.equal(1, layouts)
+        assert.are.equal(1, paints)
+        assert.are.equal(0, closes)
+        options.close()
         assert.are.equal(1, closes)
     end)
 

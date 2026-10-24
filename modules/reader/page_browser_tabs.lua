@@ -49,6 +49,7 @@ function M.list(config, ui, include_disabled, extra_tab)
         annotations = { "book_open", _("Annotations") },
         toc = { "toc", _("Table of contents") },
         book_details = { "info", _("Book details") },
+        book_switcher = { "tab_continue", _("Book switcher") },
     }
     local entries = {}
     for _i, id in ipairs(cfg.tab_order) do

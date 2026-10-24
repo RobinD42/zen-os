@@ -14,6 +14,14 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def _enable_reader_tabs(driver, labels):
+    driver.command("reader_controls", action="edit_buttons")
+    rows = driver.command("arrange_page_state")["arrange"]["labels"]
+    for label in labels:
+        assert driver.command("arrange_page_select", index=rows.index(label) + 1, toggle=True)["ok"]
+    assert driver.command("close_arrange_page")["ok"]
+
+
 @pytest.mark.parametrize("custom_icons,night", [(False, False), (True, False), (True, True)])
 def test_standalone_reader_modals_have_no_leading_icon_or_focus_target(custom_icons, night):
     from PIL import Image
@@ -76,6 +84,116 @@ def test_standalone_reader_modals_have_no_leading_icon_or_focus_target(custom_ic
             assert details["annotation_left_icon"] is False
             assert details["annotation_empty_focus_row"] is False
             assert driver.command("annotation_viewer_action", action="close_details")["ok"]
+        finally:
+            stop(process)
+
+
+def test_book_switcher_reader_surfaces_and_dispatch():
+    with tempfile.TemporaryDirectory(prefix="zen-reader-switcher-") as temporary:
+        root = Path(temporary)
+        home, library = root / "home", root / "library"
+        home.mkdir()
+        library.mkdir()
+        first, second = library / "first.epub", library / "second.epub"
+        for book in (first, second):
+            _write_reader_epub(book)
+        socket = root / "driver.sock"
+        process = launch(Path(os.environ["KOREADER_DIR"]), home, socket, library)
+        try:
+            wait_for_socket(socket)
+            driver = ZenDriver(socket)
+            assert driver.open_book(first)["ok"]
+            _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("open"))
+            assert driver.command("annotation_viewer_action", action="open", file=str(second.resolve()))["ok"]
+            _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("file") == str(second.resolve()))
+            driver.command("reader_controls", action="open")
+            driver.command("reader_controls", action="choose", id="book_switcher")
+            state = driver.command("reader_controls", action="paint")
+            assert state["section"] == "book_switcher"
+            assert state["switcher_books"] == [str(first.resolve())]
+            driver.command("reader_controls", action="choose", id=str(first.resolve()))
+            _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("file") == str(first.resolve()))
+            assert driver.command("reader_controls")["menu_open"] is False
+
+            assert driver.command("activate_reader_control", name="page_browser")["activated"]
+            state = driver.command("page_browser_state")["page_browser"]
+            assert "tab_continue.svg" not in state["header_icons"]
+            assert driver.command("annotation_viewer_action", action="close")["ok"]
+            assert driver.command("annotation_viewer_action", action="dispatch", name="zen_ui_show_book_switcher")["ok"]
+            state = driver.command("page_browser_state")["page_browser"]
+            assert state["active_tab"] == "book_switcher" and state["top_is_browser"]
+            assert [book["path"] for book in state["switcher_books"]] == [str(second.resolve())]
+            for book in state["switcher_books"]:
+                bounds = book["bounds"]
+                assert bounds["y"] >= state["header_height"]
+                assert bounds["y"] + bounds["h"] <= state["screen_height"] - state["edge_padding"]
+            screenshot = Path(__file__).resolve().parents[2] / ".artifacts" / "page-browser" / "book-switcher.png"
+            screenshot.parent.mkdir(parents=True, exist_ok=True)
+            driver.screenshot(screenshot)
+            assert driver.command("activate_reader_control", name="page_browser_pages")["activated"]
+            assert driver.command("activate_reader_control", name="page_browser_book_switcher")["activated"]
+            assert driver.command("activate_reader_control", name="page_browser_switch_book")["activated"]
+            _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("file") == str(second.resolve()))
+            assert driver.command("page_browser_state")["ok"] is False
+        finally:
+            stop(process)
+
+
+@pytest.mark.parametrize("count,chevrons,rtl", [(1, False, False), (7, False, False),
+                                              (12, False, False), (12, True, False), (7, False, True)])
+def test_reader_control_tabs_evenly_fill_each_page(count, chevrons, rtl):
+    with tempfile.TemporaryDirectory(prefix="zen-even-reader-tabs-") as temporary:
+        root = Path(temporary)
+        home, library = root / "home", root / "library"
+        home.mkdir()
+        library.mkdir()
+        book = library / "controls.epub"
+        _write_reader_epub(book)
+        entries = ['{id="reader_font",type="reader_control",control="font",label="Font",icon="appbar.textsize"}']
+        entries.extend(f'{{id="extra_{i}",type="action",label="Extra {i}",icon="lightning",action={{}}}}'
+                       for i in range(1, count - 1))
+        if count > 1:
+            entries.append('{id="reader_page",type="reader_control",control="page",label="Page",icon="appbar.pageview"}')
+        config = ('return {reader_controls={buttons_initialized=true,annotations_merged=true,'
+                  'contrast_split=true,menu_buttons_added=true,book_switcher_added=true,show_page_chevrons='
+                  + str(chevrons).lower() + ',entries={' + ','.join(entries) + '}}}')
+        socket = root / "driver.sock"
+        process = launch(Path(os.environ["KOREADER_DIR"]), home, socket, library,
+                         language="ar" if rtl else "en", zen_config_source=config)
+        try:
+            wait_for_socket(socket)
+            driver = ZenDriver(socket)
+            assert driver.open_book(book)["ok"]
+            _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("open"))
+            driver.command("reader_controls", action="open")
+            state = driver.command("reader_controls", action="paint")
+            pages = state["button_pages"]
+            for page in range(pages):
+                tabs = sorted(state["reader_tab_bounds"], key=lambda tab: tab["x"])
+                assert tabs[0]["x"] == 0
+                assert tabs[-1]["x"] + tabs[-1]["w"] == state["screen_width"]
+                assert max(tab["w"] for tab in tabs) - min(tab["w"] for tab in tabs) <= 1
+                gaps = [right["x"] - left["x"] - left["w"] for left, right in zip(tabs, tabs[1:])]
+                assert not gaps or max(gaps) - min(gaps) <= 1
+                active = next((tab for tab in state["header"] if tab["id"] == state["section"]), None)
+                if active:
+                    gap = state["reader_tab_gap"][0]
+                    assert gap["s"] == active["x"] and gap["e"] == active["x"] + active["w"]
+                else:
+                    assert not state.get("reader_tab_gap")
+                if page + 1 < pages:
+                    driver.command("reader_controls", action="buttons_next")
+                    state = driver.command("reader_controls", action="paint")
+            _wait_command(driver, "reader_controls", lambda result: not result.get("locked"))
+            driver.command("reader_controls", action="choose", id="page" if count > 1 else "font", tap=True)
+            state = driver.command("reader_controls", action="paint")
+            assert state["section"] == ("page" if count > 1 else "font")
+            active = next(tab for tab in state["header"] if tab["id"] == state["section"])
+            gap = state["reader_tab_gap"][0]
+            assert gap["s"] == active["x"] and gap["e"] == active["x"] + active["w"]
+            output = Path(__file__).resolve().parents[2] / ".artifacts" / "reader-controls"
+            output.mkdir(parents=True, exist_ok=True)
+            driver.screenshot(output / f"even-tabs-{count}-{chevrons}-{rtl}.png")
         finally:
             stop(process)
 
@@ -283,6 +401,7 @@ def test_reader_controls_native_settings_defaults_profiles_and_direct_actions():
             driver = ZenDriver(socket_path)
             assert driver.open_book(book)["ok"]
             _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("open"))
+            _enable_reader_tabs(driver, ["Vocabulary builder"])
             state = driver.command("reader_controls", action="open")
             assert state["ok"], state
             assert state["section"] == "font"
@@ -543,7 +662,7 @@ def test_reader_optional_menu_buttons_work_without_changing_the_swipe_gesture(co
             if control == "page_browser":
                 browser = _wait_command(driver, "page_browser_state",
                                         lambda result: result.get("page_browser", {}).get("layout") == "carousel")
-                assert browser["page_browser"]["header_icons"] == ["coverflow.svg", "font.svg", "book_open.svg", "toc.svg", "more_vertical.svg", "close.svg"]
+                assert browser["page_browser"]["header_icons"] == ["more_vertical.svg", "coverflow.svg", "font.svg", "book_open.svg", "toc.svg", "close.svg"]
                 assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
                 assert driver.command("page_browser_state")["page_browser"]["active_tab"] == "aa"
                 assert driver.command("activate_reader_control", name="page_browser_more")["activated"]
@@ -1246,6 +1365,7 @@ def test_reader_shared_selection_and_setting_layout(show_chevrons):
             driver = ZenDriver(socket_path)
             assert driver.open_book(book)["ok"]
             _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("open"))
+            _enable_reader_tabs(driver, ["Profiles", "Vocabulary builder"])
             driver.command("reader_controls", action="open")
             state = driver.command("reader_controls", action="paint")
             assert state["settings_rows"] == 3
@@ -1516,6 +1636,7 @@ def test_reader_controls_icon_pack_overrides(enabled):
             driver = ZenDriver(socket_path)
             assert driver.open_book(book)["ok"]
             _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("open"))
+            _enable_reader_tabs(driver, ["Profiles"])
             state = driver.command("reader_controls", action="open")
             icons = dict(state["icons"])
             for _page in range(1, state["button_pages"]):

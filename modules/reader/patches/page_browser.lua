@@ -273,7 +273,7 @@ local function apply_page_browser()
         local close_size = require("common/ui/zen_title_style").ICON_SIZE
         local close_inset = math.floor((btn_sz - close_size) / 2)
         paint_icon(nil, close_icon_path, slot_w - slot_btn_w + btn_pad + close_inset, title_y + close_inset, close_size)
-        paint_icon(nil, utils.resolveIcon(_icons_dir, "more_vertical"), slot_w - slot_btn_w * 2 + btn_pad, title_y, btn_sz)
+        paint_icon(nil, utils.resolveIcon(_icons_dir, "more_vertical"), btn_pad, title_y, btn_sz)
         local tabs = ZenTabBar:new{
             items = {
                 { icon = utils.resolveIcon(_icons_dir, "coverflow") },
@@ -476,7 +476,7 @@ local function apply_page_browser()
         end
 
         local function is_content_tab(tab)
-            return tab == "toc" or tab == "book_details" or is_annotation_tab(tab)
+            return tab == "toc" or tab == "book_details" or tab == "book_switcher" or is_annotation_tab(tab)
         end
 
         local function is_full_page(pbw)
@@ -1014,7 +1014,7 @@ local function apply_page_browser()
                     height         = icon_size,
                     padding        = btn_pad + inset_start,
                     padding_right  = btn_pad + inset_end,
-                    padding_bottom = btn_sz + inset_end,
+                    padding_bottom = btn_pad + inset_end,
                     overlap_align  = align or "left",
                     allow_flash    = true,
                     show_parent    = self,
@@ -1072,10 +1072,9 @@ local function apply_page_browser()
                 table.insert(self.title_bar, self.title_bar.right_button)
             end
 
-            local search_button
             local more_button
             more_button = make_header_btn(utils.resolveIcon(_icons_dir, "more_vertical"),
-                self.dimen.w - (btn_sz + btn_pad * 2) * 2, function()
+                0, function()
                     if is_annotation_tab(self._zen_active_tab) then
                         require("modules/reader/annotation_viewer").showMenu(self)
                         return
@@ -1122,7 +1121,7 @@ local function apply_page_browser()
                             end) end }}
                     end
                     dialog = require("common/ui/zen_anchored_menu").new{
-                        anchor = more_button.dimen, anchor_right = true, buttons = buttons,
+                        anchor = more_button.dimen, buttons = buttons,
                     }
                     UIManager:show(dialog)
                 end)
@@ -1137,18 +1136,6 @@ local function apply_page_browser()
                 end
                 local items, selected = {}, 1
                 local entries = PageBrowserTabs.list(pbw._zen_plugin.config, pbw.ui, false, pbw._zen_initial_tab)
-                for i = #pbw.title_bar, 1, -1 do
-                    if pbw.title_bar[i] == search_button then table.remove(pbw.title_bar, i); break end
-                end
-                if search_button and search_button.free then search_button:free() end
-                search_button = nil
-                local show_search = is_annotation_tab(pbw._zen_active_tab)
-                if show_search then
-                    search_button = make_header_btn(utils.resolveIcon(_icons_dir, "quick_search"), 0, function()
-                        require("modules/reader/annotation_viewer").showSearch(pbw)
-                    end)
-                    table.insert(pbw.title_bar, search_button)
-                end
                 for i, entry in ipairs(entries) do
                     local tab = entry.id
                     items[i] = { icon = utils.resolveIcon(_icons_dir, entry.icon) or resolve_stock_icon(entry.icon), text = entry.text,
@@ -1165,12 +1152,11 @@ local function apply_page_browser()
                     math.floor((pbw.title_bar_h - pbw._zen_header_offset - size.h) / 2) }
                 pbw._zen_tab_bar = tabs
                 table.insert(pbw.title_bar, tabs)
-                pbw._zen_header_buttons = show_search and { search_button } or {}
+                pbw._zen_header_buttons = { more_button }
                 for i, cell in ipairs(tabs.cells) do
                     cell.file = items[i].icon
                     table.insert(pbw._zen_header_buttons, cell)
                 end
-                table.insert(pbw._zen_header_buttons, more_button)
                 if pbw.title_bar.right_button then
                     table.insert(pbw._zen_header_buttons, pbw.title_bar.right_button)
                 end

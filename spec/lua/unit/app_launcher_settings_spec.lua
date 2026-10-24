@@ -567,7 +567,7 @@ describe("app launcher settings", function()
         assert.is_nil(config.reader_controls.open_first)
         section.sub_item_table[1].callback()
         assert.are.equal("Buttons", shown_options.title)
-        assert.are.equal(13, #shown_options.item_table)
+        assert.are.equal(14, #shown_options.item_table)
         assert.are.equal(4, #shown_options.add_item_table)
         assert.is_false(shown_options.open_add_on_show)
         local row = shown_options.item_table[1]
@@ -586,10 +586,10 @@ describe("app launcher settings", function()
         assert.are.equal("page", config.reader_controls.entries[1].control)
         table.remove(config.reader_controls.entries, 3)
         section.sub_item_table[1].callback()
-        assert.are.equal(12, #shown_options.item_table)
+        assert.are.equal(13, #shown_options.item_table)
         assert.are.equal("Font", shown_options.add_item_table[5].text)
         shown_options.add_item_table[5].callback()
-        assert.are.equal("font", config.reader_controls.entries[13].control)
+        assert.are.equal("font", config.reader_controls.entries[14].control)
         assert.are.equal(3, reader_saves)
         assert.are.equal(0, saves)
     end)
@@ -601,8 +601,8 @@ describe("app launcher settings", function()
             config = config, save_and_apply = function() end,
         }
         section.sub_item_table[1].callback()
-        assert.are.equal(3, #shown_options.item_table)
-        for i, label in ipairs({ "Vocabulary builder", "Page Browser", "KOReader reader menu" }) do
+        assert.are.equal(4, #shown_options.item_table)
+        for i, label in ipairs({ "Vocabulary builder", "Page Browser", "KOReader reader menu", "Book switcher" }) do
             local row = shown_options.item_table[i]
             assert.are.equal(label, row.text_func())
             for _j, item in ipairs(shown_options.add_item_table) do assert.are_not.equal(label, item.text) end
