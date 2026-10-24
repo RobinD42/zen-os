@@ -1593,13 +1593,15 @@ describe("page browser entry", function()
         ZenSpec.replace("modules/reader/page_browser_preview", { new = function(_self, spec)
             spec.render = function(self)
                 expect(self.ui == ui and self.page == 7 and self.width == 600 and self.height == 800)
+                expect(self.bb_type == "thumbnail type")
                 expect(configurable.text_wrap == 1 and configurable.trim_page == 1 and configurable.auto_straighten == 5)
                 self.bb = buffer(self.width, self.height)
                 rendered = self.bb
             end
             return spec
         end })
-        local thumbnail = setmetatable({ ui = ui, _zen_settings_preview = true }, { __index = ReaderThumbnail })
+        local thumbnail = setmetatable({ ui = ui, _zen_settings_preview = true, bb_type = "thumbnail type" },
+            { __index = ReaderThumbnail })
         local request = { page = 7, width = 150, height = 200 }
         expect(thumbnail:startTileGeneration(request))
         local tile = request._zen_sync_tile

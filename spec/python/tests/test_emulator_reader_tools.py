@@ -702,7 +702,8 @@ def test_page_browser_status_bar_is_fixed_across_tabs_and_respects_settings(inte
             stop(process)
 
 
-def test_page_browser_pdf_uses_embedded_fixed_layout_controls() -> None:
+@pytest.mark.parametrize("pages", [1, 6])
+def test_page_browser_pdf_uses_embedded_fixed_layout_controls(pages: int) -> None:
     from test_emulator_reader_controls import _write_pdf
 
     runtime = Path(os.environ["KOREADER_DIR"])
@@ -712,9 +713,36 @@ def test_page_browser_pdf_uses_embedded_fixed_layout_controls() -> None:
         home.mkdir()
         library.mkdir()
         book = library / "preview.pdf"
-        _write_pdf(book)
+        _write_pdf(book, pages)
+        if pages > 1:
+            patches = home / "patches"
+            patches.mkdir()
+            # Match a monochrome Kobo with a 32-bit framebuffer and catch freed tiles before native blitting.
+            (patches / "2-zen-pdf-thumbnail-cache.lua").write_text('''
+local Screen = require("device").screen
+local Blitbuffer = require("ffi/blitbuffer")
+local bb = Screen.bb
+Screen.bb = Blitbuffer.new(bb:getWidth(), bb:getHeight(), Blitbuffer.TYPE_BBRGB32)
+Screen.bb:fill(Blitbuffer.COLOR_WHITE)
+bb:free()
+G_reader_settings:saveSetting("page_browser_preload_thumbnails", true)
+local freed = setmetatable({}, { __mode = "k" })
+local Tile = require("document/tilecacheitem")
+local original_free = Tile.onFree
+function Tile:onFree()
+    freed[self.bb] = true
+    return original_free(self)
+end
+local Image = require("ui/widget/imagewidget")
+local original_paint = Image.paintTo
+function Image:paintTo(...)
+    assert(not freed[self.image], "painting an evicted PDF thumbnail")
+    return original_paint(self, ...)
+end
+''', encoding="utf-8")
         socket_path = root / "driver.sock"
-        process = launch(runtime, home, socket_path, library)
+        process = launch(runtime, home, socket_path, library,
+                         env_overrides={"EMULATE_BW_SCREEN": "1"} if pages > 1 else None)
         try:
             wait_for_socket(socket_path)
             driver = ZenDriver(socket_path)
@@ -722,7 +750,10 @@ def test_page_browser_pdf_uses_embedded_fixed_layout_controls() -> None:
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
             assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
             browser = _wait_command(driver, "page_browser_state", lambda result:
-                                    result["page_browser"]["thumbnails_ready"] == 1)["page_browser"]
+                                    result["page_browser"]["preview_ready"])["page_browser"]
+            if pages > 1:
+                time.sleep(8)  # Let background thumbnails fill the cache without touching a setting.
+                assert process.poll() is None
             assert browser["active_tab"] == "aa" and not browser["browser_buttons_visible"]
             state = driver.command("reader_controls")
             assert state["active_tab"] == "aa" and not state.get("font_family_label")

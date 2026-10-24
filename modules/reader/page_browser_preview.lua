@@ -39,7 +39,7 @@ function Preview:render()
         view.visible_area = Geom:new{ x = 0, y = 0, w = width, h = height }
         view.page_scroll = false
     end
-    local bb = Blitbuffer.new(width, height, Screen.bb:getType())
+    local bb = Blitbuffer.new(width, height, self.bb_type or Screen.bb:getType())
     local ok, err = pcall(function()
         bb:fill(ui.view.outer_page_color or Blitbuffer.COLOR_WHITE)
         view:drawPageSurround(bb, 0, 0)

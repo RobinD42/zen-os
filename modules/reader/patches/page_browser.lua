@@ -47,6 +47,7 @@ local function apply_page_browser()
             -- Aa needs the reading view; stock PDF thumbnails discard crop, zoom and reflow.
             local preview = require("modules/reader/page_browser_preview"):new{
                 ui = self.ui, page = page,
+                bb_type = self.bb_type, -- Keep preview sizes within the thumbnail cache budget.
                 width = Device.screen:getWidth(), height = Device.screen:getHeight(),
             }
             preview:render()

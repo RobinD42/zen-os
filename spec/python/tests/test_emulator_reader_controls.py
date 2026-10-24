@@ -684,14 +684,16 @@ def test_reader_optional_menu_buttons_work_without_changing_the_swipe_gesture(co
             stop(process)
 
 
-def _write_pdf(path):
+def _write_pdf(path, pages=1):
+    page_ids = [3] + list(range(6, pages + 5))
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
-        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        f"<< /Type /Pages /Kids [{' '.join(f'{page} 0 R' for page in page_ids)}] /Count {pages} >>".encode(),
         b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 600] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
         b"<< /Length 50 >>\nstream\nBT /F1 20 Tf 40 500 Td (Reader controls PDF) Tj ET\nendstream",
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     ]
+    objects.extend([objects[2]] * (pages - 1))
     data, offsets = b"%PDF-1.4\n", [0]
     for number, content in enumerate(objects, 1):
         offsets.append(len(data))

@@ -121,6 +121,15 @@ describe("full-size page-browser preview", function()
         assert.are.equal(0, #target.blits)
     end)
 
+    it("uses the thumbnail pixel format instead of the framebuffer format when requested", function()
+        local preview = Preview:new{ ui = ui, page = 7, width = 600, height = 800,
+            bb_type = "thumbnail type" }
+        preview:render()
+        assert.are.equal("thumbnail type", preview.bb.kind)
+        preview:free()
+        assert.are.equal(1, buffers[1].frees)
+    end)
+
     it("frees stale pages and rerenders with updated reader settings after invalidation", function()
         local preview = Preview:new{ ui = ui, page = 7, width = 600, height = 800 }
         preview:paintTo(target, 0, 0)
