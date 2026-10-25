@@ -120,12 +120,12 @@ def test_book_switcher_reader_surfaces_and_dispatch():
 
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
             state = driver.command("page_browser_state")["page_browser"]
-            assert "swap_horizontal.svg" not in state["header_icons"]
+            assert "view_carousel_outline.svg" not in state["header_icons"]
             assert driver.command("annotation_viewer_action", action="close")["ok"]
             assert driver.command("annotation_viewer_action", action="dispatch", name="zen_ui_show_book_switcher")["ok"]
             state = driver.command("page_browser_state")["page_browser"]
             assert state["active_tab"] == "book_switcher" and state["top_is_browser"]
-            assert "swap_horizontal.svg" in state["header_icons"]
+            assert "view_carousel_outline.svg" in state["header_icons"]
             assert [book["path"] for book in state["switcher_books"]] == [str(second.resolve())]
             for book in state["switcher_books"]:
                 bounds = book["bounds"]
