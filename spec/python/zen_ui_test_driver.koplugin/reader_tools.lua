@@ -1123,8 +1123,8 @@ function M.activate(name)
             or name == "page_browser_book_switcher" then
         if not browser then return false, "page browser unavailable" end
         local icons = { page_browser_controls = ui.paging and "appbar.contrast" or "font", page_browser_toc = "toc",
-            page_browser_bookmarks = "bookmark", page_browser_annotations = "book_open", page_browser_book_details = "info",
-            page_browser_book_switcher = "tab_continue" }
+            page_browser_bookmarks = "bookmark", page_browser_annotations = "annotations", page_browser_book_details = "info",
+            page_browser_book_switcher = "library_shelves" }
         return tap_browser_widget(find_control(browser.title_bar, icons[name], {}, 0))
     elseif name == "page_browser_switch_book" then
         local panel = browser and browser._zen_active_tab == "book_switcher" and browser._zen_content_panel
@@ -1344,7 +1344,8 @@ function M.reference_action(params)
         ui:handleEvent(require("ui/event"):new("GotoViewRel", params.step or 1))
     elseif action == "return" then
         local bounds = ui._zen_return_button.dimen
-        ui:handleEvent(require("ui/event"):new("Gesture", { ges = "tap",
+        ui:handleEvent(require("ui/event"):new("Gesture", { ges = params.gesture or "tap", direction = params.direction,
+            time = require("ui/time").now(), distance = require("device").screen:scaleBySize(50),
             pos = require("ui/geometry"):new{ x = bounds.x + bounds.w / 2, y = bounds.y + bounds.h / 2 } }))
     elseif action == "expire_return" then
         ui._zen_return_button.expire()

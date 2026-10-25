@@ -45,7 +45,7 @@ return {
     read_status  = "\u{F00C0}",  -- bookmark
     status       = "\u{F00BA}",  -- mdi-book-open-blank-variant (unread)
     reading      = "\u{F14F7}",  -- mdi-book-open
-    book_switcher = "\u{F0F58}",
+    book_switcher = "\u{F1486}",
     tbr          = "\u{F0150}",  -- mdi-clock (to-be-read)
     on_hold      = "\u{F03E4}",
     finished     = "\u{F012C}",  -- mdi-check-circle
@@ -103,7 +103,7 @@ return {
     settings_global   = "\u{F0574}",
     settings_status   = "\u{F12F0}",
     battery           = "\u{F0080}",
-    reader_themes     = "\u{F03D8}",
+    reader_themes     = "\u{F0594}",
     reader_status_bar_margins = "\u{F061E}",
     reader_flash_cbz  = "\u{F0241}",
     end_book         = "\u{F14F3}",

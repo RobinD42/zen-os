@@ -1428,7 +1428,7 @@ describe("page browser entry", function()
         local ordered = shell(browser.ui)
         PageBrowserWidget.init(ordered)
         expect(ordered._zen_active_tab == "annotations")
-        expect(ordered._zen_tab_bar.cells[1].file == "/custom-icons/book_open.svg")
+        expect(ordered._zen_tab_bar.cells[1].file == "/custom-icons/annotations.svg")
         ordered:_zenSelectTab("aa")
         ordered:onClose()
         ordered = shell(browser.ui)
@@ -1455,7 +1455,7 @@ describe("page browser entry", function()
         targeted._zen_initial_tab = "bookmarks"
         PageBrowserWidget.init(targeted)
         expect(targeted._zen_active_tab == "bookmarks")
-        expect(targeted._zen_tab_bar.cells[targeted._zen_tab_bar.selected].file == "/custom-icons/bookmark.svg")
+        expect(targeted._zen_tab_bar.cells[targeted._zen_tab_bar.selected].file == "/custom-icons/bookmark_outline.svg")
         expect(cfg.tabs.bookmarks == false)
 
         cfg.tab_order = { "book_details" }

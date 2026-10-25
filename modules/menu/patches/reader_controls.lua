@@ -77,9 +77,8 @@ return function(plugin)
                 ui:handleEvent(require("ui/event"):new("ShowPageBrowser"))
             elseif id == "koreader_menu" then
                 ui.config:onShowConfigMenu(true)
-            elseif ui.bookmark then
-                ui.bookmark.match_table = nil
-                ui.bookmark:onShowBookmark()
+            elseif id == "bookmarks" then
+                ui:handleEvent(require("ui/event"):new("ShowPageBrowser", "bookmarks"))
             end
         end)
     end
@@ -441,8 +440,9 @@ return function(plugin)
             if arrows then icons[1] = utils.resolveLocalIcon(stock_icons, "chevron.left") end
             for i = (state.button_page - 1) * cols + 1, math.min(#entries, state.button_page * cols) do
                 local entry = entries[i]
-                icons[#icons + 1] = utils.resolveIcon(icons_dir, entry.icon or "lightning")
-                    or utils.resolveLocalIcon(icons_dir, entry.icon or "lightning")
+                local icon_name = Buttons.icon(entry) or "lightning"
+                icons[#icons + 1] = utils.resolveIcon(icons_dir, icon_name)
+                    or utils.resolveLocalIcon(icons_dir, icon_name)
                     or utils.resolveLocalIcon(icons_dir, "lightning")
                 visible_entries[#visible_entries + 1] = entry
             end
@@ -1065,7 +1065,7 @@ return function(plugin)
         local menu = TouchMenu:new{
             width = Screen:getWidth(), show_parent = container,
             tab_item_table = {{ id = "reader_controls", panel = build_panel, remember = false,
-                icon = utils.resolveLocalIcon(stock_icons, "appbar.textsize") }},
+                icon = utils.resolveLocalIcon(icons_dir, "font") }},
         }
         -- Closing the bottom menu must preserve the top menu's remembered tab.
         menu.last_index = self.last_tab_index

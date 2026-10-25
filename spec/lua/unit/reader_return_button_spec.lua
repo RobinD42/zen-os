@@ -5,7 +5,8 @@ describe("temporary reader return button", function()
         "common/ui/color_text_widget", "ui/font", "ui/widget/container/framecontainer", "ui/geometry",
         "common/reader_themes", "device", "ui/size", "ui/uimanager", "ui/widget/widget", "gettext", "ffi/util",
         "common/ui/button_feedback", "common/ui/color_icon_widget", "common/utils", "common/plugin_root",
-        "ui/widget/horizontalgroup", "ui/widget/horizontalspan", "common/reader_status_bar", "common/ui/button_labels" }
+        "ui/widget/horizontalgroup", "ui/widget/horizontalspan", "common/reader_status_bar", "common/ui/button_labels",
+        "apps/reader/modules/readerview" }
 
     before_each(function()
         saved, timers, queued, dirty, returns, enabled = {}, {}, {}, {}, 0, true
@@ -79,7 +80,7 @@ describe("temporary reader return button", function()
         for _i, name in ipairs(names) do package.loaded[name] = saved[name] end
     end)
 
-    it("waits for an actual jump, then expires after 30 seconds", function()
+    it("waits for an actual jump, then expires after 10 seconds", function()
         button:queue({ page = 3 })
         queued[#queued]()
         assert.is_false(button:isVisible())
@@ -88,7 +89,7 @@ describe("temporary reader return button", function()
         ui.page = 20
         queued[#queued]()
         assert.is_true(button:isVisible())
-        assert.equals(30, timers[button.expire])
+        assert.equals(10, timers[button.expire])
         button:paintTo(require("device").screen.bb, 0, 0)
         local mode, region = dirty[#dirty]()
         assert.equals("ui", mode)
@@ -228,7 +229,7 @@ describe("temporary reader return button", function()
         button:queue({ page = 2 })
         queued[#queued]()
         assert.is_nil(timers[first])
-        assert.equals(30, timers[button.expire])
+        assert.equals(10, timers[button.expire])
         assert.equals(2, button.location.page)
         button:queue({ page = 4 })
         button:hide()
@@ -251,5 +252,59 @@ describe("temporary reader return button", function()
         assert.is_true(button:onTap({ pos = { inside = true } }))
         assert.equals(1, returns)
         assert.same({}, timers)
+    end)
+
+    it("dismisses on a downward swipe on the tab without navigating or clearing history", function()
+        button:queue({ page = 1 })
+        queued[#queued]()
+        button.dimen = { contains = function(_self, pos) return pos.inside end }
+        local location = button.location
+        ui.link.location_stack = { location }
+        for _i, direction in ipairs({ "north", "east", "west", "southeast", "southwest" }) do
+            assert.is_false(button:onSwipe({ direction = direction, pos = { inside = true } }))
+        end
+        assert.is_false(button:onSwipe({ direction = "south", pos = {} }))
+        enabled = false
+        assert.is_false(button:onSwipe({ direction = "south", pos = { inside = true } }))
+        enabled = true
+        assert.is_true(button:isVisible())
+        assert.equals(10, timers[button.expire])
+        local repaints = #dirty
+        button:queue({ page = 2 })
+        assert.is_true(button:onSwipe({ direction = "south", pos = { inside = true } }))
+        assert.is_false(button:isVisible())
+        assert.is_nil(button.location)
+        assert.is_nil(button.pending_callback)
+        assert.is_nil(button.expire)
+        assert.same({}, timers)
+        assert.equals(repaints + 1, #dirty)
+        assert.equals(0, returns)
+        assert.equals(3, ui.page)
+        assert.same({ location }, ui.link.location_stack)
+        assert.is_false(button:onSwipe({ direction = "south", pos = { inside = true } }))
+    end)
+
+    it("registers swipe dismissal ahead of existing reader swipe handlers", function()
+        ui._zones = {
+            rolling_swipe = { def = { ges = "swipe" } },
+            readerconfigmenu_ext_swipe = { def = { ges = "swipe" } },
+            tap_forward = { def = { ges = "tap" } },
+        }
+        local zones
+        ui.registerTouchZones = function(_self, registered) zones = registered end
+        Button.attach(ui)
+        button = ui._zen_return_button
+        button:queue({ page = 1 })
+        queued[#queued]()
+        assert.is_false(button:onSwipe({ direction = "south", pos = {} }))
+        button.dimen = { contains = function(_self, pos) return pos.inside end }
+        assert.equals("tap", zones[1].ges)
+        assert.equals("swipe", zones[2].ges)
+        assert.same({ ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1 }, zones[2].screen_zone)
+        table.sort(zones[2].overrides)
+        assert.same({ "readerconfigmenu_ext_swipe", "rolling_swipe" }, zones[2].overrides)
+        assert.is_false(zones[2].handler({ direction = "north", pos = { inside = true } }))
+        assert.is_true(zones[2].handler({ direction = "south", pos = { inside = true } }))
+        assert.is_false(button:isVisible())
     end)
 end)

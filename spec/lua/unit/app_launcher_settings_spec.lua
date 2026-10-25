@@ -556,7 +556,7 @@ describe("app launcher settings", function()
         assert.is_nil(entry._zen_draft_commit)
     end)
 
-    it("edits all built-in reader buttons through the shared arrange list", function()
+    it("edits and disables built-in reader buttons without offering deletion", function()
         local config = { features = { reader_controls = true } }
         local reader_saves = 0
         local section = require("modules/settings/sections/reader_controls_settings").build{
@@ -577,8 +577,12 @@ describe("app launcher settings", function()
         local items = row.sub_item_table_func()
         assert.are.equal("Label: Font", items[1].text_func())
         assert.is_truthy(items[2].text_func():find("Icon:", 1, true))
-        assert.are.equal("Delete", items[3].text)
-        assert.are.equal(3, #items)
+        assert.are.equal(2, #items)
+        for _i, button in ipairs(shown_options.item_table) do
+            local settings = button.sub_item_table_func()
+            assert.are.equal(2, #settings)
+            for _j, item in ipairs(settings) do assert.are_not.equal("Delete", item.text) end
+        end
         local original = shown_options.item_table[1]
         shown_options.item_table[1] = shown_options.item_table[3]
         shown_options.item_table[3] = original
@@ -591,6 +595,62 @@ describe("app launcher settings", function()
         shown_options.add_item_table[5].callback()
         assert.are.equal("font", config.reader_controls.entries[14].control)
         assert.are.equal(3, reader_saves)
+        assert.are.equal(0, saves)
+    end)
+
+    it("shows current reader icon defaults and saves or clears manual overrides", function()
+        local selected, select_icon
+        ZenSpec.replace("common/ui/zen_icon_picker", function(_icons, current, callback)
+            selected, select_icon = current, callback
+        end)
+        local config = { features = {} }
+        local reader_saves = 0
+        local section = require("modules/settings/sections/reader_controls_settings").build{
+            config = config, save_and_apply = function() reader_saves = reader_saves + 1 end,
+        }
+        section.sub_item_table[1].callback()
+        local row = shown_options.item_table[10]
+        row.orig_entry.icon = "paint_palette"
+        local item = row.sub_item_table_func()[2]
+        assert.are.equal("Icon: moon_outline", item.text_func())
+        item.callback()
+        assert.are.equal("moon_outline", selected)
+        select_icon("info")
+        assert.are.equal("info", row.orig_entry.icon_override)
+        assert.are.equal("Icon: info", item.text_func())
+        item.callback()
+        assert.are.equal("info", selected)
+        select_icon("moon_outline")
+        assert.is_nil(row.orig_entry.icon_override)
+        assert.are.equal("Icon: moon_outline", item.text_func())
+        assert.are.equal(2, reader_saves)
+        assert.are.equal(0, saves)
+    end)
+
+    it("still deletes user-added reader buttons after confirmation", function()
+        ZenSpec.replace("modules/menu/app_launcher/store", {})
+        ZenSpec.unload("modules/menu/app_launcher/model")
+        local confirmation
+        package.loaded["ui/uimanager"].show = function(_self, widget) confirmation = widget end
+        ZenSpec.replace("ui/widget/confirmbox", { new = function(_self, options) return options end })
+        local reader_cfg = { entries = { entry } }
+        local reader_saves, backs = 0, 0
+        local section = require("modules/settings/sections/app_launcher_settings").build{
+            config = { features = {} }, button_config = reader_cfg, button_scope = "reader",
+            save_buttons = function() reader_saves = reader_saves + 1 end,
+        }
+        section.callback()
+        local items = shown_options.item_table[1].sub_item_table_func()
+        local delete = items[#items]
+        assert.are.equal("Delete", delete.text)
+        delete.callback{ backToUpperMenu = function() backs = backs + 1 end }
+        assert.are.equal("Delete this button?", confirmation.text)
+        assert.are.same({ entry }, reader_cfg.entries)
+        assert.are.equal(0, reader_saves)
+        confirmation.ok_callback()
+        assert.are.same({}, reader_cfg.entries)
+        assert.are.equal(1, reader_saves)
+        assert.are.equal(1, backs)
         assert.are.equal(0, saves)
     end)
 
@@ -610,6 +670,58 @@ describe("app launcher settings", function()
             row.callback()
             assert.are.equal(not checked, row.checked_func())
         end
+    end)
+
+    it("limits reader toggles and adds custom or built-in buttons disabled when full", function()
+        local message
+        package.loaded["ui/uimanager"].show = function(_self, widget) message = widget.text end
+        ZenSpec.replace("ui/widget/infomessage", { new = function(_self, options) return options end })
+        ZenSpec.replace("modules/menu/app_launcher/plugin_scan", {
+            scan = function() return { { title = "Plugin", key = "test", method = "open" } } end,
+        })
+        local config = { features = {} }
+        local reader_saves = 0
+        local section = require("modules/settings/sections/reader_controls_settings").build{
+            config = config, save_and_apply = function() reader_saves = reader_saves + 1 end,
+        }
+        local function open()
+            section.sub_item_table[1].callback()
+            local rows = {}
+            for _i, row in ipairs(shown_options.item_table) do rows[row.orig_entry.control or row.orig_entry.id] = row end
+            return rows
+        end
+        local rows = open()
+        rows.profiles.callback()
+        assert.is_false(rows.profiles.checked_func())
+        assert.are.equal("Maximum 8 reader controls per book", message)
+        assert.are.equal(0, reader_saves)
+        rows.font.callback()
+        rows.profiles.callback()
+        assert.is_false(rows.profiles.checked_func())
+        rows.contrast.callback()
+        rows.profiles.callback()
+        assert.is_true(rows.profiles.checked_func())
+        rows.font.callback()
+        assert.is_false(rows.font.checked_func())
+
+        table.remove(config.reader_controls.entries, 1)
+        rows = open()
+        for _i, item in ipairs(shown_options.add_item_table) do
+            if item.text == "Font" then item.callback() end
+        end
+        assert.is_false(config.reader_controls.entries[#config.reader_controls.entries].enabled)
+
+        shown_options.add_item_table[3].callback()
+        picker_options.on_select(picker_options.items[1])
+        local added = config.reader_controls.entries[#config.reader_controls.entries]
+        assert.are.equal("plugin", added.type)
+        assert.is_false(added.enabled)
+        rows = open()
+        rows[added.id].callback()
+        assert.is_false(added.enabled)
+        rows.profiles.callback()
+        rows[added.id].callback()
+        assert.is_true(added.enabled)
     end)
 
 end)

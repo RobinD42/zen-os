@@ -530,6 +530,9 @@ describe("reader lookup menus", function()
     end)
 
     it("saves a new highlight without offering Extend", function()
+        local saved_settings = G_reader_settings
+        finally(function() _G.G_reader_settings = saved_settings end)
+        _G.G_reader_settings = ZenSpec.memorySettings({ highlight_color = "blue" })
         ZenSpec.replace("ui/widget/buttondialog", { new = function(_, spec) return spec end })
         local ReaderHighlight = { onShowHighlightMenu = function() return "stock" end }
         ZenSpec.replace("apps/reader/modules/readerhighlight", ReaderHighlight)
@@ -543,7 +546,12 @@ describe("reader lookup menus", function()
         local highlight = {
             selected_text = { text = "start of a multipage highlight" },
             hold_pos = { x = 10, y = 20 },
-            saveHighlight = function() saved = true end,
+            view = { highlight = { saved_color = "red" } },
+            _fallback_color = "gray",
+            setSelectionColor = function(self) self.selection_color = self.view.highlight.saved_color end,
+            saveHighlight = function(self, extend)
+                saved = { color = self.view.highlight.saved_color, extend = extend }
+            end,
             onClose = function() end,
             _highlight_buttons = {
                 ["01_select"] = function(this, index)
@@ -562,8 +570,16 @@ describe("reader lookup menus", function()
         assert.are.equal(4, #shown.buttons[1])
         assert.are.equal(1, #shown.buttons)
         shown.buttons[1][1].callback()
-        assert.is_true(saved)
+        assert.same({ color = "blue", extend = true }, saved)
+        assert.are.equal("blue", highlight.selection_color)
         assert.is_false(selected)
+
+        G_reader_settings:delSetting("highlight_color")
+        highlight.view.highlight.saved_color = "red"
+        highlight.selected_text._zen_resized = true
+        shown.buttons[1][1].callback()
+        assert.same({ color = "gray", extend = false }, saved)
+        assert.are.equal("gray", highlight.selection_color)
     end)
 
     it("omits Extend and the save action for an existing highlight", function()

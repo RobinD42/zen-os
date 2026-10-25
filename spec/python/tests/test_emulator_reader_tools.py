@@ -269,7 +269,7 @@ def test_reader_page_browser_modes_and_search_render() -> None:
             )["page_browser"]
             assert default_carousel["thumbnail_count"] == 3
             assert default_carousel["controls"] == ["single", "carousel", "grid"]
-            assert default_carousel["header_icons"] == ["more_vertical.svg", "coverflow.svg", "font.svg", "book_open.svg", "toc.svg", "close.svg"]
+            assert default_carousel["header_icons"] == ["more_vertical.svg", "coverflow.svg", "font.svg", "annotations.svg", "toc.svg", "close.svg"]
             assert default_carousel["focused"] == "header:1"
             assert default_carousel["header_height"] >= (
                 default_carousel["header_tabs"]["y"] + default_carousel["header_tabs"]["h"]
@@ -1079,7 +1079,7 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
         pack = home / "icons" / "zen" / "browser"
         pack.mkdir(parents=True)
         (pack / "pack.json").write_text(json.dumps({"schema_version": 1, "id": "browser", "name": "Browser"}))
-        header_names = ["more_vertical", "coverflow", "font", "book_open", "toc", "info", "close"]
+        header_names = ["more_vertical", "coverflow", "font", "annotations", "toc", "info", "close"]
         names = header_names + ["grid", "grid_slide", "chevron.left", "chevron.right", "quick_search",
                                 "quicksettings", "appbar.settings", "plus", "filter", "sort", "pin", "pin_remove",
                                 "bookmark", "bookmark_remove"]

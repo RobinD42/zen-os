@@ -402,8 +402,9 @@ describe("ZenOS icon packs", function()
     it("themes control icons with SVG and PNG fallbacks", function()
         local plugin_icons = ZenSpec.root .. "/icons/"
         local names = {
-            "airplane", "app_menu", "book_open", "brightness", "calendar", "flame",
-            "lookup_ai", "lookup_extend", "network", "quick_battery", "warmth", "zen_ui_update",
+            "airplane", "annotations", "app_menu", "book_open", "bookmark_outline", "brightness", "calendar", "flame",
+            "library_shelves", "lookup_ai", "lookup_extend", "moon_outline", "network", "quick_battery", "quick_nightmode",
+            "view_carousel_outline", "warmth", "zen_ui_update",
         }
         local selected = make_pack("selected")
         for _i, name in ipairs(names) do

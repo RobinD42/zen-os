@@ -3427,6 +3427,12 @@ msgid "Maximum 7 tabs allowed"
 msgstr "Massimo 7 schede consentite"
 
 #. Type: dialog
+#. Context: Dialog text in the reader control button settings.
+#: reader_controls_settings.lua:18
+msgid "Maximum 8 reader controls per book"
+msgstr "Massimo 8 controlli di lettura per libro"
+
+#. Type: dialog
 #. Context: Testo di una finestra di dialogo nelle impostazioni dei pulsanti del pannello delle impostazioni rapide.
 #: menu_settings.lua:292
 msgid "Maximum 9 buttons allowed"

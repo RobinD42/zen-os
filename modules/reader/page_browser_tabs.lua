@@ -44,12 +44,12 @@ function M.list(config, ui, include_disabled, extra_tab)
     local labels = {
         browser = { "coverflow", _("Page browser") },
         aa = { paging and "appbar.contrast" or "font", paging and _("Contrast") or _("Font") },
-        bookmarks = { "bookmark", _("Bookmarks") },
+        bookmarks = { "bookmark_outline", _("Bookmarks") },
         highlights = { "lookup_highlight", _("Highlights") },
-        annotations = { "book_open", _("Annotations") },
+        annotations = { "annotations", _("Annotations") },
         toc = { "toc", _("Table of contents") },
         book_details = { "info", _("Book details") },
-        book_switcher = { "tab_continue", _("Book switcher") },
+        book_switcher = { "view_carousel_outline", _("Book switcher") },
     }
     local entries = {}
     for _i, id in ipairs(cfg.tab_order) do

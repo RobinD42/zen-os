@@ -249,7 +249,9 @@ their colors and font even if a custom theme is later changed or deleted. Theme
 rendering retains its existing support for reflowable documents.
 
 Configure the bottom menu at **Zen Settings > Reader > Reader controls**. The switch on that row enables or disables it. **Buttons** opens the
-shared arrange list: reorder or toggle any button, and edit its label and icon or
-delete it from its submenu. Use **+** to add actions, Controls buttons, plugin
-menus, reader KOReader menus, or restore a deleted built-in button. Reader buttons
+shared arrange list: reorder or toggle any button, and edit its label and icon.
+Built-in buttons use the current default icon unless you choose another. Selecting the default icon again clears the override.
+Built-in buttons cannot be deleted; user-added buttons have **Delete** in their submenu.
+Use **+** to add actions, Controls buttons, plugin menus, reader KOReader menus,
+or restore a previously deleted built-in button. Reader buttons
 are stored independently of Launcher. **Contrast (PDF/CBZ)** is a separate button for fixed-layout documents; Font is available only for reflowable books. Their order, labels, icons, and toggles can be edited independently.

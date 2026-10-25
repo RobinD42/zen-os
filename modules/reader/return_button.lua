@@ -19,7 +19,7 @@ local T = require("ffi/util").template
 local utils = require("common/utils")
 local icons_dir = require("common/plugin_root") .. "/icons/"
 
-local ReturnButton = Widget:extend{ duration = 30 }
+local ReturnButton = Widget:extend{ duration = 10 }
 
 function ReturnButton:isVisible()
     return self.visible == true and not not References.enabled(self.ui)
@@ -97,6 +97,13 @@ function ReturnButton:onTap(ges)
     return true
 end
 
+function ReturnButton:onSwipe(ges)
+    if ges.direction ~= "south" or not self:isVisible() or not self.dimen
+        or not self.dimen:contains(ges.pos) then return false end
+    self:hide()
+    return true
+end
+
 function ReturnButton.attach(ui, plugin)
     if ui._zen_return_button then return end
     local button = ReturnButton:new{ ui = ui, plugin = plugin }
@@ -110,12 +117,17 @@ function ReturnButton.attach(ui, plugin)
     end
     local overrides = { "readerlink_tap", "readerhighlight_tap", "readermenu_tap", "readermenu_ext_tap",
         "tap_top_left_corner", "tap_forward", "tap_backward" }
+    local swipe_overrides = {}
     for id, zone in pairs(ui._zones or {}) do
-        if zone.def.ges == "tap" then overrides[#overrides + 1] = id end
+        if zone.def.ges == "tap" then overrides[#overrides + 1] = id
+        elseif zone.def.ges == "swipe" then swipe_overrides[#swipe_overrides + 1] = id end
     end
     ui:registerTouchZones{{ id = "zen_reference_return", ges = "tap",
         screen_zone = { ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1 }, overrides = overrides,
         handler = function(ges) return button:onTap(ges) end,
+    }, { id = "zen_reference_return_swipe", ges = "swipe",
+        screen_zone = { ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1 }, overrides = swipe_overrides,
+        handler = function(ges) return button:onSwipe(ges) end,
     }}
 end
 

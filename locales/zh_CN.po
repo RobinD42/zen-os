@@ -3427,6 +3427,12 @@ msgid "Maximum 7 tabs allowed"
 msgstr "最多允许 7 个标签页"
 
 #. Type: dialog
+#. Context: Dialog text in the reader control button settings.
+#: reader_controls_settings.lua:18
+msgid "Maximum 8 reader controls per book"
+msgstr "每本书最多显示 8 个阅读控件"
+
+#. Type: dialog
 #. Context: 快捷设置按钮的设置中对话框的正文。
 #: menu_settings.lua:292
 msgid "Maximum 9 buttons allowed"

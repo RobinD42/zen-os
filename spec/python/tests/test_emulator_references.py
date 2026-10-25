@@ -406,7 +406,7 @@ def test_return_button_tracks_jumps_without_tracking_page_turns(format):
             assert preview["page"] == 1 and not preview["return_button"]["visible"]
             jumped = _ref(driver, "browser_jump", page=3)
             button = jumped["return_button"]
-            assert button["visible"] and button["duration"] == 30
+            assert button["visible"] and button["duration"] == 10
             assert button["text"] == ("Retour à la page 1" if format == "epub" else "Return to page 1")
             assert button["bounds"]["x"] == jumped["footer_left_margin"]
             assert jumped["screen"]["h"] / 2 < button["bounds"]["y"] < jumped["screen"]["h"]
@@ -434,6 +434,12 @@ def test_return_button_tracks_jumps_without_tracking_page_turns(format):
             assert returned["page"] == 1 and not returned["return_button"]["visible"]
             assert returned.get("header_left")
             assert not returned["browser_open"]
+            jumped = _ref(driver, "goto", page=3)
+            dismissed = _ref(driver, "return", gesture="swipe", direction="south")
+            assert not dismissed["return_button"]["visible"] and not dismissed["return_button"].get("timer")
+            assert dismissed["page"] == jumped["page"] and dismissed["history"] == jumped["history"]
+            _browser(driver)
+            assert _ref(driver, "page_action", id="back")["page"] == 1
             _ref(driver, "pin", page=3)
             pin = _ref(driver, "open_pin")
             assert not pin["return_button"]["visible"]

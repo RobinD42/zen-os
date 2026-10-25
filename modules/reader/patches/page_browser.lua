@@ -279,7 +279,7 @@ local function apply_page_browser()
             items = {
                 { icon = utils.resolveIcon(_icons_dir, "coverflow") },
                 { icon = utils.resolveIcon(_icons_dir, "font") },
-                { icon = utils.resolveIcon(_icons_dir, "book_open") },
+                { icon = utils.resolveIcon(_icons_dir, "annotations") },
                 { icon = utils.resolveIcon(_icons_dir, "toc") },
             },
             selected = 1, icon_size = Screen:scaleBySize(24),

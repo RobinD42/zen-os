@@ -3433,6 +3433,12 @@ msgid "Maximum 7 tabs allowed"
 msgstr "Máximo de 7 pestañas"
 
 #. Type: dialog
+#. Context: Dialog text in the reader control button settings.
+#: reader_controls_settings.lua:18
+msgid "Maximum 8 reader controls per book"
+msgstr "Máximo de 8 controles de lectura por libro"
+
+#. Type: dialog
 #. Context: Texto de un diálogo en los ajustes de los botones del panel de ajustes rápidos.
 #: menu_settings.lua:292
 msgid "Maximum 9 buttons allowed"

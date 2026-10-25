@@ -11,6 +11,7 @@ local ActionFilter = require("modules/menu/app_launcher/action_filter")
 local NativeMenu = require("modules/menu/app_launcher/native_menu")
 local PagePlan = require("modules/menu/app_launcher/page_plan")
 local BookSwitcherPage = require("modules/menu/app_launcher/book_switcher_page")
+local ReaderButtons = require("modules/menu/reader_controls/buttons")
 local PluginScan = require("modules/menu/app_launcher/plugin_scan")
 local DispatcherMenu = require("common/dispatcher_menu")
 local Destination = require("common/library_destination")
@@ -151,8 +152,8 @@ function M.build(ctx)
     end
 
     local function show_icon_picker(entry, touch_menu)
-        require("common/ui/zen_icon_picker")(get_icons(), entry.icon, function(name)
-            entry.icon = name
+        require("common/ui/zen_icon_picker")(get_icons(), ReaderButtons.icon(entry), function(name)
+            ReaderButtons.setIcon(entry, name)
             if not is_draft_entry(entry) then
                 save_app_launcher()
             end
@@ -232,6 +233,7 @@ function M.build(ctx)
     end
 
     local function insert_entry(entry, folder)
+        if ctx.button_can_enable and not ctx.button_can_enable(entry) then entry.enabled = false end
         if ctx.button_single then
             cfg.entries = { entry }
         elseif folder then
@@ -733,7 +735,7 @@ function M.build(ctx)
             items[#items + 1] = IconItem.decorate({
                 text_func = function()
                     return T(_("Icon: %1"),
-                        icon_utils.getIconDisplayName(entry.icon or DEFAULT_ENTRY_ICON))
+                        icon_utils.getIconDisplayName(ReaderButtons.icon(entry) or DEFAULT_ENTRY_ICON))
                 end,
                 keep_menu_open = true,
                 callback = function(touch_menu)
@@ -899,6 +901,7 @@ function M.build(ctx)
                 items[#items + 1] = item
             end
         end
+        if entry.type == "reader_control" then return items end
         items[#items + 1] = IconItem.decorate({
             text = _("Delete"),
             separator = true,
@@ -953,6 +956,7 @@ function M.build(ctx)
                         return entry.enabled ~= false
                     end,
                     callback = function()
+                        if entry.enabled == false and ctx.button_can_enable and not ctx.button_can_enable(entry) then return end
                         entry.enabled = entry.enabled == false and true or false
                         save_app_launcher()
                     end,

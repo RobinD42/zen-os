@@ -1,29 +1,66 @@
 local _ = require("gettext")
 local M = {}
+local MAX_CONTROLS = 8
+local ICONS = {
+    font = "font",
+    contrast = "appbar.contrast",
+    page = "page",
+    document = "document",
+    book_info = "info",
+    toc = "toc",
+    bookmarks = "bookmark_outline",
+    search = "quick_search",
+    profiles = "profiles",
+    themes = "moon_outline",
+    vocabulary = "tab_vocab",
+    page_browser = "coverflow",
+    koreader_menu = "koreader",
+    book_switcher = "view_carousel_outline",
+}
+
+local function supports(entry, group)
+    return (entry.control ~= "document" or group == "kopt")
+        and (entry.control ~= "themes" or group == "copt")
+        and (entry.control ~= "font" or group == "copt")
+        and (entry.control ~= "contrast" or group == "kopt")
+end
 
 function M.defaults()
     local entries = {
-        { "font", _("Font"), "appbar.textsize" },
-        { "contrast", _("Contrast"), "appbar.contrast" },
-        { "page", _("Page"), "appbar.pageview" },
-        { "document", _("Document"), "book_closed" },
-        { "book_info", _("Book info"), "info" },
-        { "toc", _("TOC"), "toc" },
-        { "bookmarks", _("Bookmarks"), "bookmark" },
-        { "search", _("Search"), "quick_search" },
-        { "profiles", _("Profiles"), "bookshelf", false },
-        { "themes", _("Themes"), "quick_nightmode" },
-        { "vocabulary", _("Vocabulary builder"), "tab_vocab", false },
-        { "page_browser", _("Page Browser"), "grid_slide", false },
-        { "koreader_menu", _("KOReader reader menu"), "koreader", false },
-        { "book_switcher", _("Book switcher"), "tab_continue" },
+        { "font", _("Font") },
+        { "contrast", _("Contrast") },
+        { "page", _("Page") },
+        { "document", _("Document") },
+        { "book_info", _("Book info") },
+        { "toc", _("TOC") },
+        { "bookmarks", _("Bookmarks") },
+        { "search", _("Search") },
+        { "profiles", _("Profiles"), false },
+        { "themes", _("Themes") },
+        { "vocabulary", _("Vocabulary builder"), false },
+        { "page_browser", _("Page Browser"), false },
+        { "koreader_menu", _("KOReader reader menu"), false },
+        { "book_switcher", _("Book switcher") },
     }
     local buttons = {}
     for _i, entry in ipairs(entries) do
         buttons[#buttons + 1] = { id = "reader_" .. entry[1], type = "reader_control",
-            control = entry[1], label = entry[2], icon = entry[3], enabled = entry[4] }
+            control = entry[1], label = entry[2], enabled = entry[3] }
     end
     return buttons
+end
+
+function M.icon(entry)
+    if entry.type == "reader_control" then return entry.icon_override or ICONS[entry.control] end
+    return entry.icon
+end
+
+function M.setIcon(entry, name)
+    if entry.type == "reader_control" then
+        entry.icon_override = name ~= ICONS[entry.control] and name or nil
+    else
+        entry.icon = name
+    end
 end
 
 function M.ensure(config)
@@ -69,7 +106,7 @@ function M.ensure(config)
                     entry.enabled = font and font.enabled
                     if not font then entry.enabled = false end
                     if font and font.label ~= _("Font") then entry.label = font.label end
-                    if font and font.icon ~= "appbar.textsize" then entry.icon = font.icon end
+                    if font then entry.icon_override = font.icon_override end
                     table.insert(cfg.entries, position or 1, entry)
                     break
                 end
@@ -102,20 +139,28 @@ function M.ensure(config)
         end
         cfg.book_switcher_added = true
     end
+    for _i, entry in ipairs(cfg.entries) do
+        if entry.type == "reader_control" and entry.control == "profiles" and entry.enabled == nil then entry.enabled = false end
+    end
     return cfg
 end
 
 function M.visible(config, group)
     local entries = {}
     for _i, entry in ipairs(M.ensure(config).entries) do
-        if entry.enabled ~= false and (entry.control ~= "document" or group == "kopt")
-                and (entry.control ~= "themes" or group == "copt")
-                and (entry.control ~= "font" or group == "copt")
-                and (entry.control ~= "contrast" or group == "kopt") then
+        if entry.enabled ~= false and supports(entry, group) then
             entries[#entries + 1] = entry
+            if #entries == MAX_CONTROLS then break end
         end
     end
     return entries
+end
+
+function M.canEnable(config, entry)
+    for _i, group in ipairs({ "copt", "kopt" }) do
+        if supports(entry, group) and #M.visible(config, group) >= MAX_CONTROLS then return false end
+    end
+    return true
 end
 
 return M
