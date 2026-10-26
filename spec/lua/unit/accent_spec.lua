@@ -217,6 +217,19 @@ describe("interface accent", function()
         config.accent_enabled = true
         screen.isColorScreen = function() return false end
         assert.are.same(defaults.active_tab_color, Accent.navbarColor(config, "active_tab_color", defaults.active_tab_color))
+        assert.are.same({ 0, 0, 0 }, Accent.navbarColor(config, "outlined_color", defaults.outlined_color))
+        assert.are.same({ 0, 0, 0 },
+            Accent.navbarColor(config, "filled_background_color", defaults.filled_background_color))
+        -- Monochrome fill keeps the saved fill opacity.
+        local _c, solid = Accent.navbarColor(config, "filled_background_color", defaults.filled_background_color)
+        assert.is_nil(solid)
+        config.navbar.outlined_color = { 12, 34, 56 }
+        assert.are.same({ 12, 34, 56 }, Accent.navbarColor(config, "outlined_color", defaults.outlined_color))
+        config.navbar.outlined_color = defaults.outlined_color
+        screen.isColorScreen = function() return true end
+        screen.isColorEnabled = function() return false end
+        assert.are.same({ 0, 0, 0 }, Accent.navbarColor(config, "outlined_color", defaults.outlined_color))
+        screen.isColorEnabled = nil
         for key, default in pairs(defaults) do
             assert.are.same(default, config.navbar[key])
             assert.is_true(config.navbar[key .. "_custom"])

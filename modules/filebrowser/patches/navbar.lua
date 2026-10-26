@@ -1887,10 +1887,12 @@ local function apply_navbar()
         local use_color = styled and not outlined and config.active_tab_underline and Screen:isColorScreen()
         local active_color
         local fill_color
+        local fill_solid -- accent fill already carries its own opacity
         if filled then
             local c = config.filled_outline_color
             active_color = Blitbuffer.ColorRGB32(c[1], c[2], c[3], 0xFF)
-            c = Accent.navbarColor(zen_plugin.config, "filled_background_color", config_default.filled_background_color)
+            c, fill_solid = Accent.navbarColor(zen_plugin.config, "filled_background_color",
+                config_default.filled_background_color)
             fill_color = Blitbuffer.ColorRGB32(c[1], c[2], c[3], 0xFF)
         elseif outlined then
             local c = Accent.navbarColor(zen_plugin.config, "outlined_color", config_default.outlined_color)
@@ -2009,10 +2011,7 @@ local function apply_navbar()
             }
             local opacity = math.max(0, math.min(100,
                 tonumber(config.filled_background_opacity) or 60))
-            if filled and config.active_tab_use_accent ~= false
-                    and zen_plugin.config.accent_enabled ~= false and Accent.isSupported() then
-                opacity = 100 -- navbarColor already applies the accent opacity.
-            end
+            if fill_solid then opacity = 100 end
             if filled or outlined then
                 local paint = icon_label_group.paintTo
                 local color = fill_color

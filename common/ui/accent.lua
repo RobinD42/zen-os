@@ -9,6 +9,8 @@ end
 
 function M.isSupported()
     local Screen = require("device").screen
+    -- Color panels with color rendering off render accents as gray.
+    if Screen.isColorEnabled then return Screen:isColorEnabled() or false end
     return Screen.isColorScreen and Screen:isColorScreen() or false
 end
 
@@ -75,11 +77,16 @@ end
 function M.navbarColor(config, key, default)
     local navbar = config.navbar or {}
     local c = type(navbar[key]) == "table" and navbar[key] or default
-    if key ~= "filled_outline_color" and navbar.active_tab_use_accent ~= false
-            and config.accent_enabled ~= false and M.isSupported() then
+    if key == "filled_outline_color" then return c end
+    if not M.isSupported() then
+        -- Monochrome ignores the accent: defaults render black, manual colors still apply.
+        if c[1] == default[1] and c[2] == default[2] and c[3] == default[3] then return { 0, 0, 0 } end
+        return c
+    end
+    if navbar.active_tab_use_accent ~= false and config.accent_enabled ~= false then
         local color = M.color(config)
         if require("device").screen.night_mode and M.isEnabled(config) then color = color:invert() end
-        return { color:getR(), color:getG(), color:getB() }
+        return { color:getR(), color:getG(), color:getB() }, true
     end
     return c
 end

@@ -2788,8 +2788,29 @@ describe("file browser navbar navigation", function()
         assert.is_true(used_configured_size)
     end)
 
+    it("fills the active tab black on monochrome screens unless a color was picked", function()
+        local navbar = _G.__ZEN_UI_PLUGIN.config.navbar
+        navbar.show_icons = true
+        navbar.active_tab_filled = true
+        navbar.filled_background_opacity = 100
+        local fm = make_instance()
+        fm[1] = { fm.file_chooser }
+        for _i, case in ipairs({ { nil, { 0, 0, 0, 255 } }, { { 12, 34, 56 }, { 12, 34, 56, 255 } } }) do
+            navbar.filled_background_color = case[1]
+            built_widgets = {}
+            _G.__ZEN_UI_REINJECT_FM_NAVBAR()
+            local frame
+            for _j, entry in ipairs(built_widgets) do
+                if entry.widget.radius and entry.widget.background then frame = entry.widget end
+            end
+            assert.are.same(case[2], frame.background)
+        end
+    end)
+
     it("centers the active white icon and label in one blue frame", function()
         local navbar = _G.__ZEN_UI_PLUGIN.config.navbar
+        screen_is_color = true
+        navbar.active_tab_use_accent = false
         navbar.show_icons = true
         navbar.active_tab_filled = true
         navbar.filled_background_opacity = 100
@@ -2970,6 +2991,8 @@ describe("file browser navbar navigation", function()
             bb:paintRectRGB32(x + 8, y + 8, 4, 4, frame[1][1]._tint_color or Blitbuffer.COLOR_BLACK)
         end
         local navbar = _G.__ZEN_UI_PLUGIN.config.navbar
+        screen_is_color = true
+        navbar.active_tab_use_accent = false
         navbar.show_icons = true
         navbar.outlined_color = { 12, 34, 56 }
         local fm = make_instance()

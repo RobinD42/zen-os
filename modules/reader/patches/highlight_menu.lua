@@ -55,6 +55,11 @@ local function apply()
         return type(features) == "table" and features.highlight_lookup == true
     end
 
+    -- Selection uses default highlight color instead of gray, unless user opted out
+    if is_enabled() and G_reader_settings:readSetting("highlight_selection_use_highlight_color") == nil then
+        G_reader_settings:saveSetting("highlight_selection_use_highlight_color", true)
+    end
+
     local ReaderUI = require("apps/reader/readerui")
     local handleEvent = ReaderUI.handleEvent
     ReaderUI.handleEvent = function(self, event)
