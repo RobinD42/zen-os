@@ -37,6 +37,7 @@ function M.build(ctx)
     return {
         text = _("Reader controls"),
         icon_glyph = icons.settings_reader,
+        help_text = _("Bottom menu containing reader settings and tools."),
         checked_func = function() return config.features.reader_controls == true end,
         checkmark_callback = function()
             config.features.reader_controls = not config.features.reader_controls

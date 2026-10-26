@@ -51,7 +51,7 @@ M.SETTINGS_SVG = {
     settings_accent = "settings_brush", settings_advanced = "settings_tools",
     settings_background = "settings_wallpaper", settings_bug = "settings_bug",
     settings_covers = "settings_book_cog_outline", settings_cpu = "settings_chip",
-    settings_device = "settings_receipt_outline", settings_folder_name = "settings_tag_outline",
+    settings_device = "tablet", settings_folder_name = "settings_tag_outline",
     settings_folders = "settings_folder_outline", settings_global = "settings_view_quilt",
     settings_home = "settings_home_variant", settings_home_folder = "settings_folder_home_outline",
     settings_launcher = "settings_dots_grid", settings_layout = "settings_grid_large",
