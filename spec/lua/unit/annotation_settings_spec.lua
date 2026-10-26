@@ -26,7 +26,7 @@ describe("annotation viewer settings", function()
         local item = Settings.build({ config = config, plugin = {
             saveConfig = function() saves = saves + 1 end,
         } })
-        assert.are.equal(ZenSpec.root .. "/icons/bookmark.svg", item.icon_file)
+        assert.are.equal("bookmark", item.icon_name)
         local menu = item.sub_item_table
         assert.are.equal("Details", menu[1].text)
         local details = menu[1].sub_item_table

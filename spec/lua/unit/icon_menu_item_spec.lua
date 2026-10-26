@@ -53,6 +53,17 @@ describe("icon menu item fonts", function()
         end
     end)
 
+    it("maps settings glyphs to bundled SVG icons", function()
+        local IconItem = require("common/ui/icon_menu_item")
+        local glyphs = require("common/inline_icon_map")
+        for key, name in pairs(IconItem.SETTINGS_SVG) do
+            assert.is_not_nil(glyphs[key], key)
+            local file = io.open(ZenSpec.root .. "/icons/" .. name .. ".svg", "r")
+            assert.is_not_nil(file, name)
+            file:close()
+        end
+    end)
+
     it("uses a native menu row's requested font face", function()
         local IconItem = require("common/ui/icon_menu_item")
         local system_face = { name = "system", orig_size = 20 }

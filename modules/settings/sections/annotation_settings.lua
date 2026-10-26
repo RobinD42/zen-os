@@ -41,8 +41,7 @@ function M.build(ctx)
     end
     return {
         text = _("Annotation viewer"),
-        icon_file = require("common/utils").resolveLocalIcon(
-            require("common/plugin_root") .. "/icons/", "bookmark"),
+        icon_name = "bookmark",
         sub_item_table = {
             { text = _("Details"), sub_item_table = details },
             { text = _("Preview length"), sub_item_table = choices(cfg, "preview_length", {

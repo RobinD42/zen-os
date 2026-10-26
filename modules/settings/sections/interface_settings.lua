@@ -498,8 +498,7 @@ function M.build(ctx, extras_items)
     move_item(quick_settings_item.sub_item_table, _("Blur menu background"), items)
     table.insert(items, {
         text = _("Zen mode"),
-        icon_file = require("common/utils").resolveLocalIcon(
-            require("common/plugin_root") .. "/icons/", "quick_zen"),
+        icon_name = "quick_zen",
         checked_func = function() return config.features.zen_mode == true end,
         enabled_func = function() return config.features.lockdown_mode ~= true end,
         callback = function() plugin:onToggleZenMode() end,

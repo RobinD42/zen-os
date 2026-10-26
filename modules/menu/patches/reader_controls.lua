@@ -402,7 +402,7 @@ return function(plugin)
                 widget = title and HorizontalGroup:new{ align = "center", title, right } or right
             end
             if more then widget = HorizontalGroup:new{ align = "center", widget, more } end
-            local pad_v = (item.zen_button or item.name == "font_face") and pad / 2 or 0
+            local pad_v = item.zen_button and pad / 2 or item.name == "font_face" and pad / 4 or 0
             return FrameContainer:new{ bordersize = 0, padding = 0, padding_left = pad, padding_right = pad,
                 padding_top = pad_v, padding_bottom = pad_v, widget }
         end

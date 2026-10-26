@@ -2760,7 +2760,8 @@ function Driver:handleCommand(command)
                 if row.entry == item then
                     row_bounds = dimen_bounds(row._underline_container and row._underline_container.dimen)
                     icon = find_descendant(row, function(widget)
-                        return widget.dimen and item.icon_file and widget.file == item.icon_file
+                        return widget.dimen and type(widget.file) == "string"
+                            and not widget.file:find("chevron", 1, true)
                     end)
                     break
                 end
@@ -2779,7 +2780,8 @@ function Driver:handleCommand(command)
                 checked = checked,
                 enabled = item.enabled ~= false and (not item.enabled_func or item.enabled_func() == true),
                 icon_glyph = item.icon_glyph,
-                icon_file = item.icon_file,
+                icon_name = item.icon_name,
+                icon_file = icon and icon.file,
                 icon_bounds = dimen_bounds(icon and icon.dimen),
                 row_bounds = row_bounds,
             }

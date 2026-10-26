@@ -37,3 +37,8 @@ Changes: fixed black fill, 24px dimensions, and uniform 1.35× enlargement with 
 `moon_outline.svg` uses [dark_mode (outlined)](https://github.com/google/material-design-icons/blob/master/src/device/dark_mode/materialiconsoutlined/24px.svg)
 from Material Icons by Google, licensed under [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 Changes: fixed black fill and removed the empty background rectangle.
+
+All `settings_*.svg` icons are from [Material Design Icons](https://github.com/Templarian/MaterialDesign)
+by Pictogrammers, licensed under [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+Each file is named after its original MDI icon (e.g. `settings_cog.svg` is `mdi:cog`).
+Changes: fixed black fill and 24px dimensions.

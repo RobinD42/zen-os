@@ -1461,6 +1461,7 @@ function M.build(ctx)
 
     table.insert(items, {
         text = _("Footnotes and pinned pages"),
+        icon_name = "pin",
         sub_item_table = {
             make_enable_feature_item("reader_references", _("Reference drawer")),
             {

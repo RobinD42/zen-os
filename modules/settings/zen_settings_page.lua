@@ -874,6 +874,7 @@ function ZenSettingsPage:_searchResults(query)
             results[#results + 1] = {
                 text = entry.label,
                 icon_glyph = source.icon_glyph,
+                icon_name = source.icon_name,
                 icon_file = source.icon_file,
                 icon_width = source.icon_width,
                 radio = source.radio,

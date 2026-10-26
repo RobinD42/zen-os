@@ -44,7 +44,7 @@ describe("Extras settings", function()
             local opds = items[2]
             local rakuyomi = items[3]
             assert.are.equal("Rakuyomi", rakuyomi.text)
-            assert.are.equal("tab_manga.svg", rakuyomi.icon_file:match("([^/]+)$"))
+            assert.are.equal("tab_manga", rakuyomi.icon_name)
             assert.is_nil(rakuyomi.icon_glyph)
             assert.are.equal("Zen OPDS", opds.text)
             assert.are.equal("opds-icon", opds.icon_glyph)

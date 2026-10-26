@@ -109,7 +109,7 @@ describe("Interface settings", function()
         }, {})
         local toggle = section.sub_item_table[#section.sub_item_table]
         assert.are.equal("Zen mode", toggle.text)
-        assert.are.equal(require("common/plugin_root") .. "/icons/quick_zen.svg", toggle.icon_file)
+        assert.are.equal("quick_zen", toggle.icon_name)
         assert.is_true(toggle.enabled_func())
         assert.is_true(toggle.checked_func())
         toggle.callback()

@@ -23,8 +23,7 @@ function M.build(ctx)
     table.insert(items, stats_settings.build(ctx))
     local zenpm_item = zenpm_installer.build_item(plugin)
     if zenpm_item then
-        zenpm_item.icon_file = require("common/utils").resolveLocalIcon(
-            require("common/plugin_root") .. "/icons/", "zenpm")
+        zenpm_item.icon_name = "zenpm"
         table.insert(items, zenpm_item)
     end
 
@@ -123,8 +122,7 @@ function M.build(ctx)
         end
         table.insert(items, {
             text = _("Rakuyomi"),
-            icon_file = require("common/utils").resolveLocalIcon(
-                require("common/plugin_root") .. "/icons/", "tab_manga"),
+            icon_name = "tab_manga",
             sub_item_table = {
                 {
                     text = _("Exclude from Home"),
