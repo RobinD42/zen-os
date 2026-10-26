@@ -65,15 +65,29 @@ function M.show(config, plugin, ui)
     local rows = {}
     for _i, entry in ipairs(M.list(config, ui, true)) do
         local id = entry.id
-        rows[#rows + 1] = {
-            text = entry.text, orig_item = id,
+        local function toggle()
+            if cfg.tabs[id] and #M.list(config, ui) == 1 then return end
+            cfg.tabs[id] = not cfg.tabs[id]
+            plugin:saveConfig()
+        end
+        local row = {
+            text = entry.text, orig_item = id, sub_title = entry.text,
             checked_func = function() return cfg.tabs[id] end,
-            callback = function()
-                if cfg.tabs[id] and #M.list(config, ui) == 1 then return end
-                cfg.tabs[id] = not cfg.tabs[id]
-                plugin:saveConfig()
-            end,
+            callback = toggle,
         }
+        if id == "book_switcher" then
+            row.sub_item_table_func = function()
+                return require("modules/settings/sections/app_launcher_settings").bookSwitcherItems()
+            end
+        elseif id == "book_details" then
+            -- Row tap opens the library editor directly; checkmark still toggles the tab
+            row._zen_settings_submenu = true
+            row.checkmark_callback = toggle
+            row.callback = function()
+                require("modules/settings/sections/library_settings").showBookDetails(config, plugin)
+            end
+        end
+        rows[#rows + 1] = row
     end
     return require("common/ui/zen_arrange_list").show{
         title = require("gettext")("Tabs"), item_table = rows, plugin = plugin,

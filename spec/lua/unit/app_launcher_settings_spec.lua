@@ -578,9 +578,10 @@ describe("app launcher settings", function()
         assert.are.equal("Label: Font", items[1].text_func())
         assert.is_truthy(items[2].text_func():find("Icon:", 1, true))
         assert.are.equal(2, #items)
+        local extra = { book_switcher = 2, book_info = 1 }
         for _i, button in ipairs(shown_options.item_table) do
             local settings = button.sub_item_table_func()
-            assert.are.equal(2, #settings)
+            assert.are.equal(2 + (extra[button.orig_entry.control] or 0), #settings)
             for _j, item in ipairs(settings) do assert.are_not.equal("Delete", item.text) end
         end
         local original = shown_options.item_table[1]

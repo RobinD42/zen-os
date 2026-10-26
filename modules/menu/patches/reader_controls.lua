@@ -552,7 +552,7 @@ return function(plugin)
         if state.section == "book_info" or state.section == "book_switcher" then
             local opts = {
                 width = w, height = budget, config = plugin.config,
-                launcher_config = plugin.config.app_launcher, ui = ui,
+                launcher_config = require("modules/menu/app_launcher/model").ensure(), ui = ui,
                 open_details = function()
                     launch(tm, function()
                         require("modules/reader/book_details").show(ui, { config = plugin.config, plugin = plugin })

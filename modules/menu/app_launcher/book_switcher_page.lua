@@ -52,15 +52,11 @@ function M.layout(opts)
     local height = math.max(1, tonumber(opts.height) or Screen:getHeight())
     local padding = math.max(4, Screen:scaleBySize(8))
     local top_padding = padding + Screen:scaleBySize(8)
-    local gap = math.max(2, Screen:scaleBySize(2))
+    local gap = math.max(2, Screen:scaleBySize(opts.fill and 12 or 2))
     local inner_w = math.max(1, width - padding * 2)
     local max_content_h = math.max(1, height - top_padding - padding)
     local count = M.normalizeCount(opts.book_count)
     local columns = math.min(4, count)
-    local rows = math.ceil(count / columns)
-    local row_h = math.floor((max_content_h - gap * (rows - 1)) / rows)
-    local cell_w = math.max(24,
-        math.floor((inner_w - gap * (columns - 1)) / columns))
     local render = M.rendererOptions(opts.config)
     local title_face = library_font.getFace(library_font.scaleValue(16))
     local author_face = library_font.getFace(library_font.scaleValue(13))
@@ -81,8 +77,28 @@ function M.layout(opts)
         probe:free()
     end
     if strip_h > 0 then strip_h = strip_h + strip_padding * 2 end
-    local cover_area_h = math.min(
-        math.max(1, row_h - strip_h), Screen:scaleBySize(200))
+    local function grid(cols)
+        local rows = math.ceil(count / cols)
+        local row_h = math.floor((max_content_h - gap * (rows - 1)) / rows)
+        local cell_w = math.max(24, math.floor((inner_w - gap * (cols - 1)) / cols))
+        return cell_w, math.max(1, row_h - strip_h)
+    end
+    local cell_w, cover_area_h
+    if opts.fill then
+        -- Pick the grid giving the largest 2:3 cover, uncapped
+        local best_w = -1
+        for cols = 1, count do
+            local cw, ch = grid(cols)
+            local cover_w = math.min(cw, ch * 2 / 3)
+            if cover_w > best_w then
+                best_w, columns, cell_w = cover_w, cols, cw
+                cover_area_h = math.min(ch, math.floor(cover_w * 3 / 2))
+            end
+        end
+    else
+        cell_w, cover_area_h = grid(columns)
+        cover_area_h = math.min(cover_area_h, Screen:scaleBySize(200))
+    end
     local cover_border = cover_common.BORDER_SIZE
     return {
         width = width,
@@ -218,7 +234,7 @@ function M.buildReader(opts)
     local cfg = Model.ensure()
     local panel, refs = M.build{
         width = opts.width, height = opts.height, config = opts.plugin.config,
-        launcher_config = cfg, exclude_path = opts.ui.document.file,
+        launcher_config = cfg, fill = true, exclude_path = opts.ui.document.file,
         open_book = function(path, _cover, release_cover)
             release_cover()
             opts.close()
@@ -265,7 +281,7 @@ function M.build(opts)
         or M.loadBooks(count, opts.exclude_path, cfg)
     local layout = M.layout{
         width = width, height = height, config = opts.config,
-        book_count = math.min(count, math.max(1, #books)),
+        book_count = math.min(count, math.max(1, #books)), fill = opts.fill,
     }
     local padding = layout.padding
     local top_padding = layout.top_padding
