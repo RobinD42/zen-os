@@ -47,6 +47,7 @@ return function(plugin)
     local utils = require("common/utils")
     local root = require("common/plugin_root")
     local icons_dir = root and root .. "/icons/"
+    local thin_icons = icons_dir and icons_dir .. "reader_controls/"
     local stock_icons = require("libs/libkoreader-lfs").currentdir() .. "/resources/icons/mdlight/"
 
     local function reader()
@@ -435,9 +436,14 @@ return function(plugin)
             for i = (state.button_page - 1) * cols + 1, math.min(#entries, state.button_page * cols) do
                 local entry = entries[i]
                 local icon_name = Buttons.icon(entry) or "lightning"
-                icons[#icons + 1] = utils.resolveIcon(icons_dir, icon_name)
+                local path = utils.resolveIcon(icons_dir, icon_name)
                     or utils.resolveLocalIcon(icons_dir, icon_name)
                     or utils.resolveLocalIcon(icons_dir, "lightning")
+                -- Thin-stroke variant unless an icon pack/custom icon overrides the bundled one.
+                if path and path == utils.resolveLocalIcon(icons_dir, icon_name) then
+                    path = utils.resolveLocalIcon(thin_icons, icon_name) or path
+                end
+                icons[#icons + 1] = path
                 visible_entries[#visible_entries + 1] = entry
             end
             if arrows then icons[#icons + 1] = utils.resolveLocalIcon(stock_icons, "chevron.right") end

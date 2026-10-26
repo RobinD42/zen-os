@@ -44,6 +44,47 @@ describe("bundled UI font paths", function()
         assert.are.equal("NotoSans-Regular.ttf", Font.fontmap.cfont)
         assert.is_nil(Font.fontmap[fonts[3]])
     end)
+    it("copies bundled families into KOReader's fonts dir and resolves to the copies", function()
+        local lfs = require("libs/libkoreader-lfs")
+        local fontdir = os.tmpname()
+        os.remove(fontdir)
+        assert.truthy(lfs.mkdir(fontdir))
+        local read_dirs = {}
+        local FontList = {
+            fontdir = fontdir,
+            fontlist = { fontdir .. "/stock/Stock.ttf" },
+            fontinfo = {},
+            _readList = function(self, dir, mark)
+                read_dirs[#read_dirs + 1] = dir
+                for file in lfs.dir(dir) do
+                    if file:match("%.ttf$") then
+                        local path = dir .. "/" .. file
+                        table.insert(self.fontlist, path)
+                        self.fontinfo[path] = { { name = file } }
+                        mark[path] = true
+                    end
+                end
+            end,
+        }
+        local paths = require("common/library_font_path")
+        local added = paths.installBundled(FontList)
+
+        local face = paths.BUNDLED_DEFAULT
+        local global = fontdir .. "/hyperreadable/Hyperreadable-Regular.ttf"
+        assert.are.equal(lfs.attributes(ZenSpec.root .. "/" .. face, "size"),
+            lfs.attributes(global, "size"))
+        assert.is_true(added[global])
+        assert.is_nil(lfs.attributes(fontdir .. "/SymbolsNerdFont-Regular.ttf"))
+        assert.are.equal(global, paths.resolve(face))
+        assert.are.equal(face, paths.toConfig(global))
+        assert.are.equal(fontdir .. "/stock/Stock.ttf", paths.toConfig(fontdir .. "/stock/Stock.ttf"))
+
+        -- Second run: nothing to copy or rescan.
+        read_dirs = {}
+        assert.is_nil(next(paths.installBundled(FontList)))
+        assert.are.same({}, read_dirs)
+        os.execute("rm -rf '" .. fontdir .. "'")
+    end)
     it("keeps the language-specific default when sharing font settings helpers", function()
         ZenSpec.replace("config/defaults", { library_font = { font_face = "default" } })
         local paths = require("common/library_font_path")

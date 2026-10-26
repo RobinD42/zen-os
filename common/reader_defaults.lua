@@ -1,11 +1,12 @@
 local plugin_root = require("common/plugin_root") or ""
 local ReaderStatusBar = require("common/reader_status_bar")
 local FontLanguage = require("common/font_language")
+local LibraryFontPath = require("common/library_font_path")
 
 local M = { DEFAULT_VERTICAL_MARGIN = 15 }
 
 local READER_FONT = "Readerly R"
-local STATUS_FONT = plugin_root .. "/fonts/hyperreadable/Hyperreadable-SemiBold.ttf"
+local STATUS_FONT = "fonts/hyperreadable/Hyperreadable-SemiBold.ttf"
 local CRE_DEFAULTS = {
     copt_h_page_margins = {30, 30},
     copt_sync_t_b_page_margins = 1,
@@ -82,7 +83,7 @@ local function ensure_reader_font_registered()
         "Readerly_R-Italic.ttf",
         "Readerly_R-BoldItalic.ttf",
     }) do
-        pcall(cre.registerFont, plugin_root .. "/fonts/readerly/" .. filename)
+        pcall(cre.registerFont, LibraryFontPath.resolve("fonts/readerly/" .. filename))
     end
     if type(cre.regularizeRegisteredFontsWeights) == "function" then
         pcall(cre.regularizeRegisteredFontsWeights, false)
@@ -220,7 +221,7 @@ function M.apply(settings, config)
     local preset = copy_value(require("modules/reader/patches/reader_footer_presets")[1])
     preset.footer.text_font_bold = true
     if use_bundled_fonts then
-        preset.footer.text_font_face = STATUS_FONT
+        preset.footer.text_font_face = LibraryFontPath.resolve(STATUS_FONT)
     else
         local existing_footer = settings:readSetting("footer")
         if type(existing_footer) == "table" then
@@ -246,7 +247,7 @@ function M.apply(settings, config)
         config.reader_top_status_bar = {}
     end
     if use_bundled_fonts then
-        config.reader_top_status_bar.font_face = STATUS_FONT
+        config.reader_top_status_bar.font_face = LibraryFontPath.resolve(STATUS_FONT)
     end
     config.reader_top_status_bar.left_order = {}
     config.reader_top_status_bar.center_order = { "time" }

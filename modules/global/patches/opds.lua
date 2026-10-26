@@ -876,6 +876,83 @@ local function apply_opds()
 
     -- Cover-aware updateItems; supports mosaic grid and list layouts matched to library mode.
     -- The root catalog list (paths empty) always uses a fixed list with placeholder covers.
+    -- ── Status bar ───────────────────────────────────────────────────────────
+
+    local function status_row_builder()
+        local plug = _plugin or rawget(_G, "__ZEN_UI_PLUGIN")
+        local config = plug and plug.config
+        if not (config and config.features and config.features.status_bar == true
+                and require("common/status_bar_registry").hasItems(config.status_bar)) then return end
+        local build = require("common/shared_state").get(plug, "buildStatusRow")
+        if type(build) ~= "function" then return end
+        return function(width)
+            return build(width, {
+                row_height = 18,
+                show_bottom_border = config.status_bar.show_bottom_border == true,
+            })
+        end
+    end
+
+    -- Paints the status row above the title bar; height overrides keep Menu layout in sync.
+    local function attach_status_row(browser)
+        local title_bar = browser.title_bar
+        if browser.no_title or not title_bar or title_bar._zen_opds_status then return end
+        local build = status_row_builder()
+        if not build then return end
+        local status = { build = build, row = build(title_bar.width or Screen:getWidth()) }
+        local inset = Screen:scaleBySize(6)
+        local offset = inset + status.row:getSize().h
+        title_bar._zen_opds_status = status
+        local get_height, get_size, paint = title_bar.getHeight, title_bar.getSize, title_bar.paintTo
+        function title_bar:getHeight() return get_height(self) + offset end
+        function title_bar:getSize()
+            local size = get_size(self)
+            return Geom:new{ w = size.w, h = size.h + offset }
+        end
+        function title_bar:paintTo(bb, x, y)
+            status.x, status.y = x, y + inset
+            status.row:paintTo(bb, x, status.y)
+            return paint(self, bb, x, y + offset)
+        end
+    end
+
+    function OPDSBrowser:_zen_status_refresh()
+        local status = self.title_bar and self.title_bar._zen_opds_status
+        if self._zen_opds_closed or not (status and status.y) then return end
+        local stack = UIManager._window_stack
+        local top = stack and stack[#stack]
+        if not top or (top.widget ~= self and top.widget ~= self.show_parent) then return end
+        local current = status.build(self.title_bar.width or Screen:getWidth())
+        local size = status.row:getSize()
+        if current:getSize().h ~= size.h then
+            current:free()
+            return
+        end
+        status.row:free()
+        status.row = current
+        -- Repaint only the row; a full Menu repaint would redraw every cover.
+        Screen.bb:paintRect(status.x, status.y, size.w, size.h, Blitbuffer.COLOR_WHITE)
+        current:paintTo(Screen.bb, status.x, status.y)
+        UIManager:setDirty(nil, "ui", Geom:new{ x = status.x, y = status.y, w = size.w, h = size.h })
+    end
+
+    for _i, name in ipairs({ "onResume", "onNetworkConnected", "onNetworkDisconnected",
+            "onNetworkStateChanged", "onCharging", "onNotCharging" }) do
+        local original = OPDSBrowser[name]
+        OPDSBrowser[name] = function(self, ...)
+            local result = original and original(self, ...)
+            self:_zen_status_refresh()
+            return result
+        end
+    end
+
+    -- First call runs in Menu:init before any layout uses the title bar height.
+    local orig_recalculateDimen = OPDSBrowser._recalculateDimen
+    function OPDSBrowser:_recalculateDimen(...)
+        attach_status_row(self)
+        return orig_recalculateDimen(self, ...)
+    end
+
     function OPDSBrowser:updateItems(select_number, no_recalculate_dimen)
         local _cover_ratio = CoverUtils.getRatio()
         local display_mode = get_opds_display_mode()
@@ -1156,6 +1233,10 @@ local function apply_opds()
     local orig_onCloseWidget = Menu.onCloseWidget
     function OPDSBrowser:onCloseWidget()
         self._zen_opds_closed = true
+        if self._zen_status_clock_bound then
+            require("common/clock_timer").unbind(self)
+            self._zen_status_clock_bound = nil
+        end
         self._zen_prefetched_feed = nil
         self._zen_network_action = nil
         if self._zen_network_wait then
@@ -1327,6 +1408,9 @@ local function apply_opds()
         title_bar.left_button = back_button
         title_bar.right_button = close_button
         title_bar._zen_opds_action_button = action_button
+        -- Header control fields read by menu_top_swipe's tap guard.
+        title_bar.back_button, title_bar.search_button = back_button, refresh_button or nil
+        title_bar.action_button, title_bar.close_button = action_button, close_button
         table.insert(title_bar, back_button)
         if refresh_button then table.insert(title_bar, refresh_button) end
         table.insert(title_bar, action_button)
@@ -1398,6 +1482,10 @@ local function apply_opds()
         self.subtitle = false
         orig_init(self)
         fix_buttons(self)
+        if self.title_bar and self.title_bar._zen_opds_status then
+            self._zen_status_clock_bound = true
+            require("common/clock_timer").bind(self, function(target) target:_zen_status_refresh() end)
+        end
         -- Auto-navigate to default catalog (skip when returning to root via onReturn).
         if self._zen_default_navigated then return end
         local default_url = get_opds_default_url()

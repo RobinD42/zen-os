@@ -123,6 +123,7 @@ describe("OPDS header", function()
         end })
 
         Browser = {
+            _recalculateDimen = function() end,
             getPageNumber = function() return 1 end,
             mergeTitleBarIntoLayout = function() end,
             updatePageInfo = function() end,
@@ -368,6 +369,42 @@ describe("OPDS header", function()
         assert.are.equal(4, #browser._zen_opds_header_buttons)
         assert.are.equal("refresh", browser.layout[1][2]._zen_opds_focus_id)
         assert.are.equal("/zen-ui/icons/quick_sync.svg", browser.layout[1][2].file)
+    end)
+
+    it("adds the status row above the title bar and refreshes it in place", function()
+        local rows = {}
+        local plugin = _G.__ZEN_UI_PLUGIN
+        plugin.config.features = { status_bar = true }
+        plugin.config.status_bar = { right_order = { "battery" } }
+        require("common/shared_state").register(plugin, { buildStatusRow = function(width)
+            local row = {}
+            function row:getSize() return { w = width, h = 18 } end
+            function row:paintTo(_bb, x, y) self.painted = { x = x, y = y } end
+            function row:free() self.freed = true end
+            rows[#rows + 1] = row
+            return row
+        end })
+        local browser = setmetatable({ paths = {}, servers = {}, item = {} }, { __index = Browser })
+        browser:init()
+        local title_bar = browser.title_bar
+        title_bar.getHeight = function() return 40 end
+        title_bar.getSize = function() return { w = 320, h = 40 } end
+        title_bar.paintTo = function(_self, _bb, _x, y) title_bar.painted_y = y end
+
+        browser:_recalculateDimen()
+        browser:_recalculateDimen()
+        assert.are.equal(1, #rows)
+        assert.are.equal(64, title_bar:getHeight())
+        assert.are.equal(64, title_bar:getSize().h)
+        title_bar:paintTo(nil, 0, 10)
+        assert.are.same({ x = 0, y = 16 }, rows[1].painted)
+        assert.are.equal(34, title_bar.painted_y)
+
+        require("device").screen.bb = { paintRect = function() end }
+        require("ui/uimanager")._window_stack = { { widget = browser } }
+        browser:_zen_status_refresh()
+        assert.is_true(rows[1].freed)
+        assert.are.same({ x = 0, y = 16 }, rows[2].painted)
     end)
 
     it("fetches fresh catalogs without conditional validators and supports OPDS 2", function()

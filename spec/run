@@ -39,8 +39,9 @@ find_runtime() {
   fi
   local parent
   parent="$(cd "$ROOT/.." && pwd)"
+  # Newest build first: stale builds for older macOS can crash natively (k2pdfopt).
   local candidate
-  for candidate in "$parent"/koreader/koreader-emulator-*/koreader; do
+  for candidate in $(ls -td "$parent"/koreader/koreader-emulator-*/koreader 2>/dev/null); do
     if [[ -x "$candidate/luajit" ]]; then
       printf '%s\n' "$candidate"
       return

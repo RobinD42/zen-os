@@ -85,31 +85,24 @@ if _plugin_root then
         ["_zen_settings_tab"] = zen_icon,
         ["_zen_quickstart"]   = zen_icon,
     }, false)
-    -- Register bundled fonts into KOReader's font system so they appear
-    -- in all font pickers (FontChooser) across the UI.
+    -- Copy bundled fonts into KOReader's fonts dir so they load natively on startup.
     do
         local ok_fl, FontList = pcall(require, "fontlist")
         if ok_fl and FontList then
+            local LibraryFontPath = require("common/library_font_path")
             FontList:getFontList()  -- ensure fontlist + fontinfo initialized
-            -- Scan bundled fonts dir into fontlist/fontinfo for FontChooser.
-            local mark = {}
-            -- this will show an error about the symbols not being able to register for reader
-            -- this is normal and can be ignored
-            pcall(FontList._readList, FontList, _plugin_root .. "/fonts", mark)
-            if next(mark) then
-                -- Rebuild fontnames so FontChooser groups by family.
+            local added = LibraryFontPath.installBundled(FontList)
+            if next(added) then
+                -- First install (or copy fallback): register into fontnames/CRE now.
                 local names = FontList.fontnames
                 local cre = package.loaded["libs/libkoreader-cre"]
-                for path in pairs(mark) do
-                    local coll = FontList.fontinfo[path]
-                    if coll then
-                        -- Last-file startup initializes CRE before plugins load.
-                        if cre then pcall(cre.registerFont, path) end
-                        for _j, v in ipairs(coll) do
-                            local nlist = names[v.name] or {}
-                            names[v.name] = nlist
-                            table.insert(nlist, v)
-                        end
+                for path in pairs(added) do
+                    -- Last-file startup initializes CRE before plugins load.
+                    if cre then pcall(cre.registerFont, path) end
+                    for _j, v in ipairs(FontList.fontinfo[path]) do
+                        local nlist = names[v.name] or {}
+                        names[v.name] = nlist
+                        table.insert(nlist, v)
                     end
                 end
                 table.sort(FontList.fontlist)
@@ -117,7 +110,7 @@ if _plugin_root then
             end
             local ok_font, Font = pcall(require, "ui/font")
             if ok_font and Font then
-                require("common/library_font_path").registerFontAliases(Font, FontList)
+                LibraryFontPath.registerFontAliases(Font, FontList)
             end
             -- SymbolsNerdFont also serves as glyph fallback for MDI icons.
             -- Skipped when ProjectTitle is active: crengine fails to register
