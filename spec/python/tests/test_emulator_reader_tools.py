@@ -243,7 +243,8 @@ def test_reader_page_browser_modes_and_search_render() -> None:
         book = library / "reader-tools.epub"
         _write_reader_epub(book)
         socket_path = root / "driver.sock"
-        process = launch(runtime, ko_home, socket_path, library)
+        process = launch(runtime, ko_home, socket_path, library,
+                         zen_config_source="return {page_browser={font_full_page=false}}")
         try:
             wait_for_socket(socket_path)
             driver = ZenDriver(socket_path)
@@ -269,7 +270,8 @@ def test_reader_page_browser_modes_and_search_render() -> None:
             )["page_browser"]
             assert default_carousel["thumbnail_count"] == 3
             assert default_carousel["controls"] == ["single", "carousel", "grid"]
-            assert default_carousel["header_icons"] == ["more_vertical.svg", "coverflow.svg", "font.svg", "annotations.svg", "toc.svg", "close.svg"]
+            assert default_carousel["header_icons"] == ["more_vertical.svg", "coverflow.svg", "font.svg", "bookmark_outline.svg",
+                                                        "lookup_highlight.svg", "toc.svg", "close.svg"]
             assert default_carousel["focused"] == "header:1"
             assert default_carousel["header_height"] >= (
                 default_carousel["header_tabs"]["y"] + default_carousel["header_tabs"]["h"]
@@ -300,7 +302,7 @@ def test_reader_page_browser_modes_and_search_render() -> None:
             assert driver.command("page_browser_state")["page_browser"]["top_is_browser"] is True
 
             for control, tab in (("page_browser_controls", "aa"),
-                                 ("page_browser_annotations", "annotations"),
+                                 ("page_browser_bookmarks", "bookmarks"),
                                  ("page_browser_toc", "toc")):
                 assert driver.command("activate_reader_control", name=control)["activated"] is True
                 state = driver.command("page_browser_state")["page_browser"]
@@ -309,7 +311,7 @@ def test_reader_page_browser_modes_and_search_render() -> None:
                 assert state["header_icons"] == default_carousel["header_icons"]
                 if tab == "toc":
                     assert state["content_zen_scroll_bar"] is True
-                if tab in ("toc", "annotations"):
+                if tab in ("toc", "bookmarks"):
                     assert state["content_bottom"] == state["screen_height"] - state["edge_padding"]
                 if tab == "aa":
                     assert state["layout"] == "carousel"
@@ -657,7 +659,7 @@ def test_page_browser_status_bar_is_fixed_across_tabs_and_respects_settings(inte
                 assert status["bounds"]["y"] == library_status["custom_y"]
                 assert status["bounds"]["h"] == library_status["custom_height"]
                 assert status["bounds"]["y"] + status["bounds"]["h"] <= original["header_tabs"]["y"]
-            for tab in ("controls", "annotations", "toc", "pages"):
+            for tab in ("controls", "bookmarks", "toc", "pages"):
                 assert driver.command("activate_reader_control", name=f"page_browser_{tab}")["activated"]
                 state = driver.command("page_browser_state")["page_browser"]
                 assert state["header_tabs"] == original["header_tabs"]
@@ -819,7 +821,9 @@ def test_page_browser_settings_subsections_and_themes(document_type: str, width:
         overrides = {"EMULATE_READER_W": str(width // window_scale),
                      "EMULATE_READER_H": str(1024 // window_scale)} if width else None
         controls_disabled = document_type == "epub" and width is None
-        config = "return {features={reader_controls=false}}" if controls_disabled else None
+        # Annotations tab has its own more-menu; start full page off to exercise toggling on
+        config = ("return {page_browser={tabs={annotations=true},font_full_page=false}"
+                  + (",features={reader_controls=false}}" if controls_disabled else "}"))
         process = launch(runtime, home, socket_path, library, env_overrides=overrides, zen_config_source=config)
         try:
             wait_for_socket(socket_path)
@@ -1002,7 +1006,8 @@ def test_page_browser_font_full_page_matches_reader_and_is_remembered(document_t
         book = library / f"full-page.{document_type}"
         (_write_reader_epub if document_type == "epub" else _write_pdf)(book)
         socket_path = root / "driver.sock"
-        process = launch(runtime, home, socket_path, library)
+        process = launch(runtime, home, socket_path, library,
+                         zen_config_source="return {page_browser={font_full_page=false}}")
         try:
             wait_for_socket(socket_path)
             driver = ZenDriver(socket_path)
@@ -1079,7 +1084,8 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
         pack = home / "icons" / "zen" / "browser"
         pack.mkdir(parents=True)
         (pack / "pack.json").write_text(json.dumps({"schema_version": 1, "id": "browser", "name": "Browser"}))
-        header_names = ["more_vertical", "coverflow", "font", "annotations", "toc", "info", "close"]
+        header_names = ["more_vertical", "coverflow", "font", "bookmark_outline", "lookup_highlight", "toc",
+                        "annotations", "info", "close"]
         names = header_names + ["grid", "grid_slide", "chevron.left", "chevron.right", "quick_search",
                                 "quicksettings", "appbar.settings", "plus", "filter", "sort", "pin", "pin_remove",
                                 "bookmark", "bookmark_remove"]
@@ -1092,7 +1098,7 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
         _write_reader_epub(book)
         socket_path = root / "driver.sock"
         config = ('return {features={custom_icons_enabled=' + str(custom_icons).lower()
-                  + '},custom_icons={active_pack="browser"},page_browser={tabs={book_details=true}}}')
+                  + '},custom_icons={active_pack="browser"},page_browser={tabs={annotations=true,book_details=true}}}')
         process = launch(runtime, home, socket_path, library, zen_config_source=config)
         try:
             wait_for_socket(socket_path)

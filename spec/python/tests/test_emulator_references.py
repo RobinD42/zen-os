@@ -364,7 +364,7 @@ def test_top_menu_gestures_over_pins_and_page_browser_status_bar(landscape):
                 if result.get("drawer"):
                     _ref(driver, "close")
             _browser(driver)
-            for tab in ("pages", "controls", "annotations", "toc"):
+            for tab in ("pages", "controls", "bookmarks", "toc"):
                 assert driver.command("activate_reader_control", name=f"page_browser_{tab}")["activated"]
                 for activation in ("tap", "swipe_tap", "swipe"):
                     result = _ref(driver, "top_menu", gesture="tap", activation=activation)
@@ -831,13 +831,10 @@ def test_reference_controls_fit_compact_screens_and_hardware(language, landscape
             assert preview["preview_ready"]
             _assert_action_dividers(driver, state, f"actions-{language}.png")
             assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
+            assert driver.command("page_browser_state")["page_browser"]["full_page"]
             assert not _ref(driver)["actions"]
-            assert driver.command("activate_reader_control", name="page_browser_more")["activated"]
-            assert driver.command("activate_reader_control", name="page_browser_full_page")["activated"]
-            state = _ref(driver)
-            assert not state["actions"]
             _capture(driver, f"actions-{language}-aa-full.png")
-            assert driver.command("activate_reader_control", name="page_browser_annotations")["activated"]
+            assert driver.command("activate_reader_control", name="page_browser_bookmarks")["activated"]
             assert not _ref(driver)["actions"]
             assert driver.command("activate_reader_control", name="page_browser_pages")["activated"]
             _ref(driver, "focus_action", id="back")

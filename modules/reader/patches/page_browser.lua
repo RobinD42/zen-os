@@ -275,13 +275,14 @@ local function apply_page_browser()
         local close_inset = math.floor((btn_sz - close_size) / 2)
         paint_icon(nil, close_icon_path, slot_w - slot_btn_w + btn_pad + close_inset, title_y + close_inset, close_size)
         paint_icon(nil, utils.resolveIcon(_icons_dir, "more_vertical"), btn_pad, title_y, btn_sz)
+        local tab_items = {}
+        local config = _plugin_ref and _plugin_ref.config or {}
+        local ReaderUI = package.loaded["apps/reader/readerui"]
+        for i, entry in ipairs(PageBrowserTabs.list(config, ReaderUI and ReaderUI.instance)) do
+            tab_items[i] = { icon = utils.resolveIcon(_icons_dir, entry.icon) or utils.resolveIcon(_stock_icons_dir, entry.icon) }
+        end
         local tabs = ZenTabBar:new{
-            items = {
-                { icon = utils.resolveIcon(_icons_dir, "coverflow") },
-                { icon = utils.resolveIcon(_icons_dir, "font") },
-                { icon = utils.resolveIcon(_icons_dir, "annotations") },
-                { icon = utils.resolveIcon(_icons_dir, "toc") },
-            },
+            items = tab_items,
             selected = 1, icon_size = Screen:scaleBySize(24),
             width = math.min(math.floor(slot_w * 2 / 3), slot_w - slot_btn_w * 4),
             cell_height = Screen:scaleBySize(40),
