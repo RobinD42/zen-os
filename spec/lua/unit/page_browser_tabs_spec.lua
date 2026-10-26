@@ -12,8 +12,8 @@ describe("page browser tabs", function()
         return result
     end
 
-    it("defaults to combined annotations and adapts the controls tab to the book", function()
-        assert.same({ "browser", "aa", "annotations", "toc" }, ids(Tabs.list({})))
+    it("defaults to separate bookmarks and highlights and adapts the controls tab to the book", function()
+        assert.same({ "browser", "aa", "bookmarks", "highlights", "toc" }, ids(Tabs.list({})))
         local entries = Tabs.list({}, { paging = {} }, true)
         assert.are.equal(8, #entries)
         assert.are.equal("book_details", entries[7].id)
@@ -21,15 +21,15 @@ describe("page browser tabs", function()
         assert.are.equal("Contrast", entries[2].text)
         assert.are.equal("appbar.contrast", entries[2].icon)
         assert.are.equal("bookmark_outline", entries[3].icon)
-        assert.are.equal("annotations", entries[5].icon)
+        assert.are.equal("annotations", entries[6].icon)
         assert.are.equal("Font", Tabs.list({}, { rolling = {} })[2].text)
         assert.are.equal("font", Tabs.list({}, { rolling = {} })[2].icon)
     end)
 
     it("keeps saved order, skips disabled tabs, and repairs unknown or empty orders", function()
         local config = { page_browser = { tab_order = { "highlights", "unknown", "aa", "aa", "annotations" },
-            tabs = { highlights = false, aa = false } } }
-        assert.same({ "annotations", "browser", "toc" }, ids(Tabs.list(config)))
+            tabs = { highlights = false, aa = false, annotations = true } } }
+        assert.same({ "annotations", "browser", "bookmarks", "toc" }, ids(Tabs.list(config)))
         assert.same({ "highlights", "aa", "annotations", "browser", "bookmarks", "toc", "book_details", "book_switcher" },
             config.page_browser.tab_order)
         for id in pairs(config.page_browser.tabs) do config.page_browser.tabs[id] = false end
@@ -56,10 +56,10 @@ describe("page browser tabs", function()
         assert.is_false(rows[7].checked_func())
         assert.are.equal("Book switcher", rows[8].text)
         assert.is_false(rows[8].checked_func())
-        assert.is_false(rows[3].checked_func())
-        rows[3].callback()
-        assert.is_true(rows[3].checked_func())
-        local annotations = table.remove(rows, 5)
+        assert.is_false(rows[6].checked_func())
+        rows[6].callback()
+        assert.is_true(rows[6].checked_func())
+        local annotations = table.remove(rows, 6)
         table.insert(rows, 1, annotations)
         arrange.callback()
         assert.are.equal("annotations", Tabs.list(config)[1].id)
@@ -67,7 +67,7 @@ describe("page browser tabs", function()
         assert.same({ "annotations" }, ids(Tabs.list(config)))
         annotations.callback()
         assert.is_true(annotations.checked_func())
-        assert.are.equal(6, saves)
+        assert.are.equal(7, saves)
     end)
 
     it("enables and reorders the optional book details tab", function()
@@ -75,20 +75,21 @@ describe("page browser tabs", function()
         local entries = Tabs.list(config)
         assert.are.equal("book_details", entries[1].id)
         assert.are.equal("info", entries[1].icon)
-        assert.same({ "book_details", "browser", "aa", "annotations", "toc" }, ids(entries))
+        assert.same({ "book_details", "browser", "aa", "bookmarks", "highlights", "toc" }, ids(entries))
     end)
 
     it("includes a dispatcher target without saving a disabled tab as enabled", function()
         local config = {}
-        assert.same({ "browser", "aa", "bookmarks", "annotations", "toc" }, ids(Tabs.list(config, nil, false, "bookmarks")))
-        assert.is_false(config.page_browser.tabs.bookmarks)
-        assert.same({ "browser", "aa", "annotations", "toc" }, ids(Tabs.list(config)))
+        assert.same({ "browser", "aa", "bookmarks", "highlights", "toc", "annotations" },
+            ids(Tabs.list(config, nil, false, "annotations")))
+        assert.is_false(config.page_browser.tabs.annotations)
+        assert.same({ "browser", "aa", "bookmarks", "highlights", "toc" }, ids(Tabs.list(config)))
     end)
 
     it("keeps the book switcher off by default and supports enabling, ordering, and targeting it", function()
         local config = {}
         assert.is_false(Tabs.get(config).tabs.book_switcher)
-        assert.same({ "browser", "aa", "annotations", "toc", "book_switcher" },
+        assert.same({ "browser", "aa", "bookmarks", "highlights", "toc", "book_switcher" },
             ids(Tabs.list(config, nil, false, "book_switcher")))
         assert.is_false(config.page_browser.tabs.book_switcher)
         config.page_browser.tabs.book_switcher = true

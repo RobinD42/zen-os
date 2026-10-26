@@ -238,7 +238,7 @@ function M.build(ctx)
                             local reader = require("apps/reader/readerui").instance
                             if reader and reader.highlight then
                                 reader.view.highlight.saved_color = color_name
-                                reader.highlight:setSelectionColor()
+                                if reader.highlight.setSelectionColor then reader.highlight:setSelectionColor() end
                             end
                         end,
                     },

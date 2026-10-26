@@ -181,7 +181,7 @@ local function apply()
                 enabled = self.hold_pos ~= nil,
                 callback = function()
                     self.view.highlight.saved_color = G_reader_settings:readSetting("highlight_color") or self._fallback_color
-                    self:setSelectionColor()
+                    if self.setSelectionColor then self:setSelectionColor() end -- added after v2026.03
                     self:saveHighlight(not self.selected_text._zen_resized)
                     self:onClose()
                 end,

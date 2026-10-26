@@ -385,20 +385,14 @@ return function(plugin)
             widget._reader_theme_choice = item.theme_choice == true
             track(widget, callback, item.hold, layout)
             if more then layout[#layout + 1] = more end
-            if item.underline and not embedded then
-                return FrameContainer:new{ bordersize = 0, padding = 0, padding_left = font_pad, padding_right = font_pad,
-                    VerticalGroup:new{ align = "left",
-                        LeftContainer:new{ dimen = Geom:new{ w = width, h = Screen:scaleBySize(40) }, widget },
-                        LineWidget:new{ dimen = Geom:new{ w = width, h = Screen:scaleBySize(1) },
-                            background = Blitbuffer.COLOR_LIGHT_GRAY } } }
-            elseif item.zen_button then
+            if item.zen_button then
                 local button_width = widget:getSize().w
                 local title = item.title and TextWidget:new{ text = item.title,
                     face = Font:getFace("x_smallinfofont"), bold = true, max_width = width - button_width - pad }
                 widget = HorizontalGroup:new{ align = "center",
                     LeftContainer:new{ dimen = Geom:new{ w = width - button_width, h = widget:getSize().h },
                         title or HorizontalSpan:new{ width = 0 } }, widget }
-            elseif item.theme_choice and embedded then
+            elseif item.theme_choice then
                 widget = LeftContainer:new{ dimen = Geom:new{ w = width, h = Screen:scaleBySize(40) }, widget }
             else
                 local title = setting_title and (embedded and LeftContainer or RightContainer):new{
@@ -408,9 +402,9 @@ return function(plugin)
                 widget = title and HorizontalGroup:new{ align = "center", title, right } or right
             end
             if more then widget = HorizontalGroup:new{ align = "center", widget, more } end
+            local pad_v = (item.zen_button or item.name == "font_face") and pad / 2 or 0
             return FrameContainer:new{ bordersize = 0, padding = 0, padding_left = pad, padding_right = pad,
-                padding_top = (item.zen_button or item.name == "font_face") and pad / 2 or 0,
-                padding_bottom = item.zen_button and pad / 2 or 0, widget }
+                padding_top = pad_v, padding_bottom = pad_v, widget }
         end
         local entries = tm._reader_controls_embedded and {} or Buttons.visible(plugin.config, Settings.group(ui))
         local direct = { toc = true, bookmarks = true, search = true, vocabulary = true,
@@ -840,7 +834,7 @@ return function(plugin)
             else widget = button(row, state.section == "profiles" and label_width + pad * 2 or w, layout, label_width) end
             widgets[#widgets + 1] = { widget = widget, layout = layout, height = widget:getSize().h }
         end
-        local divider_h = tm._reader_controls_embedded and Screen:scaleBySize(1) or 0
+        local divider_h = Screen:scaleBySize(1)
         local divider_padding = tm._reader_controls_embedded and Screen:scaleBySize(1.5) or 0
         local row_gap = divider_h + divider_padding * 2
         local body_pages, used = { {} }, 0
@@ -1059,7 +1053,7 @@ return function(plugin)
     end
     function ReaderMenu:onShowReaderControls()
         if self.menu_container then self:onCloseReaderMenu() end
-        self.ui.keyselection:stopHighlightIndicator(true)
+        if self.ui.keyselection then self.ui.keyselection:stopHighlightIndicator(true) end
         self.ui:handleEvent(require("ui/event"):new("CloseConfigMenu"))
         local container = CenterContainer:new{ show_parent = self.ui, ignore = "height", dimen = Screen:getSize() }
         local menu = TouchMenu:new{

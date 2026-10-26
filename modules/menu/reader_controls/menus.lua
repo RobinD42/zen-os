@@ -120,7 +120,7 @@ function M.themeRows(reader, plugin, refresh)
     selected = selected or (mode == "dark_mode" and "dark_warm_gray" or "default")
     local rows = {}
     local function add(text, key)
-        rows[#rows + 1] = { text = text, radio = true, underline = true, checked = selected == key,
+        rows[#rows + 1] = { text = text, radio = true, checked = selected == key,
             callback = function()
                 config.features.reader_themes = true
                 themes[mode] = key

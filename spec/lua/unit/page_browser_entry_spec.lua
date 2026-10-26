@@ -1320,7 +1320,9 @@ describe("page browser entry", function()
         })
         local details
         ZenSpec.replace("modules/reader/book_details", { show = function(ui) details = ui end })
-        _G.__ZEN_UI_PLUGIN = { config = { features = { page_browser = true } } }
+        _G.__ZEN_UI_PLUGIN = { config = { features = { page_browser = true }, page_browser = {
+            tab_order = { "browser", "aa", "annotations", "toc" },
+            tabs = { bookmarks = false, highlights = false, annotations = true } } } }
         require("modules/reader/patches/page_browser")()
         require("apps/reader/modules/readerconfig").onSwipeShowConfigMenu(
             { ui = { handleEvent = function() end } }, { direction = "north" })

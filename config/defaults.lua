@@ -395,13 +395,13 @@ local defaults = {
         hide_in_cbz = true,
     },
     page_browser = {
-        tab_order = { "browser", "aa", "bookmarks", "highlights", "annotations", "toc", "book_details", "book_switcher" },
-        tabs = { browser = true, aa = true, bookmarks = false, highlights = false, annotations = true, toc = true,
+        tab_order = { "browser", "aa", "bookmarks", "highlights", "toc", "annotations", "book_details", "book_switcher" },
+        tabs = { browser = true, aa = true, bookmarks = true, highlights = true, annotations = false, toc = true,
             book_details = false, book_switcher = false },
         show_status_bar = true,
         toc_font_size = 18,
         bookmarks_font_size = 18,
-        font_full_page = false,
+        font_full_page = true,
     },
     annotation_viewer = {
         preview_length = "standard",
