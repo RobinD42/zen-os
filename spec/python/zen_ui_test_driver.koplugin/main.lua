@@ -830,8 +830,7 @@ local function ensure_reader_status_fonts(preset_key)
     local reader = ReaderUI.instance
     local footer = reader and reader.view and reader.view.footer
     if not footer then return false, "reader footer unavailable" end
-    local expected = require("common/plugin_root")
-        .. "/fonts/hyperreadable/Hyperreadable-SemiBold.ttf"
+    local expected = require("common/library_font_path").resolve("fonts/hyperreadable/Hyperreadable-SemiBold.ttf")
     local preset = require("util").tableDeepCopy(
         require("modules/reader/patches/reader_footer_presets")[preset_spec.index])
     if type(preset) ~= "table"

@@ -1074,7 +1074,8 @@ def test_reader_font_reset_from_more_menu(embedded):
             driver = ZenDriver(socket_path)
             assert driver.open_book(book)["ok"]
             _wait_command(driver, "reader_state", lambda result: result.get("reader", {}).get("open"))
-            assert driver.command("ensure_reader_status_fonts")["ok"]
+            fonts = driver.command("ensure_reader_status_fonts")
+            assert fonts["ok"], fonts.get("error")
             if embedded:
                 assert driver.command("activate_reader_control", name="page_browser")["activated"]
                 assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
