@@ -1336,4 +1336,59 @@ describe("Zen settings page", function()
         assert.is_true(settings.title_bar.search_collapsed)
     end)
 
+    it("keeps native item tables stable for plugins that push submenus later", function()
+        local owner = {}
+        local saved_native = package.loaded["modules/menu/app_launcher/native_menu"]
+        local saved_bridge = package.loaded["modules/settings/koreader_settings"]
+        ZenSpec.replace("modules/menu/app_launcher/native_menu", {
+            isSettingsOwner = function(candidate) return candidate == owner end,
+        })
+        ZenSpec.unload("modules/settings/koreader_settings")
+        local ok, err = pcall(function()
+            local Bridge = require("modules/settings/koreader_settings")
+            local picker = {{ text = "Next page" }}
+            local function push(menu)
+                table.insert(menu.item_table_stack, menu.item_table)
+                menu.item_table = picker
+                menu:updateItems(1)
+            end
+            local deferred
+            local device = {
+                {
+                    text = "Map a button…",
+                    keep_menu_open = true,
+                    callback = function(menu)
+                        local at_start = menu.item_table
+                        deferred = function()
+                            if menu.item_table == at_start then push(menu) end
+                        end
+                    end,
+                },
+                {
+                    text = "Button 1",
+                    keep_menu_open = true,
+                    sub_item_table_func = function()
+                        return {{ text = "Change action…", keep_menu_open = true, callback = push }}
+                    end,
+                },
+            }
+            local settings = make_page(Bridge.copyItems({{
+                text = "Device", sub_item_table_func = function() return device end,
+            }}, owner, true))
+
+            settings:onMenuSelect(settings.item_table[1])
+            settings:onMenuSelect(settings.item_table[1])
+            deferred()
+            assert.are.equal(picker, settings.item_table)
+
+            settings:backToUpperMenu()
+            settings:onMenuSelect(settings.item_table[2])
+            settings:onMenuSelect(settings.item_table[1])
+            assert.are.equal(picker, settings.item_table)
+        end)
+        package.loaded["modules/menu/app_launcher/native_menu"] = saved_native
+        package.loaded["modules/settings/koreader_settings"] = saved_bridge
+        assert.is_true(ok, err)
+    end)
+
 end)

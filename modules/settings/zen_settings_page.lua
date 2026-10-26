@@ -344,11 +344,14 @@ function ZenSettingsPage:updateItems(...)
             return self:closeMenu()
         end
         if items._zen_refresh then
-            local refreshed = items._zen_refresh()
+            -- In place: plugins hold item_table across async work, as TouchMenu allows.
+            local refreshed = visible_items(items._zen_refresh())
             refreshed._zen_title = items._zen_title
-            self.item_table = refreshed
+            for key in pairs(items) do items[key] = nil end
+            for key, value in pairs(refreshed) do items[key] = value end
+        else
+            self.item_table = visible_items(items)
         end
-        self.item_table = visible_items(self.item_table)
     end
     self:_ensureCurrentTitle()
     self:_prepareItems()

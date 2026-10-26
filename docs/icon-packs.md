@@ -103,6 +103,11 @@ Page-preview bookmark actions use `bookmark.svg` and `bookmark_remove.svg`.
 Page browser and reader controls use `annotations.svg` (Annotations), `font.svg` (Font), or `appbar.contrast.svg` (Contrast).
 Both use `bookmark_outline.svg` for Bookmarks and `view_carousel_outline.svg` for Book switcher.
 Reader controls uses `moon_outline.svg` for Themes.
+
+Zen Settings rows use `settings_*.svg` names (for example `settings_cog.svg`,
+`settings_magnify.svg`, `settings_folder_outline.svg`), plus `info.svg`, `grid.svg`,
+`more_vertical.svg`, `pin.svg`, and `view_carousel_outline.svg`. The full list is the
+`icons/settings_*.svg` set bundled with ZenOS; any name a pack omits keeps the bundled icon.
 Page browser search buttons share `quick_search.svg` with Settings; close buttons use KOReader's `close.svg`.
 
 Quick Settings and its menus use `airplane.svg`, `app_menu.svg`,
