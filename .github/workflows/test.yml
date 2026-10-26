@@ -48,6 +48,7 @@ jobs:
 
       - name: Install KOReader emulator dependencies
         run: |
+          sudo apt-get update
           sudo apt-get install -y \
             build-essential gettext git lua5.1 luarocks meson nasm ninja-build pkg-config xvfb \
             libsdl2-dev libfreetype6-dev libfontconfig1-dev libharfbuzz-dev libxtst-dev \
@@ -113,6 +114,7 @@ jobs:
 
       - name: Install KOReader emulator dependencies
         run: |
+          sudo apt-get update
           sudo apt-get install -y \
             build-essential gettext git lua5.1 luarocks meson nasm ninja-build pkg-config xvfb \
             libsdl2-dev libfreetype6-dev libfontconfig1-dev libharfbuzz-dev libxtst-dev \
