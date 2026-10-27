@@ -1168,6 +1168,13 @@ function M.activate(name)
             if cell._reader_section == section then return tap_browser_widget(cell) end
         end
         return false, "section unavailable"
+    elseif name == "page_browser_top_swipe" then
+        if not browser then return false, "page browser unavailable" end
+        -- Swipe down from the top edge, above the tabs; report whether the reader menu opened, then close it.
+        tap_browser_widget({ dimen = { x = 0, y = 0, w = browser.dimen.w, h = 20 } }, "swipe")
+        local opened = ui.menu.menu_container ~= nil
+        if opened then ui.menu:onCloseReaderMenu() end
+        return opened
     elseif name == "page_browser_tab_swipe" then
         if not browser then return false, "page browser unavailable" end
         return tap_browser_widget(browser._zen_tab_bar.cells[2], "swipe")

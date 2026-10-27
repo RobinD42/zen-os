@@ -853,7 +853,13 @@ def test_page_browser_settings_subsections_and_themes(document_type: str, width:
                 assert first["screen_width"] == width
             expected = ["Font", "Layout", "Themes"] if document_type == "epub" else ["Contrast", "Page", "Document"]
             assert first["subsection_labels"] == expected
-            tabs, pager = first["section_tabs"], first["pager"]
+            tabs, pager = first["section_tabs"], first.get("pager")
+            if pager is None:
+                # Single-page contrast has no pager; Document always paginates.
+                assert driver.command("activate_reader_control", name="page_browser_section_document")["activated"]
+                pager = driver.command("reader_controls")["pager"]
+                assert driver.command("activate_reader_control",
+                                      name=f"page_browser_section_{first['section']}")["activated"]
             scale = min(first["screen_width"], first["screen_height"]) / 600
             assert pager["h"] == math.ceil(32 * scale)
             assert 0 < tabs["y"] - pager["y"] - pager["h"] < pager["h"]
@@ -1061,6 +1067,7 @@ def test_page_browser_font_full_page_matches_reader_and_is_remembered(document_t
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
             assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
             assert driver.command("page_browser_state")["page_browser"]["full_page"]
+            assert driver.command("activate_reader_control", name="page_browser_top_swipe")["activated"]
             assert driver.command("activate_reader_control", name="page_browser_more")["activated"]
             assert driver.command("page_browser_state")["page_browser"]["more_menu"]["text"] == "Show full page ✓"
             assert driver.command("activate_reader_control", name="page_browser_full_page")["activated"]

@@ -2391,6 +2391,17 @@ local function apply_page_browser()
         -- 6. Gesture lockdown: only horizontal swipe (page prev/next)
         -- ----------------------------------------------------------------
         PageBrowserWidget.onSwipe = function(self, _arg, ges)
+            -- Top-edge swipe down opens the reader menu from every tab.
+            if ges.direction == "south" and ges.pos.y < Device.screen:getHeight() * 0.14 then
+                local ok_rui, RUI = pcall(require, "apps/reader/readerui")
+                if ok_rui and RUI and RUI.instance then
+                    local reader_menu = RUI.instance.menu
+                    if reader_menu and reader_menu.activation_menu ~= "tap" then
+                        reader_menu:onShowMenu(reader_menu:_getTabIndexFromLocation(ges))
+                        return true
+                    end
+                end
+            end
             if self._zen_active_tab and self._zen_active_tab ~= "browser"
                 and (self._zen_active_tab ~= "aa" or outside_preview(self, ges)) then return true end
             -- A fast drag on the slider is classified as a swipe rather than
@@ -2427,15 +2438,6 @@ local function apply_page_browser()
             elseif direction == "east" then
                 self:onScrollPageUp()
                 return true
-            elseif direction == "south" and ges.pos.y < Device.screen:getHeight() * 0.14 then
-                local ok_rui, RUI = pcall(require, "apps/reader/readerui")
-                if ok_rui and RUI and RUI.instance then
-                    local reader_menu = RUI.instance.menu
-                    if reader_menu and reader_menu.activation_menu ~= "tap" then
-                        reader_menu:onShowMenu(reader_menu:_getTabIndexFromLocation(ges))
-                        return true
-                    end
-                end
             end
             return true  -- swallow remaining north/south and anything else
         end
