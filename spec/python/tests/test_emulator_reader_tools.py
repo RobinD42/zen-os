@@ -762,7 +762,7 @@ end
             assert browser["active_tab"] == "aa" and not browser["browser_buttons_visible"]
             state = driver.command("reader_controls")
             assert state["active_tab"] == "aa" and not state.get("font_family_label")
-            assert state["subsections"] == ["contrast", "page", "document", "themes"]
+            assert state["subsections"] == ["contrast", "page", "document"]
             assert state["color_options"] and state["slider_bounds"]
             assert len(state["settings_dividers"]) == state["settings_rows"] - 1
             assert all(line["light_gray"] for line in state["settings_dividers"])
@@ -851,7 +851,7 @@ def test_page_browser_settings_subsections_and_themes(document_type: str, width:
             first = driver.command("reader_controls")
             if width:
                 assert first["screen_width"] == width
-            expected = ["Font", "Layout", "Themes"] if document_type == "epub" else ["Contrast", "Page", "Document", "Themes"]
+            expected = ["Font", "Layout", "Themes"] if document_type == "epub" else ["Contrast", "Page", "Document"]
             assert first["subsection_labels"] == expected
             tabs, pager = first["section_tabs"], first["pager"]
             scale = min(first["screen_width"], first["screen_height"]) / 600
@@ -953,28 +953,32 @@ def test_page_browser_settings_subsections_and_themes(document_type: str, width:
             assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
             restored = driver.command("reader_controls")
             assert restored["section"] == "page" and restored["page"] == remembered_page
-            assert driver.command("activate_reader_control", name="page_browser_section_themes")["activated"]
-            for _page in range(pages["themes"] - 1):
-                assert driver.command("activate_reader_control", name="page_browser_font_previous")["activated"]
-            themes = driver.command("reader_controls")
-            assert themes["theme_count"] > 0
-            assert "reader_theme_more" not in themes["controls"]
+            # Reader themes do not affect fixed-layout documents.
             if document_type == "epub":
+                assert driver.command("activate_reader_control", name="page_browser_section_themes")["activated"]
+                for _page in range(pages["themes"] - 1):
+                    assert driver.command("activate_reader_control", name="page_browser_font_previous")["activated"]
+                themes = driver.command("reader_controls")
+                assert themes["theme_count"] > 0
+                assert "reader_theme_more" not in themes["controls"]
                 driver.screenshot(frame_dir / (f"current-themes-{width}.png" if width else "current-themes.png"))
+                assert driver.command("reader_controls")["section"] == "themes"
+                chosen = driver.command("reader_controls", action="choose", id="Light sepia")
+                assert chosen["global_themes"]["light_mode"] == "light_sepia"
+                _wait_command(driver, "page_browser_state", lambda result: result["page_browser"]["preview_ready"])
+            else:
+                assert "themes" not in first["subsections"]
             assert driver.command("page_browser_state")["page_browser"]["top_is_browser"]
-            assert driver.command("reader_controls")["section"] == "themes"
-            chosen = driver.command("reader_controls", action="choose", id="Light sepia")
-            assert chosen["global_themes"]["light_mode"] == "light_sepia"
-            _wait_command(driver, "page_browser_state", lambda result: result["page_browser"]["preview_ready"])
             driver.screenshot(frame_dir / f"sections-{document_type}.png")
             section = "font" if document_type == "epub" else "contrast"
             assert driver.command("activate_reader_control", name=f"page_browser_section_{section}")["activated"]
             assert driver.command("activate_reader_control", name="page_browser_more")["activated"]
             assert driver.command("activate_reader_control", name="page_browser_full_page")["activated"]
-            assert driver.command("activate_reader_control", name="page_browser_section_themes")["activated"]
+            other = "themes" if document_type == "epub" else "document"
+            assert driver.command("activate_reader_control", name=f"page_browser_section_{other}")["activated"]
             full = driver.command("page_browser_state")["page_browser"]
             assert full["full_page"] and full["preview_divider"]["y"] == first["menu_top"]
-            assert driver.command("reader_controls")["section"] == "themes"
+            assert driver.command("reader_controls")["section"] == other
             assert [row["text"] for row in _page_browser_more_rows(driver)] == ["Reader controls", "Settings"]
             assert driver.command("activate_reader_control", name="page_browser_reader_controls")["activated"]
             assert driver.command("page_browser_state").get("page_browser") is None
