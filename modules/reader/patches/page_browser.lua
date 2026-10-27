@@ -943,8 +943,10 @@ local function apply_page_browser()
             end
             self._zen_plugin = _plugin_ref
             self._zen_active_tab = "browser"
+            -- Reflowable Aa and paged Contrast tabs remember full page separately.
+            self._zen_full_page_key = self.ui and self.ui.rolling and "font_full_page" or "contrast_full_page"
             self._zen_font_full_page = _plugin_ref and _plugin_ref.config.page_browser
-                and _plugin_ref.config.page_browser.font_full_page == true or false
+                and _plugin_ref.config.page_browser[self._zen_full_page_key] == true or false
             self._zen_layout_mode = get_page_browser_layout()
             if self._zen_layout_mode == "single" then
                 self._zen_nb_cols_override = 1
@@ -1108,7 +1110,7 @@ local function apply_page_browser()
                                 self._zen_font_full_page = not self._zen_font_full_page
                                 local config = _plugin_ref.config
                                 config.page_browser = config.page_browser or {}
-                                config.page_browser.font_full_page = self._zen_font_full_page
+                                config.page_browser[self._zen_full_page_key] = self._zen_font_full_page
                                 _plugin_ref:saveConfig()
                                 self:updateLayout()
                                 UIManager:setDirty(self, "ui")
@@ -1175,6 +1177,7 @@ local function apply_page_browser()
             -- selected fixed grid dimensions.
             local tabs = PageBrowserTabs.list(self._zen_plugin.config, self.ui)
             local initial_tab = self._zen_initial_tab or tabs[1].id
+            resume_tab = resume_tab or self._zen_plugin.config.page_browser.last_tab
             for _i, tab in ipairs(tabs) do
                 if not self._zen_initial_tab and tab.id == resume_tab then initial_tab = tab.id; break end
             end
@@ -2681,6 +2684,11 @@ local function apply_page_browser()
                 self.ui._zen_page_browser_resume = {
                     closed_at = os.time(), active_tab = self._zen_active_tab, controls_state = state,
                 }
+                local cfg = self._zen_plugin and self._zen_plugin.config.page_browser
+                if cfg and cfg.last_tab ~= self._zen_active_tab then
+                    cfg.last_tab = self._zen_active_tab
+                    self._zen_plugin:saveConfig()
+                end
             end
             self._zen_closed = true
             if self._zen_annotations then self._zen_annotations:close(); self._zen_annotations = nil end

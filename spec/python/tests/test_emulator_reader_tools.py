@@ -822,7 +822,7 @@ def test_page_browser_settings_subsections_and_themes(document_type: str, width:
                      "EMULATE_READER_H": str(1024 // window_scale)} if width else None
         controls_disabled = document_type == "epub" and width is None
         # Annotations tab has its own more-menu; start full page off to exercise toggling on
-        config = ("return {page_browser={tabs={annotations=true},font_full_page=false}"
+        config = ("return {page_browser={tabs={annotations=true},font_full_page=false,contrast_full_page=false}"
                   + (",features={reader_controls=false}}" if controls_disabled else "}"))
         process = launch(runtime, home, socket_path, library, env_overrides=overrides, zen_config_source=config)
         try:
@@ -1007,7 +1007,7 @@ def test_page_browser_font_full_page_matches_reader_and_is_remembered(document_t
         (_write_reader_epub if document_type == "epub" else _write_pdf)(book)
         socket_path = root / "driver.sock"
         process = launch(runtime, home, socket_path, library,
-                         zen_config_source="return {page_browser={font_full_page=false}}")
+                         zen_config_source="return {page_browser={font_full_page=false,contrast_full_page=false}}")
         try:
             wait_for_socket(socket_path)
             driver = ZenDriver(socket_path)

@@ -770,6 +770,16 @@ def test_contrast_paginated_document_inversion(extension, night_mode):
             stop(process)
 
 
+def _page_with(driver, control):
+    state = driver.command("reader_controls", action="paint")
+    for _page in range(state["page_num"]):
+        if control in state["controls"]:
+            return state
+        driver.command("reader_controls", action="next_page")
+        state = driver.command("reader_controls", action="paint")
+    raise AssertionError(f"{control} not on any page")
+
+
 @pytest.mark.parametrize("extension", ["pdf", "cbz"])
 def test_fixed_layout_reader_controls(extension):
     from fixtures import build_library
@@ -805,16 +815,12 @@ def test_fixed_layout_reader_controls(extension):
             driver.command("reader_controls", action="buttons_next")
             driver.command("reader_controls", action="choose", id="page")
             driver.command("reader_controls", action="inject_rakuyomi_option")
-            assert "page_scroll_1" in driver.command("reader_controls")["controls"]
-            driver.command("reader_controls", action="next_page")
             state = driver.command("reader_controls", action="paint")
-            assert "rakuyomi_view_mode_1" in state["controls"] and state["page"] == 2
+            assert state["page"] == 1 and "page_margin" in state["controls"]
+            assert "page_scroll_1" in state["controls"] and "rakuyomi_view_mode_1" in state["controls"]
+            assert "trim_page_1" not in state["controls"] and "line_spacing" not in state["controls"]
             driver.command("reader_controls", action="choose", id="rakuyomi_view_mode_3")
             assert driver.command("reader_controls")["config"]["rakuyomi_view_mode"] == 2
-            driver.command("reader_controls", action="choose", id="trim_page_2")
-            assert driver.command("reader_controls")["config"]["trim_page"] == 1
-            driver.command("reader_controls", action="choose", id="trim_page_1")
-            assert driver.command("reader_controls")["config"]["trim_page"] == 3
             driver.command("reader_controls", action="choose", id="page_margin_increase")
             driver.command("reader_controls", action="choose", id="page_margin_more")
             picker = driver.command("reader_controls", action="setting_menu")
@@ -860,9 +866,11 @@ def test_fixed_layout_reader_controls(extension):
                 driver.command("reader_controls", action="choose", id="white_threshold_decrease")
             state = driver.command("reader_controls", action="paint")
             assert state["header"]
-            assert state["pager"] and state["page_num"] > 1
+            assert not state.get("pager") and state["page_num"] == 1
+            assert "page_opt_1" not in state["controls"]
+            driver.command("reader_controls", action="choose", id="document")
             for option in state["color_options"]:
-                if option["available"] and not option["slider"]:
+                if option["available"] and option["name"] in ("page_opt", "background_cleanup"):
                     for index, value in enumerate(option["values"], 1):
                         name = option["name"] + "_" + str(index)
                         state = driver.command("reader_controls", action="choose", id=name)
@@ -870,8 +878,8 @@ def test_fixed_layout_reader_controls(extension):
                         assert driver.command("reader_controls")["config"][option["name"]] == value
             driver.command("reader_controls", action="paint")
             driver.screenshot(Path(f"/tmp/zen-reader-color-advanced-{extension}.png"))
-            driver.command("reader_controls", action="inject_color_option")
             driver.command("reader_controls", action="choose", id="contrast")
+            driver.command("reader_controls", action="inject_color_option")
             state = driver.command("reader_controls", action="paint")
             start, end = state["step_styles"]["contrast_decrease"], state["step_styles"]["contrast_increase"]
             driver.command("reader_controls", action="choose", id="zen_test_color_3")
@@ -905,17 +913,20 @@ def test_fixed_layout_reader_controls(extension):
             state = driver.command("reader_controls", action="paint")
             assert state["bounds"]["zoom_mode_genus_1"]["h"] == math.ceil(48 * scale)
             assert state["icons"]["zoom_mode_genus_1_height"] == math.ceil(32 * scale)
+            assert "trim_page_1" in state["controls"]
+            driver.command("reader_controls", action="choose", id="trim_page_2")
+            assert driver.command("reader_controls")["config"]["trim_page"] == 1
+            driver.command("reader_controls", action="choose", id="trim_page_1")
+            assert driver.command("reader_controls")["config"]["trim_page"] == 3
             driver.command("reader_controls", action="choose", id="zoom_mode_genus_3")
-            state = driver.command("reader_controls", action="paint")
+            state = _page_with(driver, "zoom_direction_1")
             assert state["config"]["zoom_mode_genus"] == 2
             assert all(f"zoom_range_number_{index}" in state["controls"] for index in range(1, 9))
             assert "zoom_direction_8" in state["controls"]
-            assert state["bounds"]["zoom_mode_genus_1"]["y"] < state["bounds"]["zoom_direction_1"]["y"]
             assert state["bounds"]["zoom_direction_1"]["y"] < state["bounds"]["zoom_range_number_1"]["y"]
             assert state["icons"]["zoom_direction_1"].endswith("/direction.LRTB.svg")
             assert state["icons"]["zoom_direction_1_height"] == math.ceil(32 * scale)
-            driver.command("reader_controls", action="next_page")
-            state = driver.command("reader_controls", action="paint")
+            state = _page_with(driver, "zoom_overlap_h")
             assert len(set(state["label_ends"].values())) == 1
             assert state["headings"]["Overlap"]["bold"]
             assert state["headings"]["Overlap"]["y"] < state["bounds"]["zoom_overlap_h"]["y"]
@@ -926,8 +937,7 @@ def test_fixed_layout_reader_controls(extension):
             state = driver.command("reader_controls", action="paint")
             assert state["config"]["zoom_range_number"] == 8
             assert state["selections"]["zoom_range_number_8"]
-            driver.command("reader_controls", action="next_page")
-            state = driver.command("reader_controls", action="paint")
+            state = _page_with(driver, "zoom_overlap_h")
             for name in ["zoom_overlap_h", "zoom_overlap_v"]:
                 previous = state["config"][name]
                 expected = next(preset for preset in state["slider_states"][name]["presets"] if preset > previous)
@@ -940,8 +950,7 @@ def test_fixed_layout_reader_controls(extension):
             assert state["config"]["zoom_direction"] == 0
             driver.screenshot(Path(f"/tmp/zen-reader-split-{extension}.png"))
             driver.command("reader_controls", action="choose", id="zoom_mode_genus_5")
-            state = driver.command("reader_controls", action="paint")
-            assert "zoom_factor" in state["controls"]
+            state = _page_with(driver, "zoom_factor")
             previous = state["config"]["zoom_factor"]
             driver.command("reader_controls", action="choose", id="zoom_factor_increase")
             assert driver.command("reader_controls")["config"]["zoom_factor"] > previous
@@ -1490,9 +1499,7 @@ def test_reader_shared_selection_and_setting_layout(show_chevrons):
                 assert cell["text_width"] <= cell["w"]
                 assert cell["text_x"] + cell["text_width"] == cell["x"] + cell["w"]
             for name in ["font_base_weight", "font_gamma"]:
-                if name == "font_gamma":
-                    driver.command("reader_controls", action="next_page")
-                state = driver.command("reader_controls", action="paint")
+                state = _page_with(driver, name)
                 assert state["bounds"][name]["h"] < state["slider_bounds"][name]["h"] * 1.5
                 assert state["bounds"][name + "_more"]["x"] == (
                     state["bounds"][name + "_increase"]["x"] + state["bounds"][name + "_increase"]["w"])
@@ -1511,7 +1518,8 @@ def test_reader_shared_selection_and_setting_layout(show_chevrons):
             cell = state["value_cells"]["h_page_margins"]
             assert cell["text_x"] - cell["title_x"] - cell["title_width"] <= cell["text_width"] + 2
             assert state["bounds"]["h_page_margins"]["y"] < state["bounds"]["t_page_margin"]["y"]
-            assert state["bounds"]["t_page_margin"]["y"] < state["bounds"]["line_spacing"]["y"]
+            assert state["bounds"]["t_page_margin"]["y"] < state["bounds"]["view_mode_1"]["y"]
+            assert "line_spacing" not in state["controls"]
             margins = state["config"]["h_page_margins"]
             assert margins[0] == margins[1]
             assert state["labels"]["h_page_margins"] == f"Left/Right: {margins[0]}"
@@ -1533,21 +1541,21 @@ def test_reader_shared_selection_and_setting_layout(show_chevrons):
             assert state["config"]["view_mode"] == 1
             assert state["selections"]["view_mode_2"] is True
             cells = [state["bounds"]["view_mode_1"], state["bounds"]["view_mode_2"]]
-            start = layout_state["step_styles"]["line_spacing_decrease"]
-            end = layout_state["step_styles"]["line_spacing_increase"]
+            start = layout_state["step_styles"]["t_page_margin_decrease"]
+            end = layout_state["step_styles"]["t_page_margin_increase"]
             assert cells[0]["x"] - inset == start["glyph_x"]
             assert cells[1]["x"] + cells[1]["w"] + inset == end["glyph_x"] + end["glyph_w"]
             driver.command("reader_controls", action="choose", id="view_mode_1")
             state = driver.command("reader_controls", action="paint")
             assert state["config"]["view_mode"] == 0
             assert state["selections"]["view_mode_1"] is True
-            state = driver.command("reader_controls", action="paint")
-            assert state["labels"]["visible_pages"] == "Two Columns"
-            assert state["label_ends"]["visible_pages"] == layout_state["label_ends"]["line_spacing"]
-            assert state["title_heights"]["visible_pages"] == layout_state["title_heights"]["line_spacing"]
-            previous = state["toggles"]["visible_pages"]
-            driver.command("reader_controls", action="choose", id="visible_pages", toggle=True)
-            assert driver.command("reader_controls")["toggles"]["visible_pages"] is not previous
+            state = _page_with(driver, "visible_pages_1")
+            assert not state["toggles"]
+            on = state["selections"]["visible_pages_2"]
+            assert state["selections"]["visible_pages_1"] is not on
+            target = "visible_pages_1" if on else "visible_pages_2"
+            driver.command("reader_controls", action="choose", id=target)
+            assert driver.command("reader_controls", action="paint")["selections"][target] is True
             driver.screenshot(Path("/tmp/zen-reader-selection-page.png"))
             driver.command("reader_controls", action="choose", id="themes")
             state = driver.command("reader_controls", action="paint")
@@ -1564,11 +1572,11 @@ def test_reader_shared_selection_and_setting_layout(show_chevrons):
             driver.command("reader_controls", action="capture", name="Test profile")
             driver.command("reader_controls", action="choose", id="profiles")
             state = driver.command("reader_controls", action="paint")
-            label_end = state["label_ends"]["Include reader theme"]
-            for name in ["Defaults", "Save current reader settings", "Test profile", "Manage profiles"]:
-                bounds = state["bounds"][name]
-                assert bounds["x"] + bounds["w"] == label_end
-            assert label_end < state["bounds"]["Include reader theme"]["w"] / 2
+            ends = {state["bounds"][name]["x"] + state["bounds"][name]["w"]
+                    for name in ["Defaults", "Save current reader settings", "Test profile", "Manage profiles"]}
+            assert len(ends) == 1
+            assert ends.pop() <= state["bounds"]["Include reader theme_1"]["x"]
+            assert state["selections"]["Include reader theme_2"] is True
             driver.screenshot(Path("/tmp/zen-reader-selection-profiles.png"))
             state = driver.command("reader_controls", action="tab", id="quicksettings")
             assert state["footer_margin"] == state["native_footer_margin"]

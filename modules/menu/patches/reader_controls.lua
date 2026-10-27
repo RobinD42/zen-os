@@ -39,7 +39,6 @@ return function(plugin)
     local InputContainer = require("ui/widget/container/inputcontainer")
     local ZenSlider = require("common/ui/zen_slider")
     local Accent = require("common/ui/accent")
-    local ZenToggle = require("common/ui/zen_toggle")
     local ZenIconButton = require("common/ui/zen_icon_button")
     local ZenActionButton = require("common/ui/zen_action_button")
     local ZenTabBar = require("common/ui/zen_tab_bar")
@@ -190,23 +189,30 @@ return function(plugin)
                         function() if tm._zen_panel_refs then tm:updateItems(1) end end, widget.dimen)
                 end
             end
-            option("font_size", true)
             if Settings.group(ui) == "copt" then
+                option("font_size", true)
                 option("font_base_weight", true, _("Weight"))
-                option("font_gamma", true)
-                option("font_kerning")
-                option("font_hinting")
+                option("line_spacing", true)
                 option("word_spacing")
                 option("word_expansion")
+                option("font_gamma", true)
+                option("font_hinting")
+                option("font_kerning")
             else
+                option("contrast", true)
+                option("white_threshold", true)
+                option("saturation", true)
+                option("hw_dithering")
+                option("sw_dithering")
+                -- Remaining night mode, reflow and injected options follow.
+                local placed = { contrast = true, white_threshold = true, saturation = true, hw_dithering = true,
+                    sw_dithering = true, page_opt = true, background_cleanup = true }
                 local panel = Settings.panel(ui, "appbar.contrast")
                 for _i, opt in ipairs(panel and panel.options or {}) do
-                    if opt.buttonprogress then option(opt.name, true) end
-                end
-                for _i, opt in ipairs(panel and panel.options or {}) do
-                    if not opt.buttonprogress then option(opt.name) end
+                    if not placed[opt.name] then option(opt.name, opt.buttonprogress) end
                 end
                 option("nightmode_document")
+                option("font_size", true)
             end
         elseif section == "page" then
             if Settings.group(ui) == "copt" then
@@ -214,22 +220,24 @@ return function(plugin)
                 local synced = Settings.syncedMargins(ui)
                 option("t_page_margin", true, synced and _("Top/Bottom") or _("Top"))
                 if not synced then option("b_page_margin", true, _("Bottom")) end
-                option("line_spacing", true)
                 option("view_mode")
                 option("rakuyomi_view_mode")
                 option("visible_pages")
             else
-                option("line_spacing", true)
-                option("trim_page")
                 option("page_margin", true)
                 option("page_scroll")
                 option("rakuyomi_view_mode")
                 option("auto_straighten", false, _("Straighten"))
+                option("line_spacing", true)
                 option("max_columns")
             end
         elseif section == "document" then
-            for _i, name in ipairs({ "zoom_mode_genus", "zoom_direction", "zoom_mode_type", "zoom_range_number",
-                    "zoom_factor" }) do
+            option("zoom_mode_genus")
+            option("zoom_mode_type")
+            option("trim_page", false, _("Crop"))
+            option("page_opt")
+            option("background_cleanup")
+            for _i, name in ipairs({ "zoom_direction", "zoom_range_number", "zoom_factor" }) do
                 option(name, name == "zoom_factor")
             end
             if Settings.available(ui, options.zoom_overlap_h) or Settings.available(ui, options.zoom_overlap_v) then
@@ -315,7 +323,7 @@ return function(plugin)
         end
         local embedded = tm._reader_controls_embedded
         local w, pad = tm.item_width, Screen:scaleBySize(embedded and 12 or 8)
-        local refs = { buttons = {}, sliders = {}, toggles = {}, headings = {}, layout_rows = {}, swipe_zones = {},
+        local refs = { buttons = {}, sliders = {}, headings = {}, layout_rows = {}, swipe_zones = {},
             footer_top_margin = VerticalSpan:new{ width = 0 } }
         tm._zen_panel_refs = refs
         local panel = VerticalGroup:new{ align = "left" }
@@ -524,7 +532,7 @@ return function(plugin)
         if tm._reader_controls_embedded then
             local group = Settings.group(ui)
             refs.section_order = group == "copt" and { "font", "page", "themes" }
-                or { "contrast", "page", "document", "themes" }
+                or { "contrast", "page", "document" }
             if not util.arrayContains(refs.section_order, state.section) then state.section = refs.section_order[1] end
             state.section_pages = state.section_pages or {}
             refs.select_section = function(section)
@@ -677,6 +685,25 @@ return function(plugin)
             return FrameContainer:new{ bordersize = 0, padding = 0, padding_left = pad, padding_right = pad,
                 padding_top = row.slider and 0 or pad, padding_bottom = row.slider and 0 or pad, line }, title
         end
+        local function tab_row(row, items, selected, layout, icons)
+            local selection = ZenTabBar:new{ items = items, selected = selected,
+                width = controls_width - step_insets[1] - step_insets[2],
+                icon_size = Screen:scaleBySize(32), font_size = 16, padding_h = Screen:scaleBySize(4),
+                cell_height = Screen:scaleBySize(embedded and 36 or (icons and 48 or 32)), focusable = true }
+            for i, cell in ipairs(selection.cells) do
+                cell._reader_setting = (row.name or row.text) .. "_" .. i
+                track(cell, cell.callback, row.hold, layout)
+            end
+            local controls = HorizontalGroup:new{ HorizontalSpan:new{ width = step_insets[1] }, selection,
+                HorizontalSpan:new{ width = step_insets[2] } }
+            if row.more and not embedded then
+                controls[#controls + 1] = icon_button("more_vertical", row.more, layout, row.label:getSize().h)
+                layout[#layout]._reader_setting = row.name .. "_more"
+            elseif more_width > 0 and not embedded then
+                controls[#controls + 1] = HorizontalSpan:new{ width = more_width }
+            end
+            return setting_row(row, controls, layout)
+        end
         for _i, row in ipairs(descriptors) do
             local layout, widget = {}
             if row.slider then
@@ -781,36 +808,14 @@ return function(plugin)
                         icon = icon and (utils.resolveIcon(stock_icons, icon) or utils.resolveLocalIcon(stock_icons, icon)),
                         callback = function() row.apply(row.name, value) end }
                 end
-                local icons = row.presets.item_icons ~= nil
-                local selection = ZenTabBar:new{ items = items, selected = selected,
-                    width = controls_width - step_insets[1] - step_insets[2],
-                    icon_size = Screen:scaleBySize(32), font_size = 16, padding_h = Screen:scaleBySize(4),
-                    cell_height = Screen:scaleBySize(embedded and 36 or (icons and 48 or 32)), focusable = true }
-                for i, cell in ipairs(selection.cells) do
-                    cell._reader_setting = row.name .. "_" .. i
-                    track(cell, cell.callback, row.hold, layout)
-                end
-                local label = row.label
-                local controls = HorizontalGroup:new{ HorizontalSpan:new{ width = step_insets[1] }, selection,
-                    HorizontalSpan:new{ width = step_insets[2] } }
-                if row.more and not embedded then
-                    controls[#controls + 1] = icon_button("more_vertical", row.more, layout, label:getSize().h)
-                    layout[#layout]._reader_setting = row.name .. "_more"
-                elseif more_width > 0 and not embedded then
-                    controls[#controls + 1] = HorizontalSpan:new{ width = more_width }
-                end
-                widget = setting_row(row, controls, layout)
+                widget = tab_row(row, items, selected, layout, row.presets.item_icons ~= nil)
             elseif row.toggle ~= nil then
-                local toggle = ZenToggle:new{ value = row.toggle }
-                local controls = HorizontalGroup:new{ RightContainer:new{
-                    dimen = Geom:new{ w = controls_width, h = Screen:scaleBySize(32) }, toggle },
-                    HorizontalSpan:new{ width = embedded and 0 or more_width } }
-                local frame, label_box = setting_row(row, controls, layout)
-                widget = InputContainer:new{ frame, _reader_setting = row.name, text = row.text,
-                    label = row.label, label_box = label_box, toggle = toggle,
-                    onFocus = SliderRow.onFocus, onUnfocus = SliderRow.onUnfocus }
-                track(widget, row.callback, row.hold, layout)
-                refs.toggles[#refs.toggles + 1] = { toggle = toggle, callback = row.callback, widget = widget }
+                local items = {}
+                for i, text in ipairs({ _("Off"), _("On") }) do
+                    local on = i == 2
+                    items[i] = { text = text, callback = function() if on ~= row.toggle then row.callback() end end }
+                end
+                widget = tab_row(row, items, row.toggle and 2 or 1, layout)
             elseif row.pager then
                 local pager = row.pager
                 local previous = icon_button("chevron.left", pager.previous, layout)
@@ -892,9 +897,6 @@ return function(plugin)
             local found = false
             for widget in pairs(visible) do if widget.slider == refs.sliders[i].slider then found = true; break end end
             if not found then table.remove(refs.sliders, i) end
-        end
-        for i = #refs.toggles, 1, -1 do
-            if not visible[refs.toggles[i].widget] then table.remove(refs.toggles, i) end
         end
         refs.page, refs.page_num = state.page, #body_pages
         refs.goto_page = function(page)

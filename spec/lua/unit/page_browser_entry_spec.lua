@@ -1269,7 +1269,7 @@ describe("page browser entry", function()
         expect(not dirty)
     end)
 
-    it("restores the recent tab and controls page for six seconds, then opens the first enabled tab", function()
+    it("restores the recent controls page for six seconds and the last tab across restarts", function()
         local close_button_taps, closes, layouts = 0, 0, 0
         local now = 1000
         local time_stub = stub(os, "time", function() return now end)
@@ -1320,9 +1320,11 @@ describe("page browser entry", function()
         })
         local details
         ZenSpec.replace("modules/reader/book_details", { show = function(ui) details = ui end })
-        _G.__ZEN_UI_PLUGIN = { config = { features = { page_browser = true }, page_browser = {
-            tab_order = { "browser", "aa", "annotations", "toc" },
-            tabs = { bookmarks = false, highlights = false, annotations = true } } } }
+        local saves = 0
+        _G.__ZEN_UI_PLUGIN = { saveConfig = function() saves = saves + 1 end,
+            config = { features = { page_browser = true }, page_browser = {
+                tab_order = { "browser", "aa", "annotations", "toc" },
+                tabs = { bookmarks = false, highlights = false, annotations = true } } } }
         require("modules/reader/patches/page_browser")()
         require("apps/reader/modules/readerconfig").onSwipeShowConfigMenu(
             { ui = { handleEvent = function() end } }, { direction = "north" })
@@ -1411,20 +1413,28 @@ describe("page browser entry", function()
             expect(reopened._zen_active_tab == tab)
         end
         reopened:_zenSelectTab("aa")
+        local saved = saves
         reopened:onClose()
+        local cfg = _G.__ZEN_UI_PLUGIN.config.page_browser
+        expect(cfg.last_tab == "aa" and saves == saved + 1)
+        -- A fresh reader (restart) keeps the persisted tab but not the transient controls state.
         local other_book = shell()
         PageBrowserWidget.init(other_book)
-        expect(other_book._zen_active_tab == "browser" and other_book._zen_controls_state == nil)
+        expect(other_book._zen_active_tab == "aa" and other_book._zen_controls_state == nil)
+        other_book:_zenSelectTab("browser")
         other_book:onClose()
         local overview = shell(other_book.ui)
         PageBrowserWidget.init(overview)
         expect(overview._zen_active_tab == "browser" and overview._zen_controls_state == nil)
+        saved = saves
+        overview:onClose()
+        expect(saves == saved)
         now = now + 7
+        cfg.last_tab = nil
         local expired = shell(browser.ui)
         PageBrowserWidget.init(expired)
         expect(expired._zen_active_tab == "browser" and expired._zen_controls_state == nil)
 
-        local cfg = _G.__ZEN_UI_PLUGIN.config.page_browser
         cfg.tab_order = { "highlights", "annotations", "aa", "browser", "toc", "bookmarks" }
         cfg.tabs.highlights = false
         local ordered = shell(browser.ui)

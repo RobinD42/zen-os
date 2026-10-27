@@ -234,7 +234,7 @@ function M.buildReader(opts)
     local cfg = Model.ensure()
     local panel, refs = M.build{
         width = opts.width, height = opts.height, config = opts.plugin.config,
-        launcher_config = cfg, fill = true, exclude_path = opts.ui.document.file,
+        launcher_config = cfg, fill = opts.fill, exclude_path = opts.ui.document.file,
         open_book = function(path, _cover, release_cover)
             release_cover()
             opts.close()

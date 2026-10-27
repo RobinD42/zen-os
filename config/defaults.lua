@@ -402,6 +402,7 @@ local defaults = {
         toc_font_size = 18,
         bookmarks_font_size = 18,
         font_full_page = true,
+        contrast_full_page = true,
     },
     annotation_viewer = {
         preview_length = "standard",

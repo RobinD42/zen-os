@@ -25,7 +25,7 @@ end
 function M.build(pbw, kind, width, height, on_navigate)
     if kind == "book_switcher" then
         local panel = require("modules/menu/app_launcher/book_switcher_page").buildReader{
-            ui = pbw.ui, plugin = pbw._zen_plugin, width = width, height = height,
+            ui = pbw.ui, plugin = pbw._zen_plugin, width = width, height = height, fill = true,
             close = function() pbw:onClose() end,
             refresh = function() pbw:updateLayout(); require("ui/uimanager"):setDirty(pbw, "ui") end,
         }
