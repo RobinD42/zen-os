@@ -417,7 +417,7 @@ return {
         "Bug fixes"
     },
     ["4.3.0"] = {
-        "Add pinned pages",
+        "Add pinned pages (Hold text or image to pin)",
         "Add footnote quick view",
         "Pan and zoom pinned images, including illustrations embedded in EPUBs",
         "Keep the reader status bar visible behind reference popups",
