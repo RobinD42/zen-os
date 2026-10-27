@@ -265,7 +265,6 @@ function M.build(ctx)
 
     local items, appearance_items = {}, {}
     if not ctx.themes_only then
-        items[#items + 1] = require("modules/settings/sections/reader_controls_settings").build(ctx)
         items[#items + 1] = IconItem.decorate({
             text = _("Appearance"),
             sub_item_table = appearance_items,
@@ -1683,6 +1682,7 @@ function M.build(ctx)
         end,
     }, icons.reader_status_bar_margins))
 
+    items[#items + 1] = require("modules/settings/sections/reader_controls_settings").build(ctx)
     items[#items + 1] = IconItem.decorate({
         text = _("End of book"),
         sub_item_table_func = function()

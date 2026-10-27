@@ -93,16 +93,18 @@ describe("reader settings", function()
         })
         local labels = {}
         for _i, item in ipairs(items) do labels[#labels + 1] = item.text end
-        assert.are.same({ "Reader controls", "Appearance", "Highlight / Lookup", "Bottom swipe gesture",
-            "Page Browser", "Footnotes and pinned pages", "Annotation viewer", "Restore library location on exit", "End of book" }, labels)
+        assert.are.same({ "Appearance", "Highlight / Lookup", "Bottom swipe gesture", "Page Browser",
+            "Footnotes and pinned pages", "Annotation viewer", "Restore library location on exit", "Reader controls",
+            "End of book" }, labels)
         labels = {}
-        for _i, item in ipairs(items[2].sub_item_table) do labels[#labels + 1] = item.text end
+        for _i, item in ipairs(items[1].sub_item_table) do labels[#labels + 1] = item.text end
         assert.are.same({ "Top status bar", "Bottom status bar", "Align status bars with book margins",
             "Reader themes", "Flash on every CBZ page turn" }, labels)
         assert.is_nil(find_item(items, "Font"))
-        assert.is_nil(find_item(items[1].sub_item_table, "Enable"))
-        assert.is_true(items[1].checked_func())
-        items[1].checkmark_callback()
+        local controls = items[#items - 1]
+        assert.is_nil(find_item(controls.sub_item_table, "Enable"))
+        assert.is_true(controls.checked_func())
+        controls.checkmark_callback()
         assert.is_false(config.features.reader_controls)
         assert.are.equal("reader_controls", applied)
     end)
