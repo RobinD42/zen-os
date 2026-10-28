@@ -24,11 +24,8 @@ end
 function M.getMode(config)
     local cfg = config.reader_bottom_swipe
     local mode = type(cfg) == "table" and cfg.mode
-    if mode == "reader_controls" then
-        return config.features and config.features.reader_controls == true and mode or "none"
-    end
     if mode == "custom" and not M.hasTarget(config) then return "none" end
-    if mode == "koreader" or mode == "page_browser" or mode == "none" or mode == "custom" then
+    if mode == "reader_controls" or mode == "koreader" or mode == "page_browser" or mode == "none" or mode == "custom" then
         return mode
     end
     local features = config.features or {}

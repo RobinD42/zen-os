@@ -260,9 +260,11 @@ describe("temporary reader return button", function()
         button.dimen = { x = 10, y = 760, w = 180, h = 40, contains = function(_self, pos) return pos.inside end }
         local location = button.location
         ui.link.location_stack = { location }
-        for _i, direction in ipairs({ "north", "east", "west", "southeast", "southwest" }) do
-            assert.is_false(button:onSwipe({ direction = direction, pos = { x = 50, y = 770 } }))
+        for _i, direction in ipairs({ "north", "east", "southeast", "southwest" }) do
+            assert.is_false(button:onSwipe({ direction = direction, pos = { x = 50, y = 770, inside = true } }))
         end
+        -- West only from the tab itself; elsewhere it remains a page turn.
+        assert.is_false(button:onSwipe({ direction = "west", pos = { x = 50, y = 700 } }))
         -- Generous band: tab column +/- 24px, from 15% of screen height above the tab down.
         for _i, pos in ipairs({ { x = 50, y = 639 }, { x = -15, y = 770 }, { x = 214, y = 770 } }) do
             assert.is_false(button:onSwipe({ direction = "south", pos = pos }))
@@ -285,6 +287,11 @@ describe("temporary reader return button", function()
         assert.equals(3, ui.page)
         assert.same({ location }, ui.link.location_stack)
         assert.is_false(button:onSwipe({ direction = "south", pos = { x = 50, y = 770 } }))
+        button:queue({ page = 4 })
+        queued[#queued]()
+        assert.is_true(button:onSwipe({ direction = "west", pos = { x = 50, y = 770, inside = true } }))
+        assert.is_false(button:isVisible())
+        assert.equals(0, returns)
     end)
 
     it("registers swipe dismissal ahead of existing reader swipe handlers", function()
@@ -309,5 +316,82 @@ describe("temporary reader return button", function()
         assert.is_false(zones[2].handler({ direction = "north", pos = { x = 50, y = 700 } }))
         assert.is_true(zones[2].handler({ direction = "south", pos = { x = 50, y = 700 } }))
         assert.is_false(button:isVisible())
+        assert.equals("touch", zones[3].ges)
+        assert.same({}, zones[3].overrides)
+    end)
+
+    it("samples raw contacts only while a tab touch is armed", function()
+        local fed = 0
+        local detector = { feedEvent = function(_self, tevs) fed = fed + #tevs; return {} end }
+        package.loaded["device"].input = { gesture_detector = detector }
+        ui.registerTouchZones = function() end
+        Button.attach(ui)
+        Button.attach({ view = ui.view, registerTouchZones = ui.registerTouchZones })
+        button = ui._zen_return_button
+        button:queue({ page = 1 })
+        queued[#queued]()
+        button.dimen = { x = 10, y = 760, w = 180, h = 40, contains = function(box, pos)
+            return pos.x >= box.x and pos.x < box.x + box.w and pos.y >= box.y and pos.y < box.y + box.h
+        end }
+        detector:feedEvent({ { x = 50, y = 790 } })
+        assert.is_nil(button.touch)
+        button:onTouch({ pos = { x = 50, y = 780 } })
+        detector:feedEvent({ { x = 50, y = 786 } })
+        detector:feedEvent({ { x = 49, y = 779 } })
+        assert.equals(3, fed)
+        assert.same({ x = 50, y = 780, down = 6, up = 1, left = 1, right = 0 }, button.touch)
+        assert.is_true(button:onTap({ pos = { x = 49, y = 779 } }))
+        assert.is_false(button:isVisible())
+        assert.equals(0, returns)
+        package.loaded["device"].input = nil
+    end)
+
+    it("treats a short downward drag from the tab as a swipe away, not a tap", function()
+        local function show()
+            button:queue({ page = 1 })
+            queued[#queued]()
+            button.dimen = { x = 10, y = 760, w = 180, h = 40, contains = function(box, pos)
+                return pos.x >= box.x and pos.x < box.x + box.w and pos.y >= box.y and pos.y < box.y + box.h
+            end }
+        end
+        show()
+        -- Touches outside the tab are passed through and never arm the drag.
+        assert.is_false(button:onTouch({ pos = { x = 300, y = 770 } }))
+        assert.is_false(button:onTap({ pos = { x = 300, y = 790 } }))
+        assert.is_true(button:isVisible())
+        -- Drag below KOReader's pan threshold still arrives as a tap at the lift point.
+        assert.is_false(button:onTouch({ pos = { x = 50, y = 770 } }))
+        assert.is_true(button:onTap({ pos = { x = 52, y = 799 } }))
+        assert.is_false(button:isVisible())
+        assert.equals(0, returns)
+        assert.is_nil(button.touch_pos)
+        -- Recessed screens: a 3px nudge is enough.
+        show()
+        button:onTouch({ pos = { x = 50, y = 770 } })
+        assert.is_true(button:onTap({ pos = { x = 51, y = 773 } }))
+        assert.is_false(button:isVisible())
+        assert.equals(0, returns)
+        -- A leftward nudge dismisses too.
+        show()
+        button:onTouch({ pos = { x = 50, y = 770 } })
+        assert.is_true(button:onTap({ pos = { x = 46, y = 771 } }))
+        assert.is_false(button:isVisible())
+        assert.equals(0, returns)
+        -- Lift points drift back on recessed bezels; the furthest raw sample decides.
+        show()
+        button:onTouch({ pos = { x = 50, y = 780 } })
+        button.touch.down = 6
+        assert.is_true(button:onTap({ pos = { x = 50, y = 779 } }))
+        assert.is_false(button:isVisible())
+        assert.equals(0, returns)
+        -- Sub-threshold jitter and rightward drags remain explicit taps.
+        show()
+        button:onTouch({ pos = { x = 50, y = 770 } })
+        assert.is_true(button:onTap({ pos = { x = 51, y = 772 } }))
+        assert.equals(1, returns)
+        show()
+        button:onTouch({ pos = { x = 50, y = 770 } })
+        assert.is_true(button:onTap({ pos = { x = 60, y = 775 } }))
+        assert.equals(2, returns)
     end)
 end)

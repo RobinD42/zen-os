@@ -23,13 +23,10 @@ describe("reader bottom swipe", function()
         end
     end)
 
-    it("opens reader controls only while the feature is enabled", function()
-        local config = { features = { reader_controls = true }, reader_bottom_swipe = { mode = "reader_controls" } }
+    it("opens reader controls when selected", function()
+        local config = { features = {}, reader_bottom_swipe = { mode = "reader_controls" } }
         assert.are.equal("reader_controls", BottomSwipe.getMode(config))
         assert.is_true(BottomSwipe.isEnabled(config))
-        config.features.reader_controls = false
-        assert.are.equal("none", BottomSwipe.getMode(config))
-        assert.is_false(BottomSwipe.isEnabled(config))
     end)
 
     it("requires a usable target before treating Custom as selected", function()

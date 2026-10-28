@@ -102,7 +102,6 @@ local defaults = {
         navbar = true,
         quick_settings = true,
         app_launcher = true,
-        reader_controls = true,
         zen_mode = true,
         status_bar = true,
         disable_top_menu_swipe_zones = true,

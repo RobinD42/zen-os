@@ -1368,10 +1368,7 @@ function M.build(ctx)
         swipe_config().mode = mode
         config.features.page_browser = mode == "page_browser"
         config.features.reader_bottom_menu = mode == "koreader" or mode == "custom"
-        if mode == "reader_controls" then
-            config.features.reader_controls = true
-            return save_and_apply("reader_controls")
-        end
+        if mode == "reader_controls" then return save_and_apply("reader_controls") end
         plugin:saveConfig()
     end
 

@@ -120,12 +120,12 @@ def test_book_switcher_reader_surfaces_and_dispatch():
 
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
             state = driver.command("page_browser_state")["page_browser"]
-            assert "view_carousel_outline.svg" not in state["header_icons"]
+            assert "history.svg" not in state["header_icons"]
             assert driver.command("annotation_viewer_action", action="close")["ok"]
             assert driver.command("annotation_viewer_action", action="dispatch", name="zen_ui_show_book_switcher")["ok"]
             state = driver.command("page_browser_state")["page_browser"]
             assert state["active_tab"] == "book_switcher" and state["top_is_browser"]
-            assert "view_carousel_outline.svg" in state["header_icons"]
+            assert "history.svg" in state["header_icons"]
             assert [book["path"] for book in state["switcher_books"]] == [str(second.resolve())]
             for book in state["switcher_books"]:
                 bounds = book["bounds"]
@@ -323,7 +323,7 @@ def test_reader_controls_paginate_three_settings_with_the_shared_pager(extension
             stop(process)
 
 
-def test_page_browser_aa_embeds_zen_controls_when_reader_controls_disabled():
+def test_page_browser_aa_embeds_zen_controls():
     runtime = Path(os.environ["KOREADER_DIR"])
     with tempfile.TemporaryDirectory(prefix="zrc-", dir="/tmp") as temporary:
         root = Path(temporary)
@@ -334,7 +334,7 @@ def test_page_browser_aa_embeds_zen_controls_when_reader_controls_disabled():
         _write_reader_epub(book)
         socket_path = root / "driver.sock"
         process = launch(runtime, home, socket_path, library,
-                         zen_config_source='return {features={reader_controls=false,page_browser=true},'
+                         zen_config_source='return {features={page_browser=true},'
                                            'reader_bottom_swipe={mode="page_browser"},'
                                            'quick_settings={background_hatching=true}}')
         try:
@@ -676,7 +676,7 @@ def test_reader_optional_menu_buttons_work_without_changing_the_swipe_gesture(co
             if control == "page_browser":
                 browser = _wait_command(driver, "page_browser_state",
                                         lambda result: result.get("page_browser", {}).get("layout") == "carousel")
-                assert browser["page_browser"]["header_icons"] == ["more_vertical.svg", "coverflow.svg", "font.svg", "bookmark_outline.svg",
+                assert browser["page_browser"]["header_icons"] == ["more_vertical.svg", "view_carousel_outline.svg", "font.svg", "bookmark_outline.svg",
                                                                    "lookup_highlight.svg", "toc.svg", "close.svg"]
                 assert driver.command("activate_reader_control", name="page_browser_controls")["activated"]
                 assert driver.command("page_browser_state")["page_browser"]["active_tab"] == "aa"
@@ -1645,7 +1645,7 @@ def test_reader_controls_icon_pack_overrides(enabled):
         library.mkdir()
         names = {"font": "font", "contrast": "appbar.contrast", "page": "page", "document": "document",
                  "book_info": "info", "toc": "toc", "bookmarks": "bookmark_outline", "search": "quick_search",
-                 "profiles": "profiles", "themes": "moon_outline", "font_size_more": "more_vertical"}
+                 "profiles": "profiles", "themes": "settings_brush", "font_size_more": "more_vertical"}
         pack = home / "icons" / "zen" / "reader"
         pack.mkdir(parents=True)
         (pack / "pack.json").write_text(json.dumps({"schema_version": 1, "id": "reader", "name": "Reader"}))

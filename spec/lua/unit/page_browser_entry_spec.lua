@@ -965,7 +965,6 @@ describe("page browser entry", function()
         plugin.config.reader_bottom_swipe.mode = "koreader"
         ReaderConfig.onSwipeShowConfigMenu({ ui = ui }, { direction = "north" })
         expect(stock_calls == 1)
-        plugin.config.features.reader_controls = true
         plugin.config.reader_bottom_swipe.mode = "reader_controls"
         ui.menu = { onShowReaderControls = function() activated = activated + 1 end }
         expect(zones[1].handler({ direction = "north" }) == true)
@@ -1343,7 +1342,7 @@ describe("page browser entry", function()
         local close = browser._zen_header_buttons[6]
         expect(browser._zen_header_buttons[1] == browser._zen_more_button)
         expect(browser._zen_more_button.overlap_align == "left" and browser._zen_more_button.overlap_offset[1] == 0)
-        expect(browser._zen_header_buttons[2].file == "/custom-icons/coverflow.svg")
+        expect(browser._zen_header_buttons[2].file == "/custom-icons/view_carousel_outline.svg")
         expect(browser._zen_header_buttons[3].file == "/custom-icons/font.svg")
         expect(browser._zen_tab_bar.icon_size == 24)
         expect(browser._zen_tab_bar.items[2].icon_size == nil and browser._zen_tab_bar.items[4].icon_size == nil)
@@ -1483,7 +1482,7 @@ describe("page browser entry", function()
         cfg.tabs.browser, cfg.tabs.aa, cfg.tabs.toc = true, true, true
         local bundled = shell()
         PageBrowserWidget.init(bundled)
-        expect(bundled._zen_tab_bar.cells[1].file == ZenSpec.root .. "/icons/coverflow.svg")
+        expect(bundled._zen_tab_bar.cells[1].file == ZenSpec.root .. "/icons/view_carousel_outline.svg")
         for i, name in ipairs({ "font", "toc", "info" }) do
             expect(bundled._zen_tab_bar.cells[i + 1].file == ZenSpec.root .. "/icons/" .. name .. ".svg")
         end

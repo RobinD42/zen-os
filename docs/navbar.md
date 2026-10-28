@@ -2,8 +2,18 @@
 title: Navbar
 category: Interface
 summary: The customizable bottom navigation bar
+<<<<<<< Updated upstream
 settingsPath: Zen Settings > Interface > Navbar
 order: 48
+=======
+<<<<<<< Updated upstream
+settingsPath: Zen Settings > Navbar
+order: 35
+=======
+settingsPath: Zen Settings > Interface > Navbar
+order: 48
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 ---
 
 <!-- Documentation current through ZenOS v3.3.0. -->

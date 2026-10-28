@@ -220,9 +220,22 @@ return function(plugin)
                 local synced = Settings.syncedMargins(ui)
                 option("t_page_margin", true, synced and _("Top/Bottom") or _("Top"))
                 if not synced then option("b_page_margin", true, _("Bottom")) end
-                option("view_mode")
+                -- View mode and two columns merged: Page / Continuous / Two column.
+                if Settings.available(ui, options.view_mode) then
+                    local conf = ui.document.configurable
+                    local columns = options.visible_pages ~= nil
+                    rows[#rows + 1] = { text = Settings.label(ui, options.view_mode), name = "view_mode",
+                        presets = { values = columns and { 1, 2, 3 } or { 1, 2 },
+                            toggle = { _("Page"), _("Continuous"), _("Two column") } },
+                        selected = conf.view_mode == 1 and 2 or columns and conf.visible_pages == 2 and 3 or 1,
+                        hold = function() Menus.defaults(ui, columns and { "view_mode", "visible_pages" } or { "view_mode" }) end,
+                        apply = function(_name, choice)
+                            if choice == 2 or not columns then return apply("view_mode", choice == 2 and 1 or 0) end
+                            if conf.view_mode == 1 then Settings.apply(ui, "view_mode", 0) end
+                            apply("visible_pages", choice == 3 and 2 or 1)
+                        end }
+                end
                 option("rakuyomi_view_mode")
-                option("visible_pages")
             else
                 option("page_margin", true)
                 option("page_scroll")
@@ -808,7 +821,7 @@ return function(plugin)
                         icon = icon and (utils.resolveIcon(stock_icons, icon) or utils.resolveLocalIcon(stock_icons, icon)),
                         callback = function() row.apply(row.name, value) end }
                 end
-                widget = tab_row(row, items, selected, layout, row.presets.item_icons ~= nil)
+                widget = tab_row(row, items, row.selected or selected, layout, row.presets.item_icons ~= nil)
             elseif row.toggle ~= nil then
                 local items = {}
                 for i, text in ipairs({ _("Off"), _("On") }) do
@@ -847,16 +860,16 @@ return function(plugin)
         end
         local divider_h = Screen:scaleBySize(1)
         local divider_padding = tm._reader_controls_embedded and Screen:scaleBySize(1.5) or 0
-        local row_gap = divider_h + divider_padding * 2
         local body_pages, used = { {} }, 0
         for _i, item in ipairs(widgets) do
+            -- Divider padding is respread below, so only the line counts toward fit.
             if used > 0 and (settings_page and #body_pages[#body_pages] == 3
-                    or used + row_gap + item.height > budget) then
+                    or used + divider_h + item.height > budget) then
                 body_pages[#body_pages + 1] = {}; used = 0
             end
             local page = body_pages[#body_pages]
             page[#page + 1] = item
-            used = used + (used > 0 and row_gap or 0) + item.height
+            used = used + (used > 0 and divider_h or 0) + item.height
         end
         state.page = math.max(1, math.min(state.page, #body_pages))
         local visible_items = body_pages[state.page]

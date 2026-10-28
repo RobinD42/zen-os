@@ -557,7 +557,7 @@ describe("app launcher settings", function()
     end)
 
     it("edits and disables built-in reader buttons without offering deletion", function()
-        local config = { features = { reader_controls = true } }
+        local config = { features = {} }
         local reader_saves = 0
         local section = require("modules/settings/sections/reader_controls_settings").build{
             config = config, save_and_apply = function() reader_saves = reader_saves + 1 end,
@@ -613,17 +613,17 @@ describe("app launcher settings", function()
         local row = shown_options.item_table[10]
         row.orig_entry.icon = "paint_palette"
         local item = row.sub_item_table_func()[2]
-        assert.are.equal("Icon: moon_outline", item.text_func())
+        assert.are.equal("Icon: settings_brush", item.text_func())
         item.callback()
-        assert.are.equal("moon_outline", selected)
+        assert.are.equal("settings_brush", selected)
         select_icon("info")
         assert.are.equal("info", row.orig_entry.icon_override)
         assert.are.equal("Icon: info", item.text_func())
         item.callback()
         assert.are.equal("info", selected)
-        select_icon("moon_outline")
+        select_icon("settings_brush")
         assert.is_nil(row.orig_entry.icon_override)
-        assert.are.equal("Icon: moon_outline", item.text_func())
+        assert.are.equal("Icon: settings_brush", item.text_func())
         assert.are.equal(2, reader_saves)
         assert.are.equal(0, saves)
     end)

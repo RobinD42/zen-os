@@ -270,7 +270,7 @@ def test_reader_page_browser_modes_and_search_render() -> None:
             )["page_browser"]
             assert default_carousel["thumbnail_count"] == 3
             assert default_carousel["controls"] == ["single", "carousel", "grid"]
-            assert default_carousel["header_icons"] == ["more_vertical.svg", "coverflow.svg", "font.svg", "bookmark_outline.svg",
+            assert default_carousel["header_icons"] == ["more_vertical.svg", "view_carousel_outline.svg", "font.svg", "bookmark_outline.svg",
                                                         "lookup_highlight.svg", "toc.svg", "close.svg"]
             assert default_carousel["focused"] == "header:1"
             assert default_carousel["header_height"] >= (
@@ -820,17 +820,16 @@ def test_page_browser_settings_subsections_and_themes(document_type: str, width:
         window_scale = 2 if sys.platform == "darwin" and os.environ.get("SDL_VIDEODRIVER") != "dummy" else 1
         overrides = {"EMULATE_READER_W": str(width // window_scale),
                      "EMULATE_READER_H": str(1024 // window_scale)} if width else None
-        controls_disabled = document_type == "epub" and width is None
+        check_more_menu = document_type == "epub" and width is None
         # Annotations tab has its own more-menu; start full page off to exercise toggling on
-        config = ("return {page_browser={tabs={annotations=true},font_full_page=false,contrast_full_page=false}"
-                  + (",features={reader_controls=false}}" if controls_disabled else "}"))
+        config = "return {page_browser={tabs={annotations=true},font_full_page=false,contrast_full_page=false}}"
         process = launch(runtime, home, socket_path, library, env_overrides=overrides, zen_config_source=config)
         try:
             wait_for_socket(socket_path)
             driver = ZenDriver(socket_path)
             assert driver.open_book(book)["ok"]
             assert driver.command("activate_reader_control", name="page_browser")["activated"]
-            if controls_disabled:
+            if check_more_menu:
                 _wait_command(driver, "page_browser_state", lambda result: result["page_browser"]["preview_ready"])
                 assert [row["text"] for row in _page_browser_more_rows(driver)] == ["Reader controls", "Settings"]
                 more_frame = Path(__file__).resolve().parents[2] / ".artifacts" / "page-browser" / "header-reader-menu.png"
@@ -1095,7 +1094,7 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
         pack = home / "icons" / "zen" / "browser"
         pack.mkdir(parents=True)
         (pack / "pack.json").write_text(json.dumps({"schema_version": 1, "id": "browser", "name": "Browser"}))
-        header_names = ["more_vertical", "coverflow", "font", "bookmark_outline", "lookup_highlight", "toc",
+        header_names = ["more_vertical", "view_carousel_outline", "font", "bookmark_outline", "lookup_highlight", "toc",
                         "annotations", "info", "close"]
         names = header_names + ["grid", "grid_slide", "chevron.left", "chevron.right", "quick_search",
                                 "quicksettings", "appbar.settings", "plus", "filter", "sort", "pin", "pin_remove",

@@ -88,7 +88,6 @@ def test_reader_settings_hierarchy_icons_and_bottom_swipe(configured):
         _write_reader_epub(book)
         socket = root / "driver.sock"
         config = """return {
-            features = { reader_controls = false },
             reader_bottom_swipe = { entries = {{ id = 'swipe_1', type = 'quick_setting',
                 label = 'Settings', quick_setting_id = 'zen_settings' }}, next_id = 1 },
         }""" if configured else None
@@ -121,10 +120,6 @@ def test_reader_settings_hierarchy_icons_and_bottom_swipe(configured):
                 "\U000f03d8", "\U000f0349", "\U000f0740",
                 "\U000f0570", None, None, "\U000f006f", "\U000f14f7", "\U000f14f3",
             ]
-            enabled = state()["items"][-2]["checked"]
-            select("Reader controls", control=True)
-            assert state()["items"][-2]["checked"] is not enabled
-            select("Reader controls", control=True)
             select("Reader controls")
             assert state()["labels"] == ["Buttons"]
             assert driver.command("settings_page_back")["ok"]
@@ -197,7 +192,7 @@ def test_reader_settings_hierarchy_icons_and_bottom_swipe(configured):
             browser = _wait_command(driver, "page_browser_state",
                                     lambda result: result.get("page_browser", {}).get("layout") == "carousel")
             assert browser["page_browser"]["header_icons"] == [
-                "more_vertical.svg", "coverflow.svg", "font.svg", "bookmark_outline.svg",
+                "more_vertical.svg", "view_carousel_outline.svg", "font.svg", "bookmark_outline.svg",
                 "lookup_highlight.svg", "toc.svg", "close.svg",
             ]
         finally:

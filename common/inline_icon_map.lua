@@ -45,7 +45,7 @@ return {
     read_status  = "\u{F00C0}",  -- bookmark
     status       = "\u{F00BA}",  -- mdi-book-open-blank-variant (unread)
     reading      = "\u{F14F7}",  -- mdi-book-open
-    book_switcher = "\u{F1486}",
+    book_switcher = "\u{F02DA}",
     tbr          = "\u{F0150}",  -- mdi-clock (to-be-read)
     on_hold      = "\u{F03E4}",
     finished     = "\u{F012C}",  -- mdi-check-circle
@@ -103,7 +103,7 @@ return {
     settings_global   = "\u{F0574}",
     settings_status   = "\u{F12F0}",
     battery           = "\u{F0080}",
-    reader_themes     = "\u{F0594}",
+    reader_themes     = "\u{F00E3}",
     reader_status_bar_margins = "\u{F061E}",
     reader_flash_cbz  = "\u{F0241}",
     end_book         = "\u{F14F3}",
@@ -151,7 +151,7 @@ return {
     enable       = "\u{F040A}",
     chapter_time_format = "\u{F19B9}",
     bottom_swipe = "\u{F0740}",
-    page_browser = "\u{F0570}",
+    page_browser = "\u{F1486}",
     restore_library_location = "\u{F006F}",
     hide_reader_actions = "\u{F0209}",
     remove       = "\u{F0374}",

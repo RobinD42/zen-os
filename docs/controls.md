@@ -2,8 +2,18 @@
 title: Controls
 category: Interface
 summary: All your controls in one place
+<<<<<<< Updated upstream
 settingsPath: Zen Settings > Interface > Controls
 order: 46
+=======
+<<<<<<< Updated upstream
+settingsPath: Zen Settings > Controls
+order: 20
+=======
+settingsPath: Zen Settings > Interface > Controls
+order: 46
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 ---
 
 <!-- Documentation current through ZenOS v3.3.0. -->

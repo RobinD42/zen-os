@@ -11,11 +11,11 @@ local ICONS = {
     bookmarks = "bookmark_outline",
     search = "quick_search",
     profiles = "profiles",
-    themes = "moon_outline",
+    themes = "settings_brush",
     vocabulary = "tab_vocab",
     page_browser = "coverflow",
     koreader_menu = "koreader",
-    book_switcher = "view_carousel_outline",
+    book_switcher = "history",
 }
 
 local function supports(entry, group)

@@ -12,7 +12,7 @@ describe("reader controls buttons", function()
         local cfg = Buttons.ensure(config)
         assert.are.equal(15, #cfg.entries)
         assert.are.equal("font", cfg.entries[1].control)
-        assert.are.equal("moon_outline", Buttons.icon(cfg.entries[10]))
+        assert.are.equal("settings_brush", Buttons.icon(cfg.entries[10]))
         for _i, entry in ipairs(Buttons.defaults()) do
             assert.is_nil(entry.icon)
             assert.is_nil(entry.icon_override)
@@ -80,7 +80,7 @@ describe("reader controls buttons", function()
             { 1, "appbar.textsize", "font" }, { 3, "appbar.pageview", "page" },
             { 4, "book_closed", "document" }, { 9, "bookshelf", "profiles" }, { 12, "grid_slide", "coverflow" },
             { 7, "bookmark", "bookmark_outline" },
-            { 10, "paint_palette", "moon_outline" }, { 14, "swap_horizontal", "view_carousel_outline" },
+            { 10, "paint_palette", "settings_brush" }, { 14, "swap_horizontal", "history" },
         }
         for _i, default in ipairs(defaults) do entries[default[1]].icon = default[2] end
         Buttons.ensure(config)
@@ -319,7 +319,7 @@ describe("reader controls buttons", function()
         local switcher = cfg.entries[#cfg.entries]
         assert.are.equal("book_switcher", switcher.control)
         assert.are.equal("Book switcher", switcher.label)
-        assert.are.equal("view_carousel_outline", Buttons.icon(switcher))
+        assert.are.equal("history", Buttons.icon(switcher))
         for _i, group in ipairs({ "copt", "kopt" }) do
             local entries = Buttons.visible(config, group)
             assert.are.equal(switcher, entries[#entries])

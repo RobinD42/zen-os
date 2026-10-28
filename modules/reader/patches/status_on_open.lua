@@ -61,6 +61,15 @@ local function apply_status_on_open()
                 self:saveSettings()
             end
         end
+        -- Default to synced T/B margins once per book when they're already equal; later toggles stick.
+        if self.rolling and self.typeset and not doc_settings:isTrue("zen_margin_sync_defaulted") then
+            local configurable = self.document.configurable
+            if configurable.t_page_margin == configurable.b_page_margin then
+                configurable.sync_t_b_page_margins = 1
+                self.typeset.sync_t_b_page_margins = true
+            end
+            doc_settings:saveSetting("zen_margin_sync_defaulted", true)
+        end
     end
 end
 

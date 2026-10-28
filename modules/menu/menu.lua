@@ -4,7 +4,6 @@ local initialized = false
 local FEATURES = {
     "quick_settings",
     "app_launcher",
-    "reader_controls",
     "zen_mode",
 }
 
@@ -73,21 +72,11 @@ function M.init(logger, plugin)
         end
     end
 
-    -- Always apply: disable swipe zones so quick settings tab is always shown first
-    local swipe_fn = load_patch("disable_top_menu_swipe_zones")
-    if swipe_fn then
-        local ok = run_feature(logger, plugin, "disable_top_menu_swipe_zones", swipe_fn)
-        if ok then
-            runtime_patches["disable_top_menu_swipe_zones"] = true
-        end
-    end
-
-    -- Always apply: move pagination to left footer; center button goes up/closes
-    local footer_fn = load_patch("touch_menu_footer")
-    if footer_fn then
-        local ok = run_feature(logger, plugin, "touch_menu_footer", footer_fn)
-        if ok then
-            runtime_patches["touch_menu_footer"] = true
+    -- Always apply: swipe zones keep quick settings first; footer moves pagination left
+    for _i, feature in ipairs({ "reader_controls", "disable_top_menu_swipe_zones", "touch_menu_footer" }) do
+        local fn = load_patch(feature)
+        if fn and run_feature(logger, plugin, feature, fn) then
+            runtime_patches[feature] = true
         end
     end
 

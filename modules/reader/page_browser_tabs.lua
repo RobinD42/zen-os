@@ -42,14 +42,14 @@ function M.list(config, ui, include_disabled, extra_tab)
     local _ = require("gettext")
     local paging = ui and ui.paging
     local labels = {
-        browser = { "coverflow", _("Page browser") },
+        browser = { "view_carousel_outline", _("Page browser") },
         aa = { paging and "appbar.contrast" or "font", paging and _("Contrast") or _("Font") },
         bookmarks = { "bookmark_outline", _("Bookmarks") },
         highlights = { "lookup_highlight", _("Highlights") },
         annotations = { "annotations", _("Annotations") },
         toc = { "toc", _("Table of contents") },
         book_details = { "info", _("Book details") },
-        book_switcher = { "view_carousel_outline", _("Book switcher") },
+        book_switcher = { "history", _("Book switcher") },
     }
     local entries = {}
     for _i, id in ipairs(cfg.tab_order) do

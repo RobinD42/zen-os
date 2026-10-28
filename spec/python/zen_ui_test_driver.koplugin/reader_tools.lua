@@ -1124,7 +1124,7 @@ function M.activate(name)
         if not browser then return false, "page browser unavailable" end
         local icons = { page_browser_controls = ui.paging and "appbar.contrast" or "font", page_browser_toc = "toc",
             page_browser_bookmarks = "bookmark_outline", page_browser_annotations = "annotations", page_browser_book_details = "info",
-            page_browser_book_switcher = "view_carousel_outline" }
+            page_browser_book_switcher = "history" }
         return tap_browser_widget(find_control(browser.title_bar, icons[name], {}, 0))
     elseif name == "page_browser_switch_book" then
         local panel = browser and browser._zen_active_tab == "book_switcher" and browser._zen_content_panel
@@ -1135,7 +1135,7 @@ function M.activate(name)
         return tap_browser_widget(browser._zen_search_button)
     elseif name == "page_browser_pages" then
         if not browser then return false, "page browser unavailable" end
-        return tap_browser_widget(find_control(browser.title_bar, "coverflow", {}, 0))
+        return tap_browser_widget(find_control(browser.title_bar, "view_carousel_outline", {}, 0))
     elseif name == "page_browser_layout_menu" then
         if not browser then return false, "page browser unavailable" end
         return tap_browser_widget(browser._zen_layout_button)

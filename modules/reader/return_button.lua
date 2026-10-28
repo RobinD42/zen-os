@@ -89,8 +89,53 @@ function ReturnButton:paintTo(bb, x, y)
     frame:free()
 end
 
+local tracking -- button whose tab touch is being followed
+
+local function extend(touch, x, y)
+    touch.down, touch.up = math.max(touch.down, y - touch.y), math.max(touch.up, touch.y - y)
+    touch.left, touch.right = math.max(touch.left, touch.x - x), math.max(touch.right, x - touch.x)
+end
+
+-- Sub-pan-threshold movement never becomes a gesture and lift points drift, so sample raw contacts.
+local function trackContacts()
+    local detector = Device.input and Device.input.gesture_detector
+    if not detector or detector._zen_return_feed then return end
+    local feed = detector.feedEvent
+    detector._zen_return_feed = feed
+    detector.feedEvent = function(self, tevs)
+        local touch = tracking and tracking.touch
+        if touch then
+            for _i, tev in ipairs(tevs) do
+                if tev.x and tev.y then extend(touch, tev.x, tev.y) end
+            end
+        end
+        return feed(self, tevs)
+    end
+end
+
+function ReturnButton:onTouch(ges)
+    local armed = self:isVisible() and self.dimen and self.dimen:contains(ges.pos)
+    self.touch = armed and { x = ges.pos.x, y = ges.pos.y, down = 0, up = 0, left = 0, right = 0 } or nil
+    tracking = armed and self or nil
+    return false
+end
+
+-- Recessed bezels leave little travel, so any mostly-down or mostly-left nudge counts.
+local function isDismissDrag(touch, pos)
+    extend(touch, pos.x, pos.y)
+    local away = math.max(touch.down, touch.left)
+    return away >= Screen:scaleBySize(3) and away > touch.up and away > touch.right
+end
+
 function ReturnButton:onTap(ges)
-    if not self:isVisible() or not self.dimen or not self.dimen:contains(ges.pos) then return false end
+    local touch = self.touch
+    self.touch, tracking = nil, nil
+    if not self:isVisible() or not self.dimen then return false end
+    if touch and isDismissDrag(touch, ges.pos) then
+        self:hide()
+        return true
+    end
+    if not self.dimen:contains(ges.pos) then return false end
     require("common/ui/button_feedback").flashButton(self.dimen)
     self:hide(false)
     References.goBack(self.ui)
@@ -104,9 +149,11 @@ function ReturnButton:swipeHit(pos)
         and pos.y >= box.y - Screen:getHeight() * 0.15
 end
 
+-- West stays on the tab itself so page-turn swipes nearby are untouched.
 function ReturnButton:onSwipe(ges)
-    if ges.direction ~= "south" or not self:isVisible() or not self.dimen
-        or not self:swipeHit(ges.pos) then return false end
+    if not self:isVisible() or not self.dimen then return false end
+    if not ((ges.direction == "south" and self:swipeHit(ges.pos))
+        or (ges.direction == "west" and self.dimen:contains(ges.pos))) then return false end
     self:hide()
     return true
 end
@@ -115,6 +162,7 @@ function ReturnButton.attach(ui, plugin)
     if ui._zen_return_button then return end
     local button = ReturnButton:new{ ui = ui, plugin = plugin }
     ui._zen_return_button = button
+    trackContacts()
     local ReaderView = require("apps/reader/modules/readerview")
     -- Keep the overlay above class patches, including a status bar enabled later.
     ui.view.paintTo = function(view, bb, x, y)
@@ -124,10 +172,11 @@ function ReturnButton.attach(ui, plugin)
     end
     local overrides = { "readerlink_tap", "readerhighlight_tap", "readermenu_tap", "readermenu_ext_tap",
         "tap_top_left_corner", "tap_forward", "tap_backward" }
-    local swipe_overrides = {}
+    local swipe_overrides, touch_overrides = {}, {}
     for id, zone in pairs(ui._zones or {}) do
         if zone.def.ges == "tap" then overrides[#overrides + 1] = id
-        elseif zone.def.ges == "swipe" then swipe_overrides[#swipe_overrides + 1] = id end
+        elseif zone.def.ges == "swipe" then swipe_overrides[#swipe_overrides + 1] = id
+        elseif zone.def.ges == "touch" then touch_overrides[#touch_overrides + 1] = id end
     end
     ui:registerTouchZones{{ id = "zen_reference_return", ges = "tap",
         screen_zone = { ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1 }, overrides = overrides,
@@ -135,6 +184,9 @@ function ReturnButton.attach(ui, plugin)
     }, { id = "zen_reference_return_swipe", ges = "swipe",
         screen_zone = { ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1 }, overrides = swipe_overrides,
         handler = function(ges) return button:onSwipe(ges) end,
+    }, { id = "zen_reference_return_touch", ges = "touch",
+        screen_zone = { ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1 }, overrides = touch_overrides,
+        handler = function(ges) return button:onTouch(ges) end,
     }}
 end
 

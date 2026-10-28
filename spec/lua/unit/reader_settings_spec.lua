@@ -84,13 +84,9 @@ describe("reader settings", function()
         ReaderSettings = require("modules/settings/sections/reader_settings")
     end)
 
-    it("groups appearance settings and keeps controls enabled from the reader root", function()
-        local applied
-        local config = { features = { reader_controls = true }, reader_themes = {} }
-        local items = ReaderSettings.build({
-            config = config, plugin = {},
-            save_and_apply = function(feature) applied = feature end,
-        })
+    it("groups appearance settings under the reader root", function()
+        local config = { features = {}, reader_themes = {} }
+        local items = ReaderSettings.build({ config = config, plugin = {}, save_and_apply = function() end })
         local labels = {}
         for _i, item in ipairs(items) do labels[#labels + 1] = item.text end
         assert.are.same({ "Appearance", "Highlight / Lookup", "Bottom swipe gesture", "Page Browser",
@@ -103,10 +99,7 @@ describe("reader settings", function()
         assert.is_nil(find_item(items, "Font"))
         local controls = items[#items - 1]
         assert.is_nil(find_item(controls.sub_item_table, "Enable"))
-        assert.is_true(controls.checked_func())
-        controls.checkmark_callback()
-        assert.is_false(config.features.reader_controls)
-        assert.are.equal("reader_controls", applied)
+        assert.is_nil(controls.checked_func)
     end)
 
     it("shows popup settings directly in footnote options", function()
@@ -228,7 +221,6 @@ describe("reader settings", function()
             config = config, plugin = { saveConfig = function() saved = saved + 1 end },
             save_and_apply = function(feature)
                 assert.are.equal("reader_controls", feature)
-                assert.is_true(config.features.reader_controls)
                 saved = saved + 1
             end,
         })
