@@ -1243,7 +1243,7 @@ def test_reader_slider_live_steps_and_menu_reopening():
         entries = ",".join(f'{{id="test_{i}",type="action",label="Action {i}",icon="info",action={{}}}}'
                            for i in range(8))
         (settings / "app_launcher.lua").write_text(
-            'return {show_book_details=true,page_order={"buttons","book_details"},entries={' + entries + '}}\n',
+            'return {show_book_switcher=true,page_order={"buttons","book_switcher"},entries={' + entries + '}}\n',
             encoding="utf-8")
         socket_path = root / "driver.sock"
         # Keep the reader header static across screenshot comparisons.

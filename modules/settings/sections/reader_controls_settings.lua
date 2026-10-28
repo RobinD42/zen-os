@@ -47,9 +47,6 @@ function M.build(ctx)
                     require("modules/settings/sections/app_launcher_settings").build(editor_ctx).callback()
                 end,
             },
-            require("modules/menu/reader_controls/book_info").settingsItem(config, function()
-                ctx.save_and_apply("reader_controls")
-            end),
         },
     }
 end

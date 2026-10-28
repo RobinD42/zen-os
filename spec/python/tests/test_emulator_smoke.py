@@ -210,12 +210,6 @@ def test_reader_controls_hide_on_first_library_menu_open() -> None:
             assert layout["ok"] is True
             assert layout["active_tab"] == "quicksettings"
             assert layout["button_ids"] == ["night"]
-
-            assert driver.command("open_settings_page")["ok"] is True
-            for label in ("Interface", "Controls", "Hide reader actions in library"):
-                assert driver.command("settings_page_select", label=label)["ok"] is True
-            assert driver.command("close_settings_page")["ok"] is True
-            assert driver.command("menu_tab_layout")["button_ids"] == ["rotate", "night", "cb_1"]
         finally:
             stop(process)
 

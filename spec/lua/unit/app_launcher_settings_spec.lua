@@ -521,8 +521,7 @@ describe("app launcher settings", function()
             config = config, save_and_apply = function() reader_saves = reader_saves + 1 end,
         }
         assert.are.equal("Buttons \u{25B8}", section.sub_item_table[1].text)
-        assert.are.equal("Book info \u{25B8}", section.sub_item_table[2].text)
-        assert.are.equal(2, #section.sub_item_table)
+        assert.are.equal(1, #section.sub_item_table)
         assert.is_nil(config.reader_controls.open_first)
         section.sub_item_table[1].callback()
         assert.are.equal("Buttons", shown_options.title)
