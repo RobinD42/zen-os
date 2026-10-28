@@ -894,7 +894,8 @@ def test_page_browser_settings_subsections_and_themes(document_type: str, width:
                     assert len({line["y"] for line in dividers}) == len(dividers)
                     assert all(state["menu_top"] < line["y"] < pager["y"] and line["light_gray"] for line in dividers)
                     assert all(line["x"] == 0 and line["width"] == state["screen_width"] for line in dividers)
-                    assert all(line["spacing"] > 0 for line in dividers)
+                    # Padding only fills spare space; tightly packed pages may have none.
+                    assert all(line["spacing"] >= 0 for line in dividers)
                     rows = state["settings_row_bounds"]
                     assert len(rows) == state["settings_rows"]
                     assert rows[0]["y"] > state["menu_top"]
@@ -1096,7 +1097,7 @@ def test_page_browser_icon_pack_and_layout_menu(custom_icons: bool) -> None:
         (pack / "pack.json").write_text(json.dumps({"schema_version": 1, "id": "browser", "name": "Browser"}))
         header_names = ["more_vertical", "view_carousel_outline", "font", "bookmark_outline", "lookup_highlight", "toc",
                         "annotations", "info", "close"]
-        names = header_names + ["grid", "grid_slide", "chevron.left", "chevron.right", "quick_search",
+        names = header_names + ["grid", "grid_slide", "coverflow", "chevron.left", "chevron.right", "quick_search",
                                 "quicksettings", "appbar.settings", "plus", "filter", "sort", "pin", "pin_remove",
                                 "bookmark", "bookmark_remove"]
         for name in names:

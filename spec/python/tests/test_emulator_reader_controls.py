@@ -460,12 +460,15 @@ def test_reader_controls_native_settings_defaults_profiles_and_direct_actions():
             assert "table:" not in state["labels"]["h_page_margins"]
             assert state["labels"]["h_page_margins"].startswith("Left/Right:")
             assert "sync_t_b_page_margins" not in state["controls"]
-            driver.command("reader_controls", action="choose", id="t_page_margin_more")
-            driver.command("reader_controls", action="setting_menu", button="Sync")
-            assert not driver.command("reader_controls", action="setting_menu")["ok"]
-            state = driver.command("reader_controls")
             assert state["config"]["sync_t_b_page_margins"] == 1
-            assert "t_page_margin" in state["controls"] and "b_page_margin" not in state["controls"]
+            for synced in (0, 1):
+                driver.command("reader_controls", action="choose", id="t_page_margin_more")
+                driver.command("reader_controls", action="setting_menu", button="Sync")
+                assert not driver.command("reader_controls", action="setting_menu")["ok"]
+                state = driver.command("reader_controls")
+                assert state["config"]["sync_t_b_page_margins"] == synced
+                assert "t_page_margin" in state["controls"]
+                assert ("b_page_margin" in state["controls"]) is not bool(synced)
             assert state["labels"]["t_page_margin"].startswith("Top/Bottom:")
             driver.command("reader_controls", action="slider", index=2)
             state = driver.command("reader_controls")
@@ -1540,22 +1543,21 @@ def test_reader_shared_selection_and_setting_layout(show_chevrons):
             state = driver.command("reader_controls", action="paint")
             assert state["config"]["view_mode"] == 1
             assert state["selections"]["view_mode_2"] is True
-            cells = [state["bounds"]["view_mode_1"], state["bounds"]["view_mode_2"]]
+            # View mode and two columns share one row: Page / Continuous / Two column.
+            assert "visible_pages_1" not in state["controls"]
+            cells = [state["bounds"]["view_mode_1"], state["bounds"]["view_mode_3"]]
             start = layout_state["step_styles"]["t_page_margin_decrease"]
             end = layout_state["step_styles"]["t_page_margin_increase"]
             assert cells[0]["x"] - inset == start["glyph_x"]
             assert cells[1]["x"] + cells[1]["w"] + inset == end["glyph_x"] + end["glyph_w"]
+            driver.command("reader_controls", action="choose", id="view_mode_3")
+            state = driver.command("reader_controls", action="paint")
+            assert state["config"]["view_mode"] == 0 and state["config"]["visible_pages"] == 2
+            assert state["selections"]["view_mode_3"] is True
             driver.command("reader_controls", action="choose", id="view_mode_1")
             state = driver.command("reader_controls", action="paint")
-            assert state["config"]["view_mode"] == 0
+            assert state["config"]["view_mode"] == 0 and state["config"]["visible_pages"] == 1
             assert state["selections"]["view_mode_1"] is True
-            state = _page_with(driver, "visible_pages_1")
-            assert not state["toggles"]
-            on = state["selections"]["visible_pages_2"]
-            assert state["selections"]["visible_pages_1"] is not on
-            target = "visible_pages_1" if on else "visible_pages_2"
-            driver.command("reader_controls", action="choose", id=target)
-            assert driver.command("reader_controls", action="paint")["selections"][target] is True
             driver.screenshot(Path("/tmp/zen-reader-selection-page.png"))
             driver.command("reader_controls", action="choose", id="themes")
             state = driver.command("reader_controls", action="paint")
