@@ -257,21 +257,24 @@ describe("temporary reader return button", function()
     it("dismisses on a downward swipe on the tab without navigating or clearing history", function()
         button:queue({ page = 1 })
         queued[#queued]()
-        button.dimen = { contains = function(_self, pos) return pos.inside end }
+        button.dimen = { x = 10, y = 760, w = 180, h = 40, contains = function(_self, pos) return pos.inside end }
         local location = button.location
         ui.link.location_stack = { location }
         for _i, direction in ipairs({ "north", "east", "west", "southeast", "southwest" }) do
-            assert.is_false(button:onSwipe({ direction = direction, pos = { inside = true } }))
+            assert.is_false(button:onSwipe({ direction = direction, pos = { x = 50, y = 770 } }))
         end
-        assert.is_false(button:onSwipe({ direction = "south", pos = {} }))
+        -- Generous band: tab column +/- 24px, from 15% of screen height above the tab down.
+        for _i, pos in ipairs({ { x = 50, y = 639 }, { x = -15, y = 770 }, { x = 214, y = 770 } }) do
+            assert.is_false(button:onSwipe({ direction = "south", pos = pos }))
+        end
         enabled = false
-        assert.is_false(button:onSwipe({ direction = "south", pos = { inside = true } }))
+        assert.is_false(button:onSwipe({ direction = "south", pos = { x = 50, y = 770 } }))
         enabled = true
         assert.is_true(button:isVisible())
         assert.equals(10, timers[button.expire])
         local repaints = #dirty
         button:queue({ page = 2 })
-        assert.is_true(button:onSwipe({ direction = "south", pos = { inside = true } }))
+        assert.is_true(button:onSwipe({ direction = "south", pos = { x = -14, y = 640 } }))
         assert.is_false(button:isVisible())
         assert.is_nil(button.location)
         assert.is_nil(button.pending_callback)
@@ -281,7 +284,7 @@ describe("temporary reader return button", function()
         assert.equals(0, returns)
         assert.equals(3, ui.page)
         assert.same({ location }, ui.link.location_stack)
-        assert.is_false(button:onSwipe({ direction = "south", pos = { inside = true } }))
+        assert.is_false(button:onSwipe({ direction = "south", pos = { x = 50, y = 770 } }))
     end)
 
     it("registers swipe dismissal ahead of existing reader swipe handlers", function()
@@ -296,15 +299,15 @@ describe("temporary reader return button", function()
         button = ui._zen_return_button
         button:queue({ page = 1 })
         queued[#queued]()
-        assert.is_false(button:onSwipe({ direction = "south", pos = {} }))
-        button.dimen = { contains = function(_self, pos) return pos.inside end }
+        assert.is_false(button:onSwipe({ direction = "south", pos = { x = 50, y = 770 } }))
+        button.dimen = { x = 10, y = 760, w = 180, h = 40, contains = function(_self, pos) return pos.inside end }
         assert.equals("tap", zones[1].ges)
         assert.equals("swipe", zones[2].ges)
         assert.same({ ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1 }, zones[2].screen_zone)
         table.sort(zones[2].overrides)
         assert.same({ "readerconfigmenu_ext_swipe", "rolling_swipe" }, zones[2].overrides)
-        assert.is_false(zones[2].handler({ direction = "north", pos = { inside = true } }))
-        assert.is_true(zones[2].handler({ direction = "south", pos = { inside = true } }))
+        assert.is_false(zones[2].handler({ direction = "north", pos = { x = 50, y = 700 } }))
+        assert.is_true(zones[2].handler({ direction = "south", pos = { x = 50, y = 700 } }))
         assert.is_false(button:isVisible())
     end)
 end)

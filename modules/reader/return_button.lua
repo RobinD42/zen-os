@@ -97,9 +97,16 @@ function ReturnButton:onTap(ges)
     return true
 end
 
+-- Swipes start above the tab, so accept its column from well above it down to the screen edge.
+function ReturnButton:swipeHit(pos)
+    local box, pad = self.dimen, Screen:scaleBySize(24)
+    return pos.x >= box.x - pad and pos.x < box.x + box.w + pad
+        and pos.y >= box.y - Screen:getHeight() * 0.15
+end
+
 function ReturnButton:onSwipe(ges)
     if ges.direction ~= "south" or not self:isVisible() or not self.dimen
-        or not self.dimen:contains(ges.pos) then return false end
+        or not self:swipeHit(ges.pos) then return false end
     self:hide()
     return true
 end
