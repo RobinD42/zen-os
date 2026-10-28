@@ -1144,6 +1144,55 @@ describe("quick settings plugin controls", function()
             end
             cfg.show_book_details, cfg.show_book_switcher = true, true
         end
+
+        -- The launcher sizes its own grid: columns round up against the 96dp
+        -- target, cells stretch across the longest row, and rows are balanced.
+        -- The status-row stub above pins its own call contract at scale 1, so
+        -- these grid scenarios exercise the button rows without the status row.
+        require("common/shared_state").get = function() return nil end
+
+        local function grid_menu()
+            return {
+                item_width = 600, height = 2000, screen_size = { h = 600 },
+                bar = Widget:new{ height = 40 },
+                footer = Widget:new{ height = 40 },
+                footer_top_margin = Widget:new{ height = 8 },
+                _app_launcher_page = 1,
+            }
+        end
+        local function set_entries(count)
+            cfg.entries = {}
+            for index = 1, count do
+                cfg.entries[index] = { type = "folder", label = "Folder", children = {} }
+            end
+        end
+
+        -- Rounding down at the 96dp target is what dropped a fifth icon onto a
+        -- row of its own while the Controls tab fitted all five.
+        require("device").screen.scaleBySize = function(_self, value)
+            return math.floor(value * 1.25)
+        end
+        set_entries(5)
+        local packed = grid_menu()
+        menu.tab_item_table[2].panel(packed)
+        assert.are.equal(1, #packed._zen_panel_refs.layout_rows)
+        assert.are.equal(5, #packed._zen_panel_refs.layout_rows[1])
+        -- Every cell is 576/5 wide and the row fills the 10dp inset box.
+        assert.are.equal(576 / 5, packed._zen_panel_refs.buttons[1].widget.width)
+
+        -- Where only four columns fit, five entries split 3+2 rather than 4+1,
+        -- so no row is left carrying a lone icon.
+        require("device").screen.scaleBySize = function(_self, value)
+            return math.floor(value * 1.5)
+        end
+        set_entries(5)
+        local balanced = grid_menu()
+        menu.tab_item_table[2].panel(balanced)
+        local rows = balanced._zen_panel_refs.layout_rows
+        assert.are.equal(2, #rows)
+        assert.are.equal(3, #rows[1])
+        assert.are.equal(2, #rows[2])
+        assert.are.equal(570 / 3, balanced._zen_panel_refs.buttons[1].widget.width)
     end)
 
     it("opens ZenFM settings on hold with a toggle and timeout submenu", function()

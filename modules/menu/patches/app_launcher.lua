@@ -184,10 +184,21 @@
         local cfg = Model.ensure(zen_plugin.config)
         local show_labels = cfg.show_labels ~= false
         local panel_width = touch_menu.item_width
-        local pad = Screen:scaleBySize(8)
-        local inner_w = panel_width - pad * 2
+        local pad = Screen:scaleBySize(8)   -- vertical gutter between rows
+        -- Horizontal edge inset, kept equal to the Controls panel's button row
+        -- so both tabs start and end their buttons on the same vertical line.
+        local hpad = Screen:scaleBySize(10)
+        local inner_w = panel_width - hpad * 2
         local min_cell_w = Screen:scaleBySize(96)
-        local cols = math.max(2, math.floor(inner_w / min_cell_w))
+        -- Round the column count up against the 96dp target instead of down.
+        -- Stopping at the floor is what dropped a fifth icon onto a row of its
+        -- own while the Controls tab fitted all five across the same panel.
+        local cols = math.max(2, math.ceil(inner_w / min_cell_w))
+        -- Do not pack so hard that a cell ends up barely wider than the 64dp
+        -- icon; on a narrow screen rounding up can otherwise overshoot.
+        if cols > 2 and inner_w / cols < min_cell_w * 0.8 then
+            cols = cols - 1
+        end
         local cell_h = Screen:scaleBySize(92)
         local row_gap = Screen:scaleBySize(8)
         local circle_size = Screen:scaleBySize(64)
@@ -224,33 +235,57 @@
             end
         end
 
-        -- Group visible entries into rows. A break forces a new row and may
-        -- give it a title, but never renders a launcher cell itself.
+        -- Group visible entries into rows. A break forces a new section that may
+        -- give its first row a title, but never renders a launcher cell itself.
         local all_rows = {}
         do
-            local current_row
-            local force_break = false
-            local break_title
-            for _i, entry in ipairs(visible) do
+            local section = {}
+            local section_title
+
+            -- Rows are balanced inside a section, so five entries over four
+            -- columns become 3+2 rather than 4+1: the last row never carries a
+            -- lone icon while the row above it is already full.
+            local function flush_section()
+                local count = #section
+                if count == 0 then
+                    section_title = nil
+                    return
+                end
+                local row_count = math.ceil(count / cols)
+                local base = math.floor(count / row_count)
+                local extra = count % row_count
+                local index = 1
+                for row_index = 1, row_count do
+                    local row = {}
+                    if row_index == 1 then row._break_title = section_title end
+                    local take = base + (row_index <= extra and 1 or 0)
+                    local stop = index + take
+                    while index < stop do
+                        row[#row + 1] = section[index]
+                        index = index + 1
+                    end
+                    all_rows[#all_rows + 1] = row
+                end
+                section = {}
+                section_title = nil
+            end
+
+            for entry_index = 1, #visible do
+                local entry = visible[entry_index]
                 if entry.type == "break" then
-                    force_break = true
-                    break_title = type(entry.label) == "string" and entry.label:match("%S")
+                    flush_section()
+                    section_title = type(entry.label) == "string" and entry.label:match("%S")
                         and entry.label or nil
                 else
-                    if not current_row or #current_row >= cols or force_break then
-                        current_row = {}
-                        current_row._break_title = break_title
-                        all_rows[#all_rows + 1] = current_row
-                    end
-                    current_row[#current_row + 1] = entry
-                    force_break = false
-                    break_title = nil
+                    section[#section + 1] = entry
                 end
             end
+            flush_section()
         end
 
         -- Size every cell off the longest row (across all pages) so a short,
-        -- forced-break row doesn't stretch its icons wider than a full row.
+        -- balanced or forced-break row doesn't stretch its icons wider than a
+        -- full row, and every row shares one pitch.
         local max_row_len = 0
         for _i, row in ipairs(all_rows) do
             if #row > max_row_len then max_row_len = #row end
@@ -470,8 +505,11 @@
                 panel[#panel + 1] = VerticalSpan:new{ width = title_gap }
             end
             local used = (row_counts[_i] or 0) * (row_widths[_i] or uniform_cell_w)
-            local lead = math.max(pad, math.floor((panel_width - used) / 2))
-            local trail = panel_width - used - lead
+            -- Centre within the inset box rather than the full panel, so a full
+            -- row begins and ends exactly hpad from the edges and shorter rows
+            -- stay on the same left margin.
+            local lead = hpad + math.max(0, math.floor((inner_w - used) / 2))
+            local trail = math.max(0, panel_width - used - lead)
             table.insert(row, 1, HorizontalSpan:new{ width = lead })
             row[#row + 1] = HorizontalSpan:new{ width = math.max(0, trail) }
             panel[#panel + 1] = row
