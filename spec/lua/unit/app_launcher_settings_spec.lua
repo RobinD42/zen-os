@@ -34,19 +34,7 @@ describe("app launcher settings", function()
         saves = 0
         launcher_cfg = {
             entries = { entry },
-            page_order = { "book_details", "book_switcher", "buttons" },
-            book_details_order = {
-                "read_time", "time_remaining", "pages_today",
-                "time_today", "pages", "progress",
-            },
-            book_details_enabled = {
-                read_time = true,
-                time_remaining = true,
-                pages_today = false,
-                time_today = false,
-                pages = true,
-                progress = true,
-            },
+            page_order = { "book_switcher", "buttons" },
         }
 
         ZenSpec.replace("gettext", function(text) return text end)
@@ -174,6 +162,7 @@ describe("app launcher settings", function()
                 if item.text == "Reader action" then reader_item = item end
             end
             assert.is_table(reader_item)
+            assert.are.equal("When enabled, this action is hidden in the library.", reader_item.help_text)
             local default = entry_type == "action"
             assert.are.equal(default, reader_item.checked_func())
             reader_item.callback(touch_menu)
@@ -193,40 +182,10 @@ describe("app launcher settings", function()
                 config = { features = { app_launcher = true } },
                 save_and_apply = function() end,
         })
-        local details
         for _i, item in ipairs(section.sub_item_table) do
-            if item.text == "Book details" then details = item end
+            assert.are_not.equal("Book details", item.text)
+            assert.are_not.equal("Hide reader actions in library", item.text)
         end
-
-        assert.is_table(details)
-        assert.is_false(details.checked_func())
-        details.checkmark_callback()
-        assert.is_true(launcher_cfg.show_book_details)
-        assert.are.equal(1, #details.sub_item_table)
-        assert.are.equal("Items \u{25B8}", details.sub_item_table[1].text)
-        details.sub_item_table[1].callback()
-        assert.are.equal("Book details", shown_options.title)
-        assert.are.same({
-            "Read time", "Time remaining", "Pages today",
-            "Time today", "Pages", "Progress bar",
-        }, {
-            shown_options.item_table[1].text,
-            shown_options.item_table[2].text,
-            shown_options.item_table[3].text,
-            shown_options.item_table[4].text,
-            shown_options.item_table[5].text,
-            shown_options.item_table[6].text,
-        })
-        assert.is_true(shown_options.item_table[1].checked_func())
-        shown_options.item_table[1].callback()
-        assert.is_false(launcher_cfg.book_details_enabled.read_time)
-        shown_options.item_table[1], shown_options.item_table[6]
-            = shown_options.item_table[6], shown_options.item_table[1]
-        shown_options.callback()
-        assert.are.same({
-            "progress", "time_remaining", "pages_today",
-            "time_today", "pages", "read_time",
-        }, launcher_cfg.book_details_order)
 
         local switcher
         local order_item
@@ -234,7 +193,7 @@ describe("app launcher settings", function()
         local open_menu_index
         for _i, item in ipairs(section.sub_item_table) do
             if item.text == "Book switcher" then switcher = item end
-            if item.text:match("^Order") then
+            if item.text and item.text:match("^Order") then
                 order_item = item
                 order_index = _i
             end
@@ -250,17 +209,16 @@ describe("app launcher settings", function()
 
         order_item.callback()
         assert.are.equal("Order", shown_options.title)
-        assert.are.same({ "Book information", "Book switcher", "Buttons" }, {
+        assert.are.same({ "Book switcher", "Buttons" }, {
             shown_options.item_table[1].text,
             shown_options.item_table[2].text,
-            shown_options.item_table[3].text,
         })
-        shown_options.item_table[1], shown_options.item_table[3]
-            = shown_options.item_table[3], shown_options.item_table[1]
+        assert.is_nil(shown_options.item_table[3])
+        shown_options.item_table[1], shown_options.item_table[2]
+            = shown_options.item_table[2], shown_options.item_table[1]
         shown_options.callback()
-        assert.are.same({ "buttons", "book_switcher", "book_details" },
-            launcher_cfg.page_order)
-        assert.are.equal(5, saves)
+        assert.are.same({ "buttons", "book_switcher" }, launcher_cfg.page_order)
+        assert.are.equal(2, saves)
     end)
 
     it("sets the switcher limit and defaults to hiding finished books", function()
@@ -563,7 +521,8 @@ describe("app launcher settings", function()
             config = config, save_and_apply = function() reader_saves = reader_saves + 1 end,
         }
         assert.are.equal("Buttons \u{25B8}", section.sub_item_table[1].text)
-        assert.are.equal(1, #section.sub_item_table)
+        assert.are.equal("Book info \u{25B8}", section.sub_item_table[2].text)
+        assert.are.equal(2, #section.sub_item_table)
         assert.is_nil(config.reader_controls.open_first)
         section.sub_item_table[1].callback()
         assert.are.equal("Buttons", shown_options.title)

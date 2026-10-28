@@ -141,7 +141,6 @@ local function apply_quick_settings()
             screenshot = false,
         },
         show_labels = true,
-        hide_reader_actions_in_library = false,
         reader_actions = {},
         show_frontlight = true,
         show_warmth = true,
@@ -1440,8 +1439,8 @@ local function apply_quick_settings()
         install_custom_button_defs()
 
         local visible_buttons = {}
-        local hide_reader_actions = config.hide_reader_actions_in_library == true
-            and touch_menu.item_table and touch_menu.item_table._zen_quick_settings_library == true
+        local hide_reader_actions = touch_menu.item_table
+            and touch_menu.item_table._zen_quick_settings_library == true
         for _i, id in ipairs(config.button_order) do
             if config.show_buttons[id] and button_defs[id] then
                 local def = button_defs[id]

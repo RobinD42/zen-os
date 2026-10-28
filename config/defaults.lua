@@ -236,7 +236,6 @@ local defaults = {
         },
         background_hatching = false,
         show_labels = true,
-        hide_reader_actions_in_library = false,
         reader_actions = {},
         show_frontlight = true,
         show_warmth = true,

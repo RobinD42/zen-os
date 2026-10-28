@@ -1,4 +1,4 @@
-describe("app launcher book details page", function()
+describe("reader controls book info card", function()
     local originals
 
     local function replace(name, module)
@@ -63,60 +63,21 @@ describe("app launcher book details page", function()
 
     before_each(function()
         originals = {}
-        ZenSpec.unload("modules/menu/app_launcher/book_details_page")
-        ZenSpec.unload("modules/menu/app_launcher/page_plan")
+        ZenSpec.unload("modules/menu/reader_controls/book_info_card")
     end)
 
     after_each(function()
-        ZenSpec.unload("modules/menu/app_launcher/book_details_page")
-        ZenSpec.unload("modules/menu/app_launcher/page_plan")
+        ZenSpec.unload("modules/menu/reader_controls/book_info_card")
         for name, original in pairs(originals) do
             package.loaded[name] = original == false and nil or original
         end
     end)
 
-    it("is reader-only without exposing a reader-only option", function()
-        local Page = require("modules/menu/app_launcher/book_details_page")
-        local cfg = { show_book_details = true }
-        assert.is_true(Page.isEnabled(cfg, false))
-        assert.is_false(Page.isEnabled(cfg, true))
-        assert.is_false(Page.isEnabled({}, false))
+    it("exposes renderer options", function()
+        local Page = require("modules/menu/reader_controls/book_info_card")
         assert.are.same({ uniform = true }, Page.rendererOptions({
             features = { browser_cover_mosaic_uniform = true },
         }))
-    end)
-
-    it("orders both optional launcher pages deterministically", function()
-        local Plan = require("modules/menu/app_launcher/page_plan")
-        local cfg = {
-            show_book_switcher = true,
-            show_book_details = true,
-            page_order = { "book_details", "buttons", "book_switcher" },
-        }
-        local plan = Plan.build(2, cfg, false)
-        assert.are.same({ "book_details", "buttons", "buttons", "book_switcher" }, {
-            plan[1].kind, plan[2].kind, plan[3].kind, plan[4].kind,
-        })
-        assert.are.equal(1, plan[2].index)
-        assert.are.equal(2, plan[3].index)
-
-        cfg.page_order = { "book_switcher", "book_details", "buttons" }
-        plan = Plan.build(2, cfg, false)
-        assert.are.same({ "book_switcher", "book_details", "buttons", "buttons" }, {
-            plan[1].kind, plan[2].kind, plan[3].kind, plan[4].kind,
-        })
-
-        cfg.show_book_details = false
-        plan = Plan.build(2, cfg, false)
-        assert.are.same({ "book_switcher", "buttons", "buttons" }, {
-            plan[1].kind, plan[2].kind, plan[3].kind,
-        })
-        cfg.show_book_details = true
-
-        local library_plan = Plan.build(2, cfg, true)
-        assert.are.same({ "book_switcher", "buttons", "buttons" }, {
-            library_plan[1].kind, library_plan[2].kind, library_plan[3].kind,
-        })
     end)
 
     it("shows cover, metadata, current page, and progress as one tappable card", function()
@@ -197,17 +158,17 @@ describe("app launcher book details page", function()
             features = { browser_cover_mosaic_uniform = false },
             mosaic_title_strip = { show_title = true, show_author = true },
         }
-        local Page = require("modules/menu/app_launcher/book_details_page")
+        local Page = require("modules/menu/reader_controls/book_info_card")
         local panel, refs = Page.build{
             width = 600,
             height = 400,
             config = config,
-            launcher_config = {
-                book_details_order = {
+            book_info = {
+                order = {
                     "pages_today", "time_today", "read_time",
                     "progress", "pages", "time_remaining",
                 },
-                book_details_enabled = {
+                enabled = {
                     pages_today = true,
                     read_time = true,
                     progress = true,

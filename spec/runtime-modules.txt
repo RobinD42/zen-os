@@ -199,7 +199,6 @@ modules/global/patches/responsive_keyboard.lua|unit
 modules/global/patches/rounded_scrollbars.lua|unit
 modules/global/patches/warmth_schedule.lua|integration
 modules/menu/app_launcher/action_filter.lua|integration
-modules/menu/app_launcher/book_details_page.lua|unit
 modules/menu/app_launcher/menu_host.lua|integration
 modules/menu/app_launcher/model.lua|integration
 modules/menu/app_launcher/native_menu.lua|unit
@@ -308,5 +307,7 @@ modules/menu/reader_controls/menus.lua|unit
 modules/menu/reader_controls/profiles.lua|unit
 modules/menu/reader_controls/settings.lua|unit
 modules/menu/reader_controls/buttons.lua|unit
+modules/menu/reader_controls/book_info.lua|unit
+modules/menu/reader_controls/book_info_card.lua|unit
 modules/menu/reader_controls/details.lua|unit
 modules/settings/sections/reader_controls_settings.lua|unit

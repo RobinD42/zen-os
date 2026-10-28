@@ -77,6 +77,22 @@ describe("app launcher book switcher page", function()
         assert.is_nil(Page.pagePosition(cfg, false, 2))
     end)
 
+    it("drops the removed book details page from launcher plans a book details launcher page", function()
+        local Plan = require("modules/menu/app_launcher/page_plan")
+        local cfg = {
+            show_book_switcher = true,
+            show_book_details = true,
+            page_order = { "book_details", "buttons", "book_switcher" },
+        }
+        local plan = Plan.build(2, cfg, false)
+        assert.are.same({ "buttons", "buttons", "book_switcher" }, {
+            plan[1].kind, plan[2].kind, plan[3].kind,
+        })
+        assert.is_nil(plan[4])
+        assert.are.equal(1, plan[1].index)
+        assert.are.equal(2, plan[2].index)
+    end)
+
     it("shares reader panels, exclusions, removal, and deferred book opening", function()
         local Page = require("modules/menu/app_launcher/book_switcher_page")
         local cfg = { show_book_switcher = false, book_switcher_hidden = {} }
@@ -151,19 +167,12 @@ describe("app launcher book switcher page", function()
         assert.are.equal(4, cfg.book_switcher_count)
         assert.is_true(cfg.book_switcher_hide_finished)
         assert.are.same({}, cfg.book_switcher_hidden)
-        assert.is_false(cfg.show_book_details)
-        assert.are.same({ "book_details", "book_switcher", "buttons" }, cfg.page_order)
-        assert.are.same({
-            "read_time", "time_remaining", "pages_today", "time_today", "pages", "progress",
-        }, cfg.book_details_order)
-        assert.are.same({
-            read_time = true,
-            time_remaining = true,
-            pages_today = false,
-            time_today = false,
-            pages = true,
-            progress = true,
-        }, cfg.book_details_enabled)
+        assert.is_nil(cfg.show_book_details)
+        assert.is_nil(cfg.hide_reader_actions_in_library)
+        assert.are.equal(0, cfg.columns)
+        assert.are.same({ "book_switcher", "buttons" }, cfg.page_order)
+        assert.is_nil(cfg.book_details_order)
+        assert.is_nil(cfg.book_details_enabled)
 
         cfg.show_book_switcher = true
         cfg.book_switcher_first = true
@@ -174,13 +183,6 @@ describe("app launcher book switcher page", function()
         cfg.show_book_details = true
         cfg.book_details_first = true
         cfg.page_order = { "buttons", "unknown", "buttons" }
-        cfg.book_details_order = { "pages", "unknown", "pages", "read_time" }
-        cfg.book_details_enabled = {
-            read_time = false,
-            time_remaining = "invalid",
-            pages = false,
-            unknown = false,
-        }
         Store.save(cfg)
         assert.is_true(settings_file.flushed)
         assert.is_true(settings_file.data.show_book_switcher)
@@ -188,23 +190,10 @@ describe("app launcher book switcher page", function()
         assert.are.equal(8, settings_file.data.book_switcher_count)
         assert.is_false(settings_file.data.book_switcher_hide_finished)
         assert.is_true(settings_file.data.book_switcher_hidden["/books/hidden.epub"])
-        assert.is_true(settings_file.data.show_book_details)
+        assert.is_nil(settings_file.data.show_book_details)
         assert.is_nil(settings_file.data.book_switcher_first)
         assert.is_nil(settings_file.data.book_details_first)
-        assert.are.same({ "buttons", "book_details", "book_switcher" },
-            settings_file.data.page_order)
-        assert.are.same({
-            "pages", "read_time", "time_remaining", "pages_today", "time_today", "progress",
-        }, settings_file.data.book_details_order)
-        assert.are.same({
-            read_time = false,
-            time_remaining = true,
-            pages_today = false,
-            time_today = false,
-            pages = false,
-            progress = true,
-        }, settings_file.data.book_details_enabled)
-        assert.is_nil(settings_file.data.book_details_enabled.unknown)
+        assert.are.same({ "buttons", "book_switcher" }, settings_file.data.page_order)
         for _i, value in ipairs({ -1, 0, 1, 3.8, 8, 9, "invalid" }) do
             cfg.book_switcher_count = value
             Store.save(cfg)
@@ -230,7 +219,7 @@ describe("app launcher book switcher page", function()
         replace("config/preset_store", { rootDir = function() return "/settings" end })
 
         local cfg = require("modules/menu/app_launcher/store").load()
-        assert.are.same({ "book_switcher", "buttons", "book_details" }, cfg.page_order)
+        assert.are.same({ "book_switcher", "buttons" }, cfg.page_order)
         assert.is_nil(cfg.book_switcher_first)
         assert.are.equal(4, cfg.book_switcher_count)
         assert.is_true(cfg.book_switcher_hide_finished)

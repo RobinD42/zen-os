@@ -1,14 +1,13 @@
-local BookDetailsPage = require("modules/menu/app_launcher/book_details_page")
 local BookSwitcherPage = require("modules/menu/app_launcher/book_switcher_page")
 
 local M = {}
 
-M.DEFAULT_ORDER = { "book_details", "book_switcher", "buttons" }
+M.DEFAULT_ORDER = { "book_switcher", "buttons" }
 
 function M.normalizeOrder(order, fallback)
     local normalized = {}
     local seen = {}
-    local valid = { book_details = true, book_switcher = true, buttons = true }
+    local valid = { book_switcher = true, buttons = true }
     local function append(items)
         for _i, kind in ipairs(type(items) == "table" and items or {}) do
             if valid[kind] and not seen[kind] then
@@ -28,7 +27,6 @@ function M.build(button_page_count, config, library_context)
     config = type(config) == "table" and config or {}
     local enabled = {
         book_switcher = BookSwitcherPage.isEnabled(config, library_context),
-        book_details = BookDetailsPage.isEnabled(config, library_context),
     }
     local pages = {}
     for _i, kind in ipairs(M.normalizeOrder(config.page_order)) do

@@ -580,6 +580,7 @@ return function(plugin)
             local opts = {
                 width = w, height = budget, config = plugin.config,
                 launcher_config = require("modules/menu/app_launcher/model").ensure(), ui = ui,
+                book_info = require("modules/menu/reader_controls/book_info").ensure(plugin.config),
                 open_details = function()
                     launch(tm, function()
                         require("modules/reader/book_details").show(ui, { config = plugin.config, plugin = plugin })
@@ -593,7 +594,7 @@ return function(plugin)
                 opts.refresh = function() tm:updateItems(1) end
                 details, detail_refs = require("modules/menu/app_launcher/book_switcher_page").buildReader(opts)
             else
-                details, detail_refs = require("modules/menu/app_launcher/book_details_page").build(opts)
+                details, detail_refs = require("modules/menu/reader_controls/book_info_card").build(opts)
             end
             panel[#panel + 1] = details
             for _i, ref in ipairs(detail_refs.buttons) do refs.buttons[#refs.buttons + 1] = ref end

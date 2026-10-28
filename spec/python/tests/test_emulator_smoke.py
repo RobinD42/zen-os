@@ -195,7 +195,6 @@ def test_reader_controls_hide_on_first_library_menu_open() -> None:
     button_order = { 'rotate', 'night', 'cb_1' },
     show_buttons = { rotate = true, night = true, cb_1 = true },
     reader_actions = { rotate = true },
-    hide_reader_actions_in_library = true,
     custom_buttons = {
       { id = 'cb_1', type = 'action', label = 'Reader control',
         action = { suspend = true }, reader_action = true },

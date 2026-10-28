@@ -157,6 +157,12 @@ local function normalize_renamed_keys(cfg)
         cfg.navbar.active_tab_styling = nil
         changed = true
     end
+    -- Reader actions are now always hidden in the library.
+    if type(cfg.quick_settings) == "table"
+            and cfg.quick_settings.hide_reader_actions_in_library ~= nil then
+        cfg.quick_settings.hide_reader_actions_in_library = nil
+        changed = true
+    end
 
     if type(cfg.group_view) == "table"
             and cfg.group_view.mark_new_as_tbr ~= nil then
@@ -925,6 +931,23 @@ local function migrate_page_browser_layout(cfg)
     return changed
 end
 
+-- Book info card fields moved from the launcher store to reader_controls.book_info.
+local function migrate_launcher_book_info(cfg)
+    local ok, Store = pcall(require, "modules/menu/app_launcher/store")
+    if not ok then return false end
+    local launcher = Store.load()
+    if launcher.book_details_order == nil and launcher.book_details_enabled == nil then return false end
+    cfg.reader_controls = type(cfg.reader_controls) == "table" and cfg.reader_controls or {}
+    if cfg.reader_controls.book_info == nil then
+        cfg.reader_controls.book_info = require("modules/menu/reader_controls/book_info").normalize{
+            order = launcher.book_details_order, enabled = launcher.book_details_enabled,
+        }
+    end
+    launcher.book_details_order, launcher.book_details_enabled = nil, nil
+    Store.save(launcher)
+    return true
+end
+
 local function migrate_home_quote_font_size()
     local store = PresetStore.loadStore("home")
     local changed = false
@@ -1296,6 +1319,7 @@ function M.load()
     local migrated_reader_backup = migrate_reader_footer_backup(cfg)
     local migrated_settings_files = migrate_settings_files()
     local migrated_page_browser = migrate_page_browser_layout(cfg)
+    local migrated_book_info = migrate_launcher_book_info(cfg)
     load_reader_theme_settings(cfg)
     local migrated_reader_presets = migrate_reader_preset_zen_settings()
     local migrated_changed_defaults
@@ -1309,7 +1333,7 @@ function M.load()
             or migrated_reader_backup or migrated_qs or migrated_qs_completion or migrated_file_config
             or migrated_settings_files or migrated_reader_presets
             or migrated_changed_defaults or migrated_home_lock
-            or migrated_folder_paths or migrated_rakuyomi or migrated_page_browser
+            or migrated_folder_paths or migrated_rakuyomi or migrated_page_browser or migrated_book_info
             or migrated_brand_paths or migrated_owned or initialized_brand_marker
             or recovered_fresh_config or installed_plugins_changed or has_legacy_config then
         local saved = M.save(cfg, has_legacy_config)

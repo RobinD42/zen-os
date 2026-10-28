@@ -7,6 +7,7 @@ describe("config manager folder-path migration", function()
     local google_key_ensures
     local saved_device
     local saved_footer_presets
+    local launcher_store
 
     local function reload_manager(language)
         _G.G_reader_settings = ZenSpec.memorySettings(language and { language = language } or {})
@@ -51,6 +52,11 @@ describe("config manager folder-path migration", function()
                 return true
             end,
             migrateStores = function() return false end,
+        })
+        launcher_store = {}
+        ZenSpec.replace("modules/menu/app_launcher/store", {
+            load = function() return launcher_store end,
+            save = function(cfg) launcher_store = cfg return cfg end,
         })
         ZenSpec.replace("config/hardcover_token", {
             ensureFile = function() return false end,
@@ -128,6 +134,27 @@ describe("config manager folder-path migration", function()
         assert.is_false(config.metadata.epub_backup)
         assert.are.equal(1, google_key_ensures)
         assert.is_false(config._meta.quickstart_shown_for_version)
+    end)
+
+    it("moves book info fields from the launcher store into reader controls once", function()
+        launcher_store = {
+            entries = {},
+            book_details_order = { "pages", "read_time" },
+            book_details_enabled = { pages = false, pages_today = true },
+        }
+        local config = Manager.load()
+        assert.are.same({
+            "pages", "read_time", "time_remaining", "pages_today", "time_today", "progress",
+        }, config.reader_controls.book_info.order)
+        assert.is_false(config.reader_controls.book_info.enabled.pages)
+        assert.is_true(config.reader_controls.book_info.enabled.pages_today)
+        assert.is_nil(launcher_store.book_details_order)
+        assert.is_nil(launcher_store.book_details_enabled)
+        assert.are.same({}, launcher_store.entries)
+
+        config.reader_controls.book_info.enabled.pages = true
+        Manager.save(config)
+        assert.is_true(Manager.load().reader_controls.book_info.enabled.pages)
     end)
 
     it("adds the pin at the far right once while retaining header choices", function()

@@ -1,25 +1,6 @@
+local BookInfo = require("modules/menu/reader_controls/book_info")
+
 local M = {}
-
-local DEFAULT_DETAIL_ORDER = {
-    "read_time", "time_remaining", "pages_today", "time_today", "pages", "progress",
-}
-local DEFAULT_DETAIL_ENABLED = {
-    read_time = true,
-    time_remaining = true,
-    pages_today = false,
-    time_today = false,
-    pages = true,
-    progress = true,
-}
-
-local function launcher_config(config)
-    return type(config) == "table" and config or {}
-end
-
-function M.isEnabled(config, library_context)
-    return library_context ~= true
-        and launcher_config(config).show_book_details == true
-end
 
 function M.rendererOptions(config)
     config = type(config) == "table" and config or {}
@@ -92,15 +73,10 @@ function M.build(opts)
     local layout = BookSwitcherPage.layout{
         width = width, height = height, config = opts.config,
     }
-    local detail_config = type(opts.launcher_config) == "table"
-        and opts.launcher_config or {}
-    local detail_order = type(detail_config.book_details_order) == "table"
-        and detail_config.book_details_order or DEFAULT_DETAIL_ORDER
-    local detail_enabled = type(detail_config.book_details_enabled) == "table"
-        and detail_config.book_details_enabled or DEFAULT_DETAIL_ENABLED
+    local info = BookInfo.normalize(opts.book_info)
+    local detail_order = info.order
     local function is_detail_enabled(id)
-        if type(detail_enabled[id]) == "boolean" then return detail_enabled[id] end
-        return DEFAULT_DETAIL_ENABLED[id] == true
+        return info.enabled[id] == true
     end
     local padding = layout.padding
     local inner_w = layout.inner_w

@@ -16,7 +16,6 @@
     local Model = require("modules/menu/app_launcher/model")
     local NativeMenu = require("modules/menu/app_launcher/native_menu")
     local PluginScan = require("modules/menu/app_launcher/plugin_scan")
-    local BookDetailsPage = require("modules/menu/app_launcher/book_details_page")
     local BookSwitcherPage = require("modules/menu/app_launcher/book_switcher_page")
     local PagePlan = require("modules/menu/app_launcher/page_plan")
     local ButtonLabelWidth = require("common/ui/button_label_width")
@@ -79,9 +78,8 @@
             and touch_menu.item_table._zen_app_launcher_library == true
     end
 
-    local function entry_hidden_in_context(entry, touch_menu, cfg)
+    local function entry_hidden_in_context(entry, touch_menu)
         return type(entry) == "table"
-            and cfg.hide_reader_actions_in_library == true
             and is_library_launcher(touch_menu)
             and ActionFilter.is_reader_entry(Dispatcher, entry)
     end
@@ -89,8 +87,7 @@
     local function activate_entry(touch_menu, entry)
         if not entry then return end
         if entry.enabled == false then return end
-        local cfg = Model.ensure(zen_plugin.config)
-        if entry_hidden_in_context(entry, touch_menu, cfg) then return end
+        if entry_hidden_in_context(entry, touch_menu) then return end
         if entry._app_back then
             touch_menu._app_launcher_folder_id = nil
             touch_menu._app_launcher_page = 1
@@ -134,18 +131,8 @@
         return reader and reader.document and reader.document.file or nil
     end
 
-    local function open_current_book_details(touch_menu, reader)
-        if not reader then return end
-        touch_menu:closeMenu()
-        SettingsTransition.close()
-        UIManager:nextTick(function()
-            require("modules/reader/book_details").show(
-                reader, { config = zen_plugin.config, plugin = zen_plugin })
-        end)
-    end
-
-    local function entry_available(entry, touch_menu, cfg)
-        if entry_hidden_in_context(entry, touch_menu, cfg) then return false end
+    local function entry_available(entry, touch_menu)
+        if entry_hidden_in_context(entry, touch_menu) then return false end
         if entry.type == "action" then
             return ActionFilter.has_registered_action(Dispatcher, entry.action)
         end
@@ -199,6 +186,10 @@
         if cols > 2 and inner_w / cols < min_cell_w * 0.8 then
             cols = cols - 1
         end
+        -- User override, capped so a 64dp circle plus gutter still fits a cell.
+        if (cfg.columns or 0) >= 2 then
+            cols = math.min(cfg.columns, math.max(2, math.floor(inner_w / Screen:scaleBySize(72))))
+        end
         local cell_h = Screen:scaleBySize(92)
         local row_gap = Screen:scaleBySize(8)
         local circle_size = Screen:scaleBySize(64)
@@ -230,62 +221,39 @@
             }
         end
         for _i, entry in ipairs(Model.enabled_entries(entries)) do
-            if not entry_hidden_in_context(entry, touch_menu, cfg) then
+            if not entry_hidden_in_context(entry, touch_menu) then
                 visible[#visible + 1] = entry
             end
         end
 
-        -- Group visible entries into rows. A break forces a new section that may
-        -- give its first row a title, but never renders a launcher cell itself.
+        -- Group visible entries into rows. Rows fill to `cols`; a break forces a
+        -- new row and may give it a title, but never renders a launcher cell.
         local all_rows = {}
         do
-            local section = {}
-            local section_title
-
-            -- Rows are balanced inside a section, so five entries over four
-            -- columns become 3+2 rather than 4+1: the last row never carries a
-            -- lone icon while the row above it is already full.
-            local function flush_section()
-                local count = #section
-                if count == 0 then
-                    section_title = nil
-                    return
-                end
-                local row_count = math.ceil(count / cols)
-                local base = math.floor(count / row_count)
-                local extra = count % row_count
-                local index = 1
-                for row_index = 1, row_count do
-                    local row = {}
-                    if row_index == 1 then row._break_title = section_title end
-                    local take = base + (row_index <= extra and 1 or 0)
-                    local stop = index + take
-                    while index < stop do
-                        row[#row + 1] = section[index]
-                        index = index + 1
-                    end
-                    all_rows[#all_rows + 1] = row
-                end
-                section = {}
-                section_title = nil
-            end
-
-            for entry_index = 1, #visible do
-                local entry = visible[entry_index]
+            local current_row
+            local force_break = false
+            local break_title
+            for _i, entry in ipairs(visible) do
                 if entry.type == "break" then
-                    flush_section()
-                    section_title = type(entry.label) == "string" and entry.label:match("%S")
+                    force_break = true
+                    break_title = type(entry.label) == "string" and entry.label:match("%S")
                         and entry.label or nil
                 else
-                    section[#section + 1] = entry
+                    if not current_row or #current_row >= cols or force_break then
+                        current_row = {}
+                        current_row._break_title = break_title
+                        all_rows[#all_rows + 1] = current_row
+                    end
+                    current_row[#current_row + 1] = entry
+                    force_break = false
+                    break_title = nil
                 end
             end
-            flush_section()
         end
 
-        -- Size every cell off the longest row (across all pages) so a short,
-        -- balanced or forced-break row doesn't stretch its icons wider than a
-        -- full row, and every row shares one pitch.
+        -- Size every cell off the longest row (across all pages) so a short or
+        -- forced-break row doesn't stretch its icons wider than a full row, and
+        -- every row shares one pitch.
         local max_row_len = 0
         for _i, row in ipairs(all_rows) do
             if #row > max_row_len then max_row_len = #row end
@@ -353,7 +321,6 @@
 
         local page_spec = page_plan[page] or { kind = "buttons", index = 1 }
         local is_switcher_page = page_spec.kind == "book_switcher"
-        local is_book_details_page = page_spec.kind == "book_details"
         local button_page = page_spec.index or 1
 
         local page_rows = page_spec.kind == "buttons" and button_pages[button_page] or {}
@@ -376,24 +343,6 @@
             }
             refs.buttons = switcher_refs.buttons
             refs.layout_rows = switcher_refs.layout_rows
-            set_page_refs()
-            return panel
-        end
-
-        if is_book_details_page then
-            local reader = current_reader(touch_menu)
-            local panel, details_refs = BookDetailsPage.build{
-                width = panel_width,
-                height = panel_height,
-                config = zen_plugin.config,
-                launcher_config = cfg,
-                ui = reader,
-                open_details = function()
-                    open_current_book_details(touch_menu, reader)
-                end,
-            }
-            refs.buttons = details_refs.buttons
-            refs.layout_rows = details_refs.layout_rows
             set_page_refs()
             return panel
         end
@@ -450,7 +399,7 @@
             for _j, entry in ipairs(row_entries) do
                 row_counts[#rows] = row_counts[#rows] + 1
                 local dim = not entry._app_back
-                    and (not entry_available(entry, touch_menu, cfg) or entry_disabled(entry))
+                    and (not entry_available(entry, touch_menu) or entry_disabled(entry))
                 local quick_setting_id = entry.quick_setting_id
                 local controls = entry.type == "quick_setting"
                     and rawget(_G, "__ZEN_UI_QUICK_SETTINGS") or nil
