@@ -117,7 +117,7 @@ function Drawer:init()
     self.landscape = self.dimen.w > self.dimen.h
     self.side_margin = self.footnote and Screen:scaleBySize(8) or 0
     self.width = (self.landscape and math.floor(self.dimen.w / 2) or self.dimen.w) - 2 * self.side_margin
-    self.height = self.landscape and self.dimen.h or math.floor(self.dimen.h / 2)
+    self.height = self.landscape and self.dimen.h or math.floor(self.dimen.h * 0.4)
     if not self.footnote then
         self.width, self.height = math.floor(self.dimen.w * 0.7), math.floor(self.dimen.h * 0.7)
     end
@@ -160,7 +160,10 @@ function Drawer:init()
         -- A painted page background fills MuPDF's bounding box, so measure first.
         local short = not self.landscape and self.htmlwidget:getSinglePageHeight()
         if short then
-            self.height = math.max(math.ceil(2 * source.default_font_size * 1.3), short) + vertical_inset
+            -- Used bbox stops at glyph ink; pad for last-line descent so relayout stays one page.
+            short = short + math.ceil(source.default_font_size * 0.5)
+            self.height = math.min(self.height,
+                math.max(math.ceil(2 * source.default_font_size * 1.3), short) + vertical_inset)
             self.body_height = self.height - vertical_inset
         end
         if short or background ~= "#ffffff" or self.foreground ~= Blitbuffer.COLOR_BLACK then
