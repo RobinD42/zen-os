@@ -32,6 +32,7 @@ return function(plugin)
     local VerticalGroup = require("ui/widget/verticalgroup")
     local VerticalSpan = require("ui/widget/verticalspan")
     local TextWidget = require("ui/widget/textwidget")
+    local TextBoxWidget = require("ui/widget/textboxwidget")
     local LineWidget = require("ui/widget/linewidget")
     local Geom = require("ui/geometry")
     local BD = require("ui/bidi")
@@ -648,6 +649,8 @@ return function(plugin)
         local value_space = embedded and value_width + gap or 0
         local available = w - pad * 3 - side * 2 - gap * 2 - more_width - value_space
         label_width = math.min(label_width, math.max(0, available - Screen:scaleBySize(90)))
+        -- Long (translated) labels wrap instead of squeezing every control in the section.
+        if embedded then label_width = math.min(label_width, math.floor((w - pad * 2) / 3)) end
         local slider_width = available - label_width
         local controls_width = slider_width + side * 2 + gap * 2
         local step_insets = {}
@@ -657,15 +660,22 @@ return function(plugin)
             step_insets[i] = i == 1 and math.floor(inset) or math.ceil(inset)
             step:free()
         end
-        local function setting_row(row, controls, layout)
+        local function setting_row(row, controls, layout, fill)
             local label = row.label
             if embedded then
-                label:setMaxWidth(label_width)
-                local row_height = math.max(Screen:scaleBySize(40), controls:getSize().h)
+                local line_h = label:getSize().h
+                if label:getSize().w > label_width then
+                    local text, face = label.text, label.face
+                    label:free()
+                    label = TextBoxWidget:new{ text = text, face = face, width = label_width }
+                    row.label = label
+                end
+                local row_height = math.max(Screen:scaleBySize(40), controls:getSize().h, label:getSize().h)
                 local title = LeftContainer:new{ dimen = Geom:new{ w = label_width, h = row_height }, label }
                 local line = HorizontalGroup:new{ align = "center", title,
                     HorizontalSpan:new{ width = pad }, controls }
-                if value_space > 0 then
+                -- fill: controls already span the value/more columns.
+                if value_space > 0 and not fill then
                     line[#line + 1] = HorizontalSpan:new{ width = gap }
                     if row.number_box then
                         row.number_box.dimen.w = value_width
@@ -675,9 +685,9 @@ return function(plugin)
                         line[#line + 1] = HorizontalSpan:new{ width = value_width }
                     end
                 end
-                if more_width > 0 then
+                if more_width > 0 and (row.more or not fill) then
                     line[#line + 1] = row.more and icon_button("more_vertical", row.more, layout,
-                        label:getSize().h) or HorizontalSpan:new{ width = more_width }
+                        line_h) or HorizontalSpan:new{ width = more_width }
                     if row.more then layout[#layout]._reader_setting = row.name .. "_more" end
                 end
                 return FrameContainer:new{ bordersize = 0, padding = 0,
@@ -700,8 +710,9 @@ return function(plugin)
                 padding_top = row.slider and 0 or pad, padding_bottom = row.slider and 0 or pad, line }, title
         end
         local function tab_row(row, items, selected, layout, icons)
+            local fill = embedded and value_space + (row.more and 0 or more_width) or 0
             local selection = ZenTabBar:new{ items = items, selected = selected,
-                width = controls_width - step_insets[1] - step_insets[2],
+                width = controls_width - step_insets[1] - step_insets[2] + fill,
                 icon_size = Screen:scaleBySize(32), font_size = 16, padding_h = Screen:scaleBySize(4),
                 cell_height = Screen:scaleBySize(embedded and 36 or (icons and 48 or 32)), focusable = true }
             for i, cell in ipairs(selection.cells) do
@@ -716,7 +727,7 @@ return function(plugin)
             elseif more_width > 0 and not embedded then
                 controls[#controls + 1] = HorizontalSpan:new{ width = more_width }
             end
-            return setting_row(row, controls, layout)
+            return setting_row(row, controls, layout, embedded)
         end
         for _i, row in ipairs(descriptors) do
             local layout, widget = {}
@@ -808,7 +819,7 @@ return function(plugin)
                 end
                 local wrapper, label_box = setting_row(row, track_row, layout)
                 widget = SliderRow:new{ slider = slider, step = advance_step, _reader_setting = row.name,
-                    label = label, label_box = label_box, number = row.number, number_box = row.number_box, wrapper }
+                    label = row.label, label_box = label_box, number = row.number, number_box = row.number_box, wrapper }
                 track(widget, nil, row.hold, layout)
                 refs.sliders[#refs.sliders + 1] = { slider = slider, cancel = cancel }
             elseif row.presets then
