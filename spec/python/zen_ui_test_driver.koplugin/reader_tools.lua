@@ -1232,6 +1232,8 @@ function M.reference_action(params)
     local References = require("modules/reader/references")
     local state = ui._zen_references
     local drawer = state and state.drawer
+    -- Synthetic taps land instantly; skip the link double-tap guard.
+    if drawer then drawer.tap_guard_until = nil end
     local browser = page_browser()
     local action = params.action
     local navigation_updates, top_menu_open

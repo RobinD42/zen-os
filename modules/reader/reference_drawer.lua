@@ -216,10 +216,10 @@ function Drawer:init()
         self.footnote:free()
         self.footnote[1] = nil
         self.footnote.htmlwidget = self.htmlwidget
+        -- Swallow the second tap of an accidental double tap on the link.
+        self.tap_guard_until = time.now() + time.ms(G_reader_settings:readSetting("ges_double_tap_interval_ms") or 300)
     end
     state.drawer = self
-    -- Swallow the second tap of an accidental double tap on the link.
-    self.tap_guard_until = time.now() + time.ms(G_reader_settings:readSetting("ges_double_tap_interval_ms") or 300)
 end
 
 function Drawer:button(text, callback, width, icon, rotation, align, padding)
