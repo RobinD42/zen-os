@@ -92,4 +92,27 @@ describe("Unified Zen title style", function()
         assert.are.equal("custom", modal.title_face)
         assert.is_nil(modal.title_widget.bold)
     end)
+
+    it("restores tap feedback on stock close buttons", function()
+        local TitleBar = {
+            init = function(self)
+                if self.close_callback then self.right_icon_allow_flash = false end
+                self.right_button = { allow_flash = self.right_icon_allow_flash }
+            end,
+        }
+        ZenSpec.replace("device", {
+            screen = { getWidth = function() return 600 end },
+        })
+        ZenSpec.replace("ui/widget/titlebar", TitleBar)
+        ZenSpec.replace("common/ui/zen_title_style", { applyToStockTitleBar = function() end })
+        ZenSpec.unload("modules/global/patches/unified_title_style")
+        require("modules/global/patches/unified_title_style")()
+
+        for _i, width in ipairs({ 600, 500 }) do
+            local title_bar = { width = width, close_callback = function() end }
+            TitleBar.init(title_bar)
+            assert.is_true(title_bar.right_icon_allow_flash)
+            assert.is_true(title_bar.right_button.allow_flash)
+        end
+    end)
 end)

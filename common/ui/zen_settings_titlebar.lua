@@ -362,7 +362,6 @@ function ZenSettingsTitleBar:init()
         padding_right = root_icon_inset_end,
         padding_bottom = root_icon_inset_end,
         padding_left = root_icon_inset_start,
-        allow_flash = false,
         show_parent = self.show_parent,
     }
     self.root_icon.skip_paint = self.back_visible == true

@@ -150,7 +150,6 @@ describe("settings title bar", function()
                 title_bar.search_button, title_bar.close_button }) do
             assert.is_true(button.allow_flash)
         end
-        assert.is_false(title_bar.root_icon.allow_flash)
     end)
 
     it("inherits shared feedback for styled header actions", function()

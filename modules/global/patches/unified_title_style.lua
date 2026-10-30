@@ -12,6 +12,11 @@ local function apply_unified_title_style()
         if use_zen_style then TitleStyle.applyToStockTitleBar(self) end
         local result = orig_init(self, ...)
         if use_zen_style and self.title_widget then self.title_widget.bold = true end
+        -- Stock forces allow_flash = false on close buttons.
+        if self.close_callback and self.right_button then
+            self.right_icon_allow_flash = true
+            self.right_button.allow_flash = true
+        end
         return result
     end
 end
