@@ -1815,6 +1815,7 @@ local function apply_page_browser()
                 UIManager:show(dialog)
             end)
             local search_button = make_button(utils.resolveIcon(_icons_dir, "quick_search"), function()
+                if pbw.ui.search then pbw.ui.search._zen_page_browser = pbw end -- cleared in onClose
                 pbw.ui:handleEvent(Event:new("ShowFulltextSearchInput"))
             end)
             local skip_left_btn = make_button(resolve_stock_icon("chevron.left"), function() pbw:onScrollPageUp() end)
@@ -2693,6 +2694,8 @@ local function apply_page_browser()
                 end
             end
             self._zen_closed = true
+            local search = self.ui and self.ui.search
+            if search and search._zen_page_browser == self then search._zen_page_browser = nil end
             if self._zen_annotations then self._zen_annotations:close(); self._zen_annotations = nil end
             set_settings_preview(self.ui and self.ui.thumbnail, nil)
             if self._zen_status_clock_bound then
@@ -2928,6 +2931,31 @@ local function apply_page_browser()
                 backward_text, forward_text = forward_text, backward_text
             end
             local arrow_width = Screen_s:scaleBySize(56)
+            local search_btn = {
+                text             = SEARCH_ICON .. " " .. _("Search"),
+                is_enter_default = true,
+                callback         = function()
+                    self:searchCallback()
+                end,
+            }
+            -- From page browser: results list only; prev/next would jump behind it.
+            local button_row = self._zen_page_browser and { search_btn } or {
+                {
+                    text = backward_text,
+                    width = arrow_width,
+                    callback = function()
+                        self:searchCallback(1)
+                    end,
+                },
+                search_btn,
+                {
+                    text = forward_text,
+                    width = arrow_width,
+                    callback = function()
+                        self:searchCallback(0)
+                    end,
+                },
+            }
             self.input_dialog = InputDialog:new{
                 title = _("Search Book"),
                 width = math.floor(math.min(Screen_s:getWidth(), Screen_s:getHeight()) * 0.9),
@@ -2935,31 +2963,7 @@ local function apply_page_browser()
                     or self.last_search_text
                     or (self.ui.doc_settings
                         and self.ui.doc_settings:readSetting("fulltext_search_last_search_text")),
-                buttons = {
-                    {
-                        {
-                            text = backward_text,
-                            width = arrow_width,
-                            callback = function()
-                                self:searchCallback(1)
-                            end,
-                        },
-                        {
-                            text             = SEARCH_ICON .. " " .. _("Search"),
-                            is_enter_default = true,
-                            callback         = function()
-                                self:searchCallback()
-                            end,
-                        },
-                        {
-                            text = forward_text,
-                            width = arrow_width,
-                            callback = function()
-                                self:searchCallback(0)
-                            end,
-                        },
-                    },
-                },
+                buttons = { button_row },
             }
             enable_search_dialog_close(self.input_dialog)
             -- Always case insensitive, whole-word via regex
@@ -3133,6 +3137,15 @@ local function apply_page_browser()
             if not menu or not UIManager:isWidgetShown(menu) then return end
 
             enable_search_results_focus(menu)
+
+            local page_browser = self._zen_page_browser
+            if page_browser and menu.onMenuChoice then
+                local orig_choice = menu.onMenuChoice
+                menu.onMenuChoice = function(...)
+                    page_browser:onClose(true)
+                    return orig_choice(...)
+                end
+            end
 
             local real_h = Screen_s:getHeight()
 

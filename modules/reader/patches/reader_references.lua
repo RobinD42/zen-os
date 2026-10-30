@@ -20,6 +20,40 @@ return function()
             return true
         end
     end
+    local ReaderRolling = require("apps/reader/modules/readerrolling")
+    if not ReaderRolling._zen_link_marker_patched then
+        ReaderRolling._zen_link_marker_patched = true
+        local UIManager = require("ui/uimanager")
+        local goto_xp = ReaderRolling.onGotoXPointer
+        ReaderRolling.onGotoXPointer = function(self, xp, marker_xp)
+            local setting = G_reader_settings:readSetting("followed_link_marker")
+            if not marker_xp or setting == false or not References.enabled(self.ui) then
+                return goto_xp(self, xp, marker_xp)
+            end
+            -- Flash the link like a tap does instead of the stock margin square.
+            local result = goto_xp(self, xp)
+            local document = self.ui.document
+            if self._zen_unmark then UIManager:unschedule(self._zen_unmark) end
+            document:highlightXPointer()
+            if not document:highlightXPointer(marker_xp) then return result end
+            if setting == true then return result end
+            self._zen_unmark = function()
+                self._zen_unmark = nil
+                -- A footnote preview opened meanwhile owns the link highlight.
+                local state = self.ui._zen_references
+                if state and state.drawer then return end
+                document:highlightXPointer()
+                UIManager:setDirty(self.view.dialog, "ui")
+            end
+            UIManager:scheduleIn(tonumber(setting) or 1, self._zen_unmark)
+            return result
+        end
+        local close_rolling = ReaderRolling.onCloseDocument
+        ReaderRolling.onCloseDocument = function(self, ...)
+            if self._zen_unmark then UIManager:unschedule(self._zen_unmark); self._zen_unmark = nil end
+            if close_rolling then return close_rolling(self, ...) end
+        end
+    end
     local ReaderLink = require("apps/reader/modules/readerlink")
     if ReaderLink._zen_references_patched then return end
     ReaderLink._zen_references_patched = true

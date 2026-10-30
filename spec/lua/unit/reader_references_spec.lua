@@ -624,8 +624,10 @@ describe("native footnote adapter", function()
         "apps/reader/modules/readerlink", "apps/reader/modules/readerdictionary",
         "ui/widget/footnotewidget", "modules/reader/patches/reader_references",
         "modules/reader/pin_footer", "apps/reader/modules/readergoto",
-        "apps/reader/modules/readerhighlight", "ui/widget/imageviewer", "device" }
-    local saved, saved_settings, Footnote, ReaderLink, ReaderHighlight, ImageViewer, ui, enabled
+        "apps/reader/modules/readerhighlight", "ui/widget/imageviewer", "device",
+        "apps/reader/modules/readerrolling", "ui/uimanager" }
+    local saved, saved_settings, Footnote, ReaderLink, ReaderHighlight, ImageViewer, ReaderRolling, ui, enabled
+    local scheduled
 
     before_each(function()
         saved = {}
@@ -666,6 +668,17 @@ describe("native footnote adapter", function()
         ZenSpec.replace("apps/reader/modules/readerhighlight", ReaderHighlight)
         ZenSpec.replace("ui/widget/imageviewer", ImageViewer)
         ZenSpec.replace("ui/widget/footnotewidget", Footnote)
+        ReaderRolling = { onGotoXPointer = function(self, xp, marker_xp)
+            self.went, self.marker = xp, marker_xp
+            return true
+        end }
+        ZenSpec.replace("apps/reader/modules/readerrolling", ReaderRolling)
+        scheduled = {}
+        ZenSpec.replace("ui/uimanager", {
+            scheduleIn = function(_self, delay, callback) scheduled[callback] = delay end,
+            unschedule = function(_self, callback) scheduled[callback] = nil end,
+            setDirty = function() end,
+        })
         ZenSpec.unload("modules/reader/patches/reader_references")
         require("modules/reader/patches/reader_references")()
     end)
@@ -728,6 +741,35 @@ describe("native footnote adapter", function()
         assert.equals(factory, ImageViewer.new)
         enabled = false
         assert.is_true(ReaderHighlight.onHold(highlight, nil, {}).native)
+    end)
+
+    it("flashes the followed link instead of the stock margin marker", function()
+        local highlighted = {}
+        ui.document = { highlightXPointer = function(_self, xp)
+            if xp then highlighted[#highlighted + 1] = xp else highlighted = {} end
+            return true
+        end }
+        local rolling = { ui = ui, view = {} }
+        assert.is_true(ReaderRolling.onGotoXPointer(rolling, "top", "link"))
+        assert.equals("top", rolling.went)
+        assert.is_nil(rolling.marker)
+        assert.same({ "link" }, highlighted)
+        assert.equals(1, scheduled[rolling._zen_unmark])
+        ui._zen_references = { drawer = {} }
+        rolling._zen_unmark()
+        assert.same({ "link" }, highlighted)
+        ui._zen_references = nil
+        ReaderRolling.onGotoXPointer(rolling, "top", "link")
+        rolling._zen_unmark()
+        assert.same({}, highlighted)
+        G_reader_settings:saveSetting("followed_link_marker", false)
+        ReaderRolling.onGotoXPointer(rolling, "top", "link")
+        assert.equals("link", rolling.marker)
+        G_reader_settings:delSetting("followed_link_marker")
+        enabled = false
+        ReaderRolling.onGotoXPointer(rolling, "top", "other")
+        assert.equals("other", rolling.marker)
+        assert.same({}, highlighted)
     end)
 
     it("applies popup defaults when a book opens", function()

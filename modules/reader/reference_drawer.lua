@@ -24,6 +24,7 @@ local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
 local ZenPager = require("common/ui/zen_pager")
 local _ = require("gettext")
+local time = require("ui/time")
 local T = require("ffi/util").template
 local Screen = Device.screen
 local utils = require("common/utils")
@@ -145,16 +146,21 @@ function Drawer:init()
     if self.footnote then
         local source = self.footnote.htmlwidget
         local background = string.format("#%02x%02x%02x", self.background:getR(), self.background:getG(), self.background:getB())
-        local css = source.css .. string.format(
+        local scroll_bar, scroll_span = Screen:scaleBySize(4), Screen:scaleBySize(4)
+        -- Replace stock doc-aligned left margin so both text edges sit equally inset.
+        local inset = Screen:scaleBySize(14)
+        local base_css = source.css .. string.format("\n@page { margin: 0 %dpx 0 %dpx; }",
+            inset - self.right_padding - scroll_bar - scroll_span, inset - self.padding)
+        local css = base_css .. string.format(
             "\n@page { background-color: %s; }\nhtml, body { background-color: %s !important; }"
                 .. "\nbody, body * { color: #%02x%02x%02x !important; }",
             background, background,
             self.foreground:getR(), self.foreground:getG(), self.foreground:getB())
         self.htmlwidget = ScrollHtmlWidget:new{
-            html_body = source.html_body, is_xhtml = source.is_xhtml, css = source.css,
+            html_body = source.html_body, is_xhtml = source.is_xhtml, css = base_css,
             default_font_size = source.default_font_size,
             width = self.body_width, height = self.body_height,
-            scroll_bar_width = Screen:scaleBySize(4), text_scroll_span = Screen:scaleBySize(4),
+            scroll_bar_width = scroll_bar, text_scroll_span = scroll_span,
             dialog = self, highlight_text_selection = source.highlight_text_selection,
         }
         -- A painted page background fills MuPDF's bounding box, so measure first.
@@ -212,6 +218,8 @@ function Drawer:init()
         self.footnote.htmlwidget = self.htmlwidget
     end
     state.drawer = self
+    -- Swallow the second tap of an accidental double tap on the link.
+    self.tap_guard_until = time.now() + time.ms(G_reader_settings:readSetting("ges_double_tap_interval_ms") or 300)
 end
 
 function Drawer:button(text, callback, width, icon, rotation, align, padding)
@@ -526,6 +534,7 @@ function Drawer:onSwipe(_arg, ges)
 end
 
 function Drawer:onTapClose(_arg, ges)
+    if self.tap_guard_until and time.now() < self.tap_guard_until then return true end
     if not self.frame.dimen:contains(ges.pos) then
         if not self.footnote and TopMenu.handleTap(nil, ges) then return true end
         return self:onClose()

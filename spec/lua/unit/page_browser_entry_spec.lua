@@ -1784,6 +1784,52 @@ describe("page browser entry", function()
         expect(closes == 3)
     end)
 
+    it("opens page-browser searches as a results list that closes the browser on pick", function()
+        local order = {}
+        local page_browser = { onClose = function(_, all) table.insert(order, all and "close_all" or "close") end }
+        local menu
+        local ReaderSearch = {
+            _zen_page_browser = page_browser,
+            onShowFindAllResults = function(self)
+                menu = {
+                    dimen = { h = 800 }, [1] = {},
+                    onMenuChoice = function(_, item) table.insert(order, "goto:" .. item.idx) end,
+                }
+                self.result_menu = menu
+            end,
+        }
+        local dialog
+        ZenSpec.replace("apps/reader/modules/readersearch", ReaderSearch)
+        ZenSpec.replace("apps/reader/modules/readermenu", { initGesListener = function() end })
+        ZenSpec.replace("apps/reader/modules/readerconfig", { onSwipeShowConfigMenu = function() end })
+        ZenSpec.replace("ui/widget/inputdialog", {
+            onTap = function() end,
+            new = function(_, spec)
+                dialog = spec
+                spec.title_bar = {}
+                spec.onShowKeyboard = function() end
+                return spec
+            end,
+        })
+        ZenSpec.replace("ui/uimanager", {
+            show = function() end,
+            isWidgetShown = function(_, widget) return widget == menu end,
+            scheduleIn = function() end,
+            setDirty = function() end,
+            unschedule = function() end,
+        })
+        ZenSpec.replace("common/ui/zen_modal_close", { installDialog = function() end })
+        _G.__ZEN_UI_PLUGIN = { config = { features = { page_browser = false } } }
+        require("modules/reader/patches/page_browser")()
+
+        ReaderSearch:onShowFulltextSearchInput("needle")
+        expect(#dialog.buttons[1] == 1 and dialog.buttons[1][1].is_enter_default == true)
+
+        ReaderSearch:onShowFindAllResults(true)
+        menu:onMenuChoice({ idx = 3 })
+        expect(order[1] == "close_all" and order[2] == "goto:3")
+    end)
+
     it("makes both book-search result header buttons reachable on non-touch devices", function()
         local left_button = { name = "menu" }
         local right_button = { name = "close" }
