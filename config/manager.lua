@@ -1221,6 +1221,20 @@ local function migrate_changed_defaults(cfg)
         changed = true
     end
 
+    -- Monochrome active tab renders gray from partial fill opacity or custom colors; force solid black once.
+    if cfg._meta.navbar_bw_fill_solid_migrated ~= true then
+        local Device = require("device")
+        if Device.screen and not require("common/ui/accent").isSupported()
+                and type(cfg.navbar) == "table" then
+            cfg.navbar.active_tab_color = { 0, 0, 0 }
+            cfg.navbar.outlined_color = { 0, 0, 0 }
+            cfg.navbar.filled_background_color = { 0, 0, 0 }
+            cfg.navbar.filled_background_opacity = 100
+        end
+        cfg._meta.navbar_bw_fill_solid_migrated = true
+        changed = true
+    end
+
     -- One-time seed of home strip book titles from the mosaic "Show title below
     -- cover" setting. After this runs once, strip titles are user-owned and the
     -- mosaic setting no longer overrides them.

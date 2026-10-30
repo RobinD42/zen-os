@@ -685,6 +685,36 @@ describe("config manager folder-path migration", function()
         assert.are.equal("default", Manager.load().library_font.font_face)
     end)
 
+    it("forces the navbar active tab solid black once on monochrome screens", function()
+        ZenSpec.replace("device", { screen = { isColorScreen = function() return false end } })
+        settings_file.data = { navbar = {
+            filled_background_opacity = 40,
+            filled_background_color = { 128, 128, 128 },
+            active_tab_color = { 90, 90, 90 },
+            outlined_color = { 12, 34, 56 },
+        } }
+
+        local config = Manager.load()
+
+        assert.are.equal(100, config.navbar.filled_background_opacity)
+        assert.are.same({ 0, 0, 0 }, config.navbar.filled_background_color)
+        assert.are.same({ 0, 0, 0 }, config.navbar.active_tab_color)
+        assert.are.same({ 0, 0, 0 }, config.navbar.outlined_color)
+        assert.is_true(config._meta.navbar_bw_fill_solid_migrated)
+
+        config.navbar.filled_background_opacity = 60
+        Manager.save(config)
+
+        assert.are.equal(60, Manager.load().navbar.filled_background_opacity)
+    end)
+
+    it("keeps navbar fill opacity on color screens", function()
+        ZenSpec.replace("device", { screen = { isColorScreen = function() return true end } })
+        settings_file.data = { navbar = { filled_background_opacity = 60 } }
+
+        assert.are.equal(60, Manager.load().navbar.filled_background_opacity)
+    end)
+
     it("removes the end-of-book default source while preserving tab order", function()
         local order = { "to_be_read", "continue", "author" }
         settings_file.data = { end_book = { strip_source = "author",
