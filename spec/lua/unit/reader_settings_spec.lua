@@ -593,14 +593,14 @@ describe("reader settings", function()
         }
         local items = ReaderSettings.build({
             config = config,
-            plugin = { saveConfig = function() saved = saved + 1 end },
+            plugin = {
+                config = config,
+                saveConfig = function() saved = saved + 1 end,
+            },
             save_and_apply = function() end,
             apply_feature = function() end,
         })
-        local themes
-        for _i, item in ipairs(items) do
-            if item.text == "Reader themes" then themes = item end
-        end
+        local themes = find_item(items, "Reader themes")
         local touchmenu = {
             onMenuSelect = function(self, item) self.opened_item = item end,
         }
@@ -674,10 +674,7 @@ describe("reader settings", function()
             plugin = { saveConfig = function() end },
             save_and_apply = function() end,
         })
-        local reader_themes
-        for _i, item in ipairs(items) do
-            if item.text == "Reader themes" then reader_themes = item end
-        end
+        local reader_themes = find_item(items, "Reader themes")
 
         for _i, mode_item in ipairs(reader_themes.sub_item_table) do
             if mode_item.text == "Dark mode" or mode_item.text == "Light mode" then
