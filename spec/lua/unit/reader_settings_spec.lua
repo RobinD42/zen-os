@@ -602,7 +602,15 @@ describe("reader settings", function()
         })
         local themes = find_item(items, "Reader themes")
         local touchmenu = {
-            onMenuSelect = function(self, item) self.opened_item = item end,
+            item_table_stack = { { text = "Reader themes" } },
+            onMenuSelect = function(self, item)
+                self.opened_item = item
+                table.insert(self.item_table_stack, self.item_table)
+                self.item_table = item.sub_item_table
+            end,
+            backToUpperMenu = function(self)
+                self.item_table = table.remove(self.item_table_stack)
+            end,
         }
         local custom_items = themes.sub_item_table[3].sub_item_table_func()
         local builtin_copy
@@ -610,6 +618,8 @@ describe("reader settings", function()
             if item.text == "Copy theme" then builtin_copy = item end
         end
         assert.is_table(builtin_copy)
+        touchmenu.item_table = custom_items
+        touchmenu:onMenuSelect(custom_items[2])
         builtin_copy.callback(touchmenu)
         assert.are.equal("Copy theme", shown_dialog.title)
         dialog_input = "   "
@@ -627,6 +637,14 @@ describe("reader settings", function()
         }, builtin_copy_theme)
         assert.are.equal("dark_warm_gray", config.reader_themes.dark_mode)
         assert.are.equal("Warm copy", touchmenu.opened_item.text_func())
+        assert.are.equal(2, #touchmenu.item_table_stack)
+        touchmenu:backToUpperMenu()
+        assert.are.equal(1, #touchmenu.item_table_stack)
+        local found_warm_copy = false
+        for _i, item in ipairs(touchmenu.item_table) do
+            if item.text_func and item.text_func() == "Warm copy" then found_warm_copy = true end
+        end
+        assert.is_true(found_warm_copy)
 
         custom_items = themes.sub_item_table[3].sub_item_table_func()
         local paper_item
@@ -637,6 +655,8 @@ describe("reader settings", function()
         for _i, item in ipairs(paper_item.sub_item_table) do
             if item.text == "Copy theme" then custom_copy = item end
         end
+        touchmenu.item_table = custom_items
+        touchmenu:onMenuSelect(paper_item)
         custom_copy.callback(touchmenu)
         dialog_input = "Paper variation"
         shown_dialog.buttons[1][2].callback()
@@ -651,6 +671,14 @@ describe("reader settings", function()
         assert.are_not.equal(config.reader_themes.custom.paper, paper_copy)
         paper_copy.text = "#000000"
         assert.are.equal("#30251b", config.reader_themes.custom.paper.text)
+        assert.are.equal(2, #touchmenu.item_table_stack)
+        touchmenu:backToUpperMenu()
+        assert.are.equal(1, #touchmenu.item_table_stack)
+        local found_paper_variation = false
+        for _i, item in ipairs(touchmenu.item_table) do
+            if item.text_func and item.text_func() == "Paper variation" then found_paper_variation = true end
+        end
+        assert.is_true(found_paper_variation)
         assert.are.equal(2, saved)
     end)
 

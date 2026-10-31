@@ -1051,6 +1051,10 @@ function M.build(ctx)
                             save_themes()
                             if touchmenu_instance then
                                 local parent_items, edit_item = build_custom_theme_items(new_key)
+                                local stack = touchmenu_instance.item_table_stack
+                                if type(stack) == "table" and #stack > 0 then
+                                    table.remove(stack)
+                                end
                                 touchmenu_instance.item_table = parent_items
                                 touchmenu_instance:onMenuSelect(edit_item)
                             end
