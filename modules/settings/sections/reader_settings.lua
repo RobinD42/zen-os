@@ -25,6 +25,7 @@ local icons = require("common/inline_icon_map")
 local IconItem = require("common/ui/icon_menu_item")
 local Screen = require("device").screen
 local Size = require("ui/size")
+local ColorTextWidget = require("common/ui/color_text_widget")
 local TextWidget = require("ui/widget/textwidget")
 local Bluetooth = require("modules/menu/bluetooth/bluetooth")
 local BottomSwipe = require("common/reader_bottom_swipe")
@@ -845,7 +846,7 @@ function M.build(ctx)
                         w = preview_width - 2 * (preview_padding + preview_border),
                         h = preview_height - 2 * (preview_padding + preview_border),
                     },
-                    TextWidget:new{
+                    ColorTextWidget:new{
                         text = "Aa Bb 123",
                         max_width = preview_width - 2 * (preview_padding + preview_border),
                         face = face,
@@ -1128,7 +1129,7 @@ function M.build(ctx)
                                 w = math.max(1, width - 2 * padding),
                                 h = height,
                             },
-                            TextWidget:new{
+                            ColorTextWidget:new{
                                 text = sample_line,
                                 max_width = math.max(1, width - 2 * padding),
                                 face = preview_face,
